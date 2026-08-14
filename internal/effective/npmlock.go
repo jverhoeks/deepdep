@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 
@@ -31,15 +32,17 @@ type npmLockDoc struct {
 
 func (NPMLock) Resolve(_ context.Context, s source.Source) ([]Instance, error) {
 	var (
-		doc   *npmLockDoc
-		fatal error
+		doc    *npmLockDoc
+		prefix string
+		fatal  error
 	)
-	err := s.WalkIf(func(p string) bool { return p == "package-lock.json" }, func(f source.File) error {
+	err := s.WalkIf(func(p string) bool { return path.Base(p) == "package-lock.json" }, func(f source.File) error {
 		var d npmLockDoc
 		if err := json.Unmarshal(f.Data, &d); err != nil {
 			fatal = fmt.Errorf("%s: %w", f.Path, err)
 			return nil
 		}
+		prefix = path.Dir(f.Path)
 		doc = &d
 		return nil
 	})
@@ -77,8 +80,12 @@ func (NPMLock) Resolve(_ context.Context, s source.Source) ([]Instance, error) {
 		if err != nil {
 			return nil, err
 		}
+		scoped := loc
+		if prefix != "." && prefix != "" {
+			scoped = prefix + "/" + loc
+		}
 		out = append(out, Instance{
-			Locator:       loc,
+			Locator:       scoped,
 			NodeID:        id,
 			ParentLocator: parentLocator(loc),
 			DerivedFrom:   "lockfile",

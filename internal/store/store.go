@@ -503,3 +503,59 @@ func (s *Store) RefHistory(ctx context.Context, refPURL string) ([]RefObservatio
 	}
 	return out, rows.Err()
 }
+
+// AuditTargets returns the package versions of a run in the given state, as
+// PURLs ready for an advisory lookup.
+//
+// Defaults to the newest run, because "audit what I just scanned" is the common
+// case and forcing a run id on every invocation is friction with no benefit.
+func (s *Store) AuditTargets(ctx context.Context, runID string, state rollup.State) ([]graph.NodeID, Run, error) {
+	var meta Run
+	if runID == "" {
+		runs, err := s.Runs(ctx, 1)
+		if err != nil {
+			return nil, meta, err
+		}
+		if len(runs) == 0 {
+			return nil, meta, fmt.Errorf("no runs stored")
+		}
+		meta = runs[0]
+	} else {
+		runs, err := s.Runs(ctx, 200)
+		if err != nil {
+			return nil, meta, err
+		}
+		for _, r := range runs {
+			if r.RunID == runID {
+				meta = r
+			}
+		}
+		if meta.RunID == "" {
+			return nil, meta, fmt.Errorf("run %q not found", runID)
+		}
+	}
+
+	q := `SELECT node_id FROM version_rollup WHERE run_id=?`
+	args := []any{meta.RunID}
+	if state != "" {
+		q += ` AND installedness=?`
+		args = append(args, string(state))
+	}
+	q += ` ORDER BY node_id`
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, meta, err
+	}
+	defer rows.Close()
+
+	var out []graph.NodeID
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, meta, err
+		}
+		out = append(out, graph.NodeID(id))
+	}
+	return out, meta, rows.Err()
+}

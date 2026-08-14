@@ -116,9 +116,27 @@ ordinary commit or install, with your credentials, before any review.
 | PyPI | `pyproject.toml`, `requirements*.txt` | PyPI JSON | `uv.lock` |
 | GitHub Actions | workflows | — | — |
 | GitLab CI | `.gitlab-ci.yml`, includes, components | — | — |
+| pnpm | — | — | `pnpm-lock.yaml` |
 
 Everything else in the catalogue — Dockerfile, pre-commit, mise, ansible, Cargo,
 Maven, Helm, Terraform — is detected and reported as a frontier.
+
+## CVE checking
+
+```
+deepdep scan  --mode will --offline .   # index what is installed
+deepdep audit                           # check it against OSV
+```
+
+`audit` checks the **installed** set by default — what is really there — not the
+can-closure, because equating a hypothetical exposure with a real one is the
+mistake this tool exists to avoid. It is bitemporal: `--known-at` replays the
+advisories that existed at an instant, so a stored run can be re-audited against
+any point in time without rescanning.
+
+Two-stage against OSV, which is what the API offers: `querybatch` returns ids
+1000 at a time, then each distinct advisory is fetched once. Packages share
+advisories, so the second stage is far smaller than the first.
 
 ## Design notes
 
@@ -131,6 +149,9 @@ Maven, Helm, Terraform — is detected and reported as a frontier.
   differentially against Python's `packaging` library (644 cases).
 - **Identity is deduplicated, provenance is not.** One node per package version;
   every edge kept. `PathsTo` answers "why is this here?" with every chain.
+- **Advisory counts are never materialised.** They are a function of
+  `known_at`, a query parameter. Storing them would un-bitemporalise the design
+  at the last step.
 - **Bounds are named, never silent.** Depth, node count and timeout all mark
   their frontier with a machine-readable reason.
 

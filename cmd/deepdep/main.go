@@ -14,9 +14,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/jverhoeks/deepdep/internal/advisory"
 	"github.com/jverhoeks/deepdep/internal/cache"
 	"github.com/jverhoeks/deepdep/internal/effective"
 	"github.com/jverhoeks/deepdep/internal/emit"
@@ -44,6 +46,7 @@ func main() {
 
 const usage = `deepdep scan    [flags] <git-url|directory>
 deepdep history [flags] <directory>   when each dependency changed, and to what
+deepdep audit   [flags] [run-id]      check stored packages against OSV advisories
 deepdep tools                         supply-chain surfaces this build recognises
 
   --mode will|can        will: what installs today (lockfile pins, else max-satisfying)
@@ -75,6 +78,8 @@ func run(args []string) ([]byte, error) {
 		return historyCmd(args[1:])
 	case "tools":
 		return toolsCmd()
+	case "audit":
+		return auditCmd(args[1:])
 	case "-h", "--help", "help":
 		return []byte(usage), nil
 	default:
@@ -160,6 +165,145 @@ func orDash(s string) string {
 //
 // The hook group is worth reading first: those files execute code on an ordinary
 // commit or install, with your credentials, before anyone reviews anything.
+// auditCmd checks what a stored run actually installs against OSV.
+//
+// It audits the INSTALLED set by default — what is really there — rather than
+// the can-closure, because those are different questions and mixing them
+// equates a hypothetical exposure with a real one.
+func auditCmd(args []string) ([]byte, error) {
+	fs := flag.NewFlagSet("audit", flag.ContinueOnError)
+	fs.SetOutput(new(bytes.Buffer))
+	var (
+		dbPath     = fs.String("db", defaultDBPath(), "")
+		knownAtStr = fs.String("known-at", "", "")
+		state      = fs.String("state", "installed", "")
+		format     = fs.String("format", "text", "")
+		osvBase    = fs.String("osv", "https://api.osv.dev", "")
+		timeout    = fs.Duration("timeout", 10*time.Minute, "")
+	)
+	if err := fs.Parse(args); err != nil {
+		return nil, err
+	}
+	knownAt, err := parseTime(*knownAtStr)
+	if err != nil {
+		return nil, fmt.Errorf("--known-at: %w", err)
+	}
+	if knownAt.IsZero() {
+		knownAt = time.Now().UTC()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+
+	db, err := store.Open(*dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	runID := ""
+	if fs.NArg() == 1 {
+		runID = fs.Arg(0)
+	}
+	targets, meta, err := db.AuditTargets(ctx, runID, rollup.State(*state))
+	if err != nil {
+		return nil, err
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("no %s packages in run %q; scan first", *state, meta.RunID)
+	}
+
+	findings, err := advisory.New(*osvBase, nil).Check(ctx, targets, knownAt)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if *format == "json" {
+		enc := json.NewEncoder(&buf)
+		enc.SetIndent("", " ")
+		if err := enc.Encode(map[string]any{
+			"run_id": meta.RunID, "ref": meta.Ref, "mode": meta.Mode,
+			"as_of": meta.AsOf, "known_at": knownAt,
+			"state": *state, "checked": len(targets), "findings": findings,
+		}); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+
+	fmt.Fprintf(&buf, "run %s  ref %s  mode %s\n", meta.RunID, short(meta.Ref), meta.Mode)
+	fmt.Fprintf(&buf, "as-of %s   known-at %s\n",
+		meta.AsOf.Format("2006-01-02"), knownAt.Format("2006-01-02"))
+	fmt.Fprintf(&buf, "checked %d %s package versions against OSV\n\n", len(targets), *state)
+
+	if len(findings) == 0 {
+		fmt.Fprintf(&buf, "no known advisories\n")
+		return buf.Bytes(), nil
+	}
+
+	// Worst first: a report read top-down should start with what matters.
+	sort.Slice(findings, func(i, j int) bool {
+		if severityRank(findings[i].Advisory.Severity) != severityRank(findings[j].Advisory.Severity) {
+			return severityRank(findings[i].Advisory.Severity) > severityRank(findings[j].Advisory.Severity)
+		}
+		return findings[i].NodeID < findings[j].NodeID
+	})
+	bySev := map[string]int{}
+	affected := map[graph.NodeID]bool{}
+	for _, f := range findings {
+		bySev[f.Advisory.Severity]++
+		affected[f.NodeID] = true
+	}
+	fmt.Fprintf(&buf, "%d advisories across %d package versions\n", len(findings), len(affected))
+	for _, s := range []string{"CRITICAL", "HIGH", "MODERATE", "LOW", "UNKNOWN"} {
+		if bySev[s] > 0 {
+			fmt.Fprintf(&buf, "  %-9s %d\n", s, bySev[s])
+		}
+	}
+	fmt.Fprintln(&buf)
+	for _, f := range findings {
+		cve := f.Advisory.CVE()
+		if cve == "" {
+			cve = "-"
+		}
+		fmt.Fprintf(&buf, "%-9s %-16s %-18s %-42s %s\n",
+			f.Advisory.Severity, f.Advisory.ID, cve,
+			strings.TrimPrefix(string(f.NodeID), "pkg:"),
+			truncate(f.Advisory.Summary, 60))
+	}
+	return buf.Bytes(), nil
+}
+
+func severityRank(s string) int {
+	switch {
+	case strings.HasPrefix(s, "CRITICAL"):
+		return 4
+	case strings.HasPrefix(s, "HIGH"):
+		return 3
+	case strings.HasPrefix(s, "MODERATE"):
+		return 2
+	case strings.HasPrefix(s, "LOW"):
+		return 1
+	}
+	return 0
+}
+
+func short(s string) string {
+	if len(s) > 8 {
+		return s[:8]
+	}
+	return s
+}
+
+func truncate(s string, n int) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	if len(s) > n {
+		return s[:n-1] + "\u2026"
+	}
+	return s
+}
+
 func toolsCmd() ([]byte, error) {
 	order := []extract.Category{
 		extract.Hook, extract.Manifest, extract.Lockfile,
@@ -288,7 +432,7 @@ func scan(args []string) ([]byte, error) {
 	// A repository can carry several ecosystems at once, so every effective
 	// resolver runs and their instances are merged.
 	var inst []effective.Instance
-	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}} {
+	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}} {
 		got, err := er.Resolve(ctx, src)
 		if err != nil {
 			return nil, err
