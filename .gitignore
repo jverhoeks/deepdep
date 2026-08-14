@@ -1,4 +1,4 @@
-deepdep
+/deepdep
 *.db
 *.db-wal
 *.db-shm
