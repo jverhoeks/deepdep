@@ -155,7 +155,12 @@ type crossCheckResult struct {
 func compareAdvisories(ctx context.Context, osvBase string, targets []graph.NodeID,
 	facts []supply.Fact) (*crossCheckResult, error) {
 
-	findings, err := advisory.New(osvBase, nil).Check(ctx, targets, time.Time{})
+	// knownAt must match what `audit` uses (it defaults to now), not the zero
+	// time. advisory.Check skips the whole bitemporal filter when knownAt is
+	// zero, so a WITHDRAWN advisory would come back here and be reported as an
+	// osv-only disagreement that audit never showed — a delta manufactured by
+	// asking a different question, which is precisely what this compares against.
+	findings, err := advisory.New(osvBase, nil).Check(ctx, targets, time.Now().UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +248,13 @@ func riskReport(meta store.Run, state string, observedAt time.Time,
 	fmt.Fprintf(&buf, "(a package may carry several signals; nothing is summed)\n")
 	for _, code := range supply.Codes() {
 		if n := len(bySignal[code]); n > 0 {
-			fmt.Fprintf(&buf, "  %-24s %5d %5d\n", code, n, len(repos[code]))
+			// Signals that fire BECAUSE there is no project print a dash: a zero
+			// in the project column reads as a counting bug, not as "n/a".
+			proj := "    -"
+			if p := len(repos[code]); p > 0 {
+				proj = fmt.Sprintf("%5d", p)
+			}
+			fmt.Fprintf(&buf, "  %-24s %5d %s\n", code, n, proj)
 		}
 	}
 
@@ -256,8 +267,13 @@ func riskReport(meta store.Run, state string, observedAt time.Time,
 		if len(list) == 0 {
 			continue
 		}
-		fmt.Fprintf(&buf, "\n%s — %d %s across %d projects\n",
-			code, len(list), plural(len(list), "version"), len(repos[code]))
+		if p := len(repos[code]); p > 0 {
+			fmt.Fprintf(&buf, "\n%s — %d %s across %d projects\n",
+				code, len(list), plural(len(list), "version"), p)
+		} else {
+			fmt.Fprintf(&buf, "\n%s — %d %s\n",
+				code, len(list), plural(len(list), "version"))
+		}
 		sort.Slice(list, func(i, j int) bool { return list[i].NodeID < list[j].NodeID })
 		shown := list
 		if limit > 0 && len(shown) > limit {
@@ -275,7 +291,7 @@ func riskReport(meta store.Run, state string, observedAt time.Time,
 	}
 
 	if cross != nil {
-		fmt.Fprintf(&buf, "\nadvisory cross-check (deps.dev vs OSV, same %d inputs)\n", len(targets))
+		fmt.Fprintf(&buf, "\nadvisory cross-check (deps.dev vs OSV, same %d inputs, same known-at)\n", len(targets))
 		fmt.Fprintf(&buf, "  agreed          %d\n", cross.Agreed)
 		fmt.Fprintf(&buf, "  only in OSV     %d\n", len(cross.OSVOnly))
 		fmt.Fprintf(&buf, "  only in deps.dev %d\n", len(cross.DepsDevOnly))

@@ -78,8 +78,14 @@ func Assess(facts []Fact, projects map[string]Project) []Assessment {
 		if !f.Known {
 			// Not "clean" — unexamined. An internal package, a private-index
 			// package, and a typosquat-shaped name all land here.
+			// A workspace package resolved from a local path lands here and is
+			// benign; a name resolved from an index is the dependency-confusion
+			// surface. deps.dev cannot tell them apart, so neither do we — but
+			// saying "unlisted" without saying what to check would leave the
+			// reader with a count and no next step.
 			a.Signals = append(a.Signals, Signal{"unlisted",
-				"no public registry record in deps.dev"})
+				"no public registry record; check whether it resolves from a local " +
+					"path (benign) or by name from an index (confusable)"})
 			out = append(out, a)
 			continue
 		}
