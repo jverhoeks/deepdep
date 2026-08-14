@@ -102,7 +102,7 @@ from the first run.
 reads as "this repo has none".
 
 ```
-deepdep tools     # 98 tool/category pairs recognised
+deepdep tools     # 95 tool/category pairs recognised
 ```
 
 Categories are ordered by leverage: `hook` first, because those execute on an
