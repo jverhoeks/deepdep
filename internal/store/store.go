@@ -32,7 +32,7 @@ import (
 var schemaSQL string
 
 // schemaVersion drives migrations through PRAGMA user_version.
-const schemaVersion = 3
+const schemaVersion = 4
 
 type Store struct{ db *sql.DB }
 
@@ -85,6 +85,33 @@ func (s *Store) migrate() error {
 		for _, stmt := range []string{
 			`ALTER TABLE version_rollup ADD COLUMN pinning TEXT NOT NULL DEFAULT ''`,
 			`ALTER TABLE version_rollup ADD COLUMN declared_spec TEXT NOT NULL DEFAULT ''`,
+		} {
+			if _, err := s.db.Exec(stmt); err != nil {
+				return err
+			}
+		}
+	}
+	if v > 0 && v < 4 {
+		// deps.dev observations. Scorecards are served newest-only, so a run
+		// that did not record one cannot be enriched with it afterwards.
+		for _, stmt := range []string{
+			`CREATE TABLE IF NOT EXISTS depsdev_obs (
+			   purl TEXT NOT NULL, observed_at TEXT NOT NULL,
+			   known INTEGER NOT NULL, deprecated INTEGER NOT NULL,
+			   deprecated_why TEXT NOT NULL DEFAULT '',
+			   licenses TEXT NOT NULL DEFAULT '',
+			   advisory_ids TEXT NOT NULL DEFAULT '',
+			   attested INTEGER NOT NULL DEFAULT 0,
+			   source_repo TEXT NOT NULL DEFAULT '',
+			   repo_provenance TEXT NOT NULL DEFAULT '',
+			   PRIMARY KEY (purl, observed_at))`,
+			`CREATE TABLE IF NOT EXISTS scorecard_obs (
+			   project_id TEXT NOT NULL, observed_at TEXT NOT NULL,
+			   scorecard_date TEXT NOT NULL DEFAULT '',
+			   overall_score REAL NOT NULL DEFAULT 0,
+			   stars INTEGER NOT NULL DEFAULT 0,
+			   checks_json TEXT NOT NULL,
+			   PRIMARY KEY (project_id, observed_at))`,
 		} {
 			if _, err := s.db.Exec(stmt); err != nil {
 				return err

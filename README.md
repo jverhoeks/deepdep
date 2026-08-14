@@ -91,9 +91,12 @@ entirely.
 | advisory existence at T | yes | OSV `published` / `withdrawn` |
 | advisory *content* at T | **no** | `modified` is destructive |
 | **tag → SHA at T** | **no** | no API exposes it; record it or lose it |
+| **OpenSSF Scorecard at T** | **no** | deps.dev serves only the newest; no history endpoint |
 
-That last row is why every scan writes observed SHAs and digests to `ref_obs`
-from the first run.
+The last two rows are why every scan writes observed SHAs and digests to
+`ref_obs`, and every `risk` run appends to `depsdev_obs` / `scorecard_obs`, from
+the first run. `deepdep risk --known-at` therefore **errors** rather than
+returning today's posture under a historical flag.
 
 ## Coverage, not silence
 
@@ -118,6 +121,9 @@ ordinary commit or install, with your credentials, before any review.
 | GitLab CI | `.gitlab-ci.yml`, includes, components | — | — |
 | pnpm | — | — | `pnpm-lock.yaml` |
 
+Enrichment: OSV (advisories, bitemporal) and deps.dev + OpenSSF Scorecard
+(posture, current-records only).
+
 Everything else in the catalogue — Dockerfile, pre-commit, mise, ansible, Cargo,
 Maven, Helm, Terraform — is detected and reported as a frontier.
 
@@ -137,6 +143,45 @@ any point in time without rescanning.
 Two-stage against OSV, which is what the API offers: `querybatch` returns ids
 1000 at a time, then each distinct advisory is fetched once. Packages share
 advisories, so the second stage is far smaller than the first.
+
+## Supply-chain posture
+
+```
+deepdep risk                            # deps.dev + OpenSSF Scorecard
+deepdep risk --signal deprecated --limit 0
+```
+
+A different question from `audit`. An advisory says *this version has a known
+flaw*. A posture signal says *this is how the code got here, and what a future
+compromise would cost*: the package is deprecated and nobody will patch it, its
+releases carry no provenance, its repo merges without review, its CI hands out
+write-all tokens.
+
+Reported as **named signals with counts, never a 0-100 score** — averaging a
+deprecated package against a missing fuzzing harness destroys the only
+distinction that makes the output actionable.
+
+Counts are given as **versions / distinct source projects**, both. A Scorecard
+finding is a property of a *project*: rollup ships 25 per-platform binary
+packages from one repo, so a version-only count turns three upstream problems
+into twenty-eight.
+
+Three things about the deps.dev API that silently corrupt a naive client, all
+verified and all pinned by tests:
+
+| behaviour | consequence |
+|---|---|
+| `purlbatch` echoes a **normalised** purl (`annotated_types` → `annotated-types`, `5.0` → `5.0.0`) | correlate by **index**, never by the echo, or facts cross between packages |
+| `purlbatch` caps at 100 and returns a `nextPageToken` instead of an error | chunk at 100; a short response is treated as a hard error |
+| Scorecard `score: -1` means **the check did not run** ("no releases found") | never a finding; only `>= 0` scores are evaluated |
+
+A package deps.dev has never seen is `unlisted` — **unexamined, not clean**.
+Internal packages, private-index packages and typo'd names all land there.
+
+`risk` also cross-checks its own advisory ids against `audit`'s OSV results over
+identical inputs. A delta is a lead, not a verdict — the common benign case is an
+OSS-Fuzz record attached to an upstream project by a GIT commit range, which says
+nothing about which published artifact shipped it.
 
 ## Design notes
 
@@ -169,10 +214,11 @@ SELECT name, versions_installed, path_count, worst_completeness
 
 ## Status
 
-Working, tested, and honest about its limits. Not yet built: a graph UI, OSV
-advisory enrichment, and the remaining ecosystem extractors. The schema for the
-first two is already in place, because knowledge-time and tag→SHA history cannot
-be reconstructed after the fact.
+Working, tested, and honest about its limits. Not yet built: a graph UI,
+`deepdep diff`, hoisting simulation for lockfile-less repos, and the remaining
+ecosystem extractors. The schema for the UI is already in place, because
+knowledge-time, tag→SHA and scorecard history cannot be reconstructed after the
+fact.
 
 Known limitation: `can` mode expands each declared range independently, so a
 package with a hard pin from one parent and a wider range from another still

@@ -47,6 +47,7 @@ func main() {
 const usage = `deepdep scan    [flags] <git-url|directory>
 deepdep history [flags] <directory>   when each dependency changed, and to what
 deepdep audit   [flags] [run-id]      check stored packages against OSV advisories
+deepdep risk    [flags] [run-id]      supply-chain posture from deps.dev + OpenSSF Scorecard
 deepdep tools                         supply-chain surfaces this build recognises
 
   --mode will|can        will: what installs today (lockfile pins, else max-satisfying)
@@ -80,6 +81,8 @@ func run(args []string) ([]byte, error) {
 		return toolsCmd()
 	case "audit":
 		return auditCmd(args[1:])
+	case "risk":
+		return riskCmd(args[1:])
 	case "-h", "--help", "help":
 		return []byte(usage), nil
 	default:

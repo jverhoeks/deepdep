@@ -147,3 +147,34 @@ CREATE TABLE advisory_affects (
 );
 
 CREATE INDEX idx_affects_pkg ON advisory_affects(ecosystem, name);
+
+-- deps.dev supply-chain observations.
+--
+-- Both are MUTABLE documents, so they are observations, not facts. A scorecard
+-- is recomputed weekly and the API serves only the newest one: there is no way
+-- to ask what a project's Code-Review score was six months ago. Recording it on
+-- every run is the only thing that makes that question answerable later, for
+-- the same reason ref_obs exists.
+CREATE TABLE depsdev_obs (
+  purl            TEXT NOT NULL,
+  observed_at     TEXT NOT NULL,
+  known           INTEGER NOT NULL,
+  deprecated      INTEGER NOT NULL,
+  deprecated_why  TEXT NOT NULL DEFAULT '',
+  licenses        TEXT NOT NULL DEFAULT '',
+  advisory_ids    TEXT NOT NULL DEFAULT '',
+  attested        INTEGER NOT NULL DEFAULT 0,
+  source_repo     TEXT NOT NULL DEFAULT '',
+  repo_provenance TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (purl, observed_at)
+);
+
+CREATE TABLE scorecard_obs (
+  project_id     TEXT NOT NULL,
+  observed_at    TEXT NOT NULL,
+  scorecard_date TEXT NOT NULL DEFAULT '',
+  overall_score  REAL NOT NULL DEFAULT 0,
+  stars          INTEGER NOT NULL DEFAULT 0,
+  checks_json    TEXT NOT NULL,
+  PRIMARY KEY (project_id, observed_at)
+);
