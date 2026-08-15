@@ -9,6 +9,8 @@ package rollup
 import (
 	"sort"
 
+	"github.com/package-url/packageurl-go"
+
 	"github.com/jverhoeks/deepdep/internal/effective"
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/version"
@@ -128,9 +130,22 @@ func ComputeWith(g *graph.Graph, inst []effective.Instance, root graph.NodeID,
 	// Collect every declared constraint reaching each node. A package can be
 	// required by several parents under different ranges.
 	specs := map[graph.NodeID][]string{}
+	// byName is the offline join. Without a registry the walker never resolves a
+	// range to a version, so the declared range sits on an edge to the
+	// VERSION-LESS node (pkg:pypi/flask) while the installed version arrives
+	// separately from the lockfile as pkg:pypi/flask@3.0.0 — a different node.
+	// The two never meet, and every offline run reported "locked" with no record
+	// of what it was locked AWAY from, which is the whole point of the
+	// distinction: ">4.5.0 plus a lockfile" and "==4.6.1" install the same
+	// version and carry completely different exposure.
+	byName := map[string][]string{}
 	for _, e := range g.Edges() {
-		if e.Spec != "" {
-			specs[e.To] = append(specs[e.To], e.Spec)
+		if e.Spec == "" {
+			continue
+		}
+		specs[e.To] = append(specs[e.To], e.Spec)
+		if eco, name, ver, err := splitPURL(e.To); err == nil && ver == "" {
+			byName[eco+"\x00"+name] = append(byName[eco+"\x00"+name], e.Spec)
 		}
 	}
 
@@ -181,7 +196,11 @@ func ComputeWith(g *graph.Graph, inst []effective.Instance, root graph.NodeID,
 		}
 
 		st := stateOf(instances[n.ID], haveResolution)
-		pin, widest := pinningOf(specs[n.ID], instances[n.ID] > 0, schemes[n.Ecosystem])
+		declared := specs[n.ID]
+		if len(declared) == 0 {
+			declared = byName[n.Ecosystem+"\x00"+n.Name]
+		}
+		pin, widest := pinningOf(declared, instances[n.ID] > 0, schemes[n.Ecosystem])
 		vs := VersionStatus{
 			NodeID:       n.ID,
 			Version:      n.Version,
@@ -441,4 +460,18 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// splitPURL reports a node id's ecosystem, name and version. A version-less id
+// is a REQUIREMENT (a range nobody expanded), not a package version.
+func splitPURL(id graph.NodeID) (eco, name, ver string, err error) {
+	p, err := packageurl.FromString(string(id))
+	if err != nil {
+		return "", "", "", err
+	}
+	name = p.Name
+	if p.Namespace != "" {
+		name = p.Namespace + "/" + p.Name
+	}
+	return p.Type, name, p.Version, nil
 }

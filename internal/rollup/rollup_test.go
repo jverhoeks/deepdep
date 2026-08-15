@@ -263,3 +263,82 @@ func TestNoSchemeDoesNotGuessPinning(t *testing.T) {
 		t.Error("must not claim pinned without an ecosystem to judge exactness")
 	}
 }
+
+// TestOfflineLockedVersionKeepsItsDeclaredRange.
+//
+// The distinction the user asked for: `>4.5.0` in a manifest plus `4.6.1` in a
+// lockfile installs the same version as `==4.6.1` and carries entirely
+// different exposure — regenerate the lock and the first moves, the second does
+// not. Recording "locked" without recording what it is locked away FROM throws
+// the distinction away.
+//
+// Offline this needs a join. With no registry the walker never resolves the
+// range, so the range sits on an edge to the VERSION-LESS node while the
+// installed version arrives separately from the lockfile as a different node.
+// Every offline run reported locked with an empty declared_spec — 0 of 1302
+// rows on a real repo — until the two were joined by (ecosystem, name).
+func TestOfflineLockedVersionKeepsItsDeclaredRange(t *testing.T) {
+	g := graph.New()
+	root := graph.NodeID("pkg:generic/app@sha")
+	g.Add(graph.Node{ID: root, Completeness: graph.Resolved})
+
+	// What the manifest declared: a RANGE, unresolved because we are offline.
+	g.Add(graph.Node{ID: "pkg:pypi/requests", Ecosystem: "pypi", Name: "requests",
+		Completeness: graph.Declared, Reason: graph.ReasonOffline})
+	g.Link(graph.Edge{From: root, To: "pkg:pypi/requests", Kind: graph.DependsOn,
+		Spec: ">4.5.0", Scope: graph.Prod})
+
+	// What the lockfile pinned: a different node id entirely.
+	g.Add(graph.Node{ID: "pkg:pypi/requests@4.6.1", Ecosystem: "pypi", Name: "requests",
+		Version: "4.6.1", Completeness: graph.Resolved})
+
+	inst := []effective.Instance{{Locator: "#requests",
+		NodeID: "pkg:pypi/requests@4.6.1", DerivedFrom: "lockfile"}}
+
+	res := rollup.ComputeWith(g, inst, root,
+		map[string]version.VersionScheme{"pypi": version.PEP440})
+
+	var got rollup.VersionStatus
+	for _, v := range res.Versions {
+		if v.NodeID == "pkg:pypi/requests@4.6.1" {
+			got = v
+		}
+	}
+	if got.Pinning != rollup.Locked {
+		t.Errorf("pinning = %q, want locked", got.Pinning)
+	}
+	if got.DeclaredSpec != ">4.5.0" {
+		t.Errorf("declared_spec = %q, want %q — locked without the range it is "+
+			"locked away from is not an answer", got.DeclaredSpec, ">4.5.0")
+	}
+}
+
+// TestExactManifestConstraintIsPinnedNotLocked is the other half: `==4.6.1`
+// needs no lockfile to hold it, so regenerating one changes nothing.
+func TestExactManifestConstraintIsPinnedNotLocked(t *testing.T) {
+	g := graph.New()
+	root := graph.NodeID("pkg:generic/app@sha")
+	g.Add(graph.Node{ID: root, Completeness: graph.Resolved})
+	g.Add(graph.Node{ID: "pkg:pypi/requests", Ecosystem: "pypi", Name: "requests",
+		Completeness: graph.Declared})
+	g.Link(graph.Edge{From: root, To: "pkg:pypi/requests", Kind: graph.DependsOn,
+		Spec: "==4.6.1", Scope: graph.Prod})
+	g.Add(graph.Node{ID: "pkg:pypi/requests@4.6.1", Ecosystem: "pypi", Name: "requests",
+		Version: "4.6.1", Completeness: graph.Resolved})
+
+	inst := []effective.Instance{{Locator: "#requests",
+		NodeID: "pkg:pypi/requests@4.6.1", DerivedFrom: "lockfile"}}
+	res := rollup.ComputeWith(g, inst, root,
+		map[string]version.VersionScheme{"pypi": version.PEP440})
+
+	for _, v := range res.Versions {
+		if v.NodeID != "pkg:pypi/requests@4.6.1" {
+			continue
+		}
+		if v.Pinning != rollup.Pinned {
+			t.Errorf("pinning = %q, want pinned — an exact constraint needs no lockfile", v.Pinning)
+		}
+		return
+	}
+	t.Fatal("the locked version is missing from the rollup")
+}
