@@ -45,6 +45,9 @@ type req struct {
 	spec  string
 	scope graph.Scope
 	depth int
+	// reason is set only for requirements we deliberately do not expand, so the
+	// marking can be batched under one lock instead of taken per skip.
+	reason string
 }
 
 func (w *Walker) Walk(ctx context.Context, s source.Source, root graph.NodeID) (*graph.Graph, error) {
@@ -249,53 +252,75 @@ func (w *Walker) expandOne(ctx context.Context, g *graph.Graph, mu *sync.Mutex,
 		}
 	}
 
-	var kids []req
+	// One lock for the whole candidate set, not one per version.
+	//
+	// The previous shape took the global mutex once per chosen version, and in
+	// can-mode a single requirement expands to as many versions as the bound
+	// allows — so sixteen workers spent their time queueing on the same lock
+	// rather than on the registry. Everything that needs the lock is decided in
+	// one pass; the network calls happen outside it.
+	type candidate struct {
+		id graph.NodeID
+		v  version.Version
+	}
+	var (
+		kids   []req
+		unseen []candidate
+	)
+
+	mu.Lock()
 	for _, v := range chosen {
 		id, err := graph.NodeIDFor(r.eco, r.name, v.String())
 		if err != nil {
+			mu.Unlock()
 			return nil, err
 		}
-
-		mu.Lock()
-		overCap := len(g.Nodes()) >= w.bounds.MaxNodes
-		if overCap {
+		if g.Len() >= w.bounds.MaxNodes {
 			g.Add(graph.Node{ID: id, Ecosystem: r.eco, Name: r.name, Version: v.String(),
 				Completeness: graph.Declared, Reason: graph.ReasonBoundNodes})
 			g.Link(graph.Edge{From: r.from, To: id, Kind: graph.DependsOn, Spec: r.spec, Scope: r.scope})
-			mu.Unlock()
 			continue
 		}
 		g.Add(graph.Node{ID: id, Ecosystem: r.eco, Name: r.name, Version: v.String(),
 			Completeness: graph.Resolved, PublishedAt: publishedOf(infos, v)})
 		g.Link(graph.Edge{From: r.from, To: id, Kind: graph.DependsOn, Spec: r.spec, Scope: r.scope})
-		seen := visited[id]
-		visited[id] = true
-		mu.Unlock()
-
-		if seen {
+		if visited[id] {
 			continue // memoised: the subtree is already in the graph
 		}
+		visited[id] = true
+		unseen = append(unseen, candidate{id, v})
+	}
+	mu.Unlock()
 
-		reqs, err := res.Requirements(ctx, r.name, v)
+	var skipped []req
+	for _, c := range unseen {
+		reqs, err := res.Requirements(ctx, r.name, c.v)
 		if err != nil {
 			continue
 		}
 		for _, q := range reqs {
 			child := req{
-				from: id, eco: r.eco, name: q.Name,
+				from: c.id, eco: r.eco, name: q.Name,
 				spec: q.Constraint, scope: q.Scope, depth: depth + 1,
 			}
 			if why, skip := skipScope(r.eco, q.Scope); skip {
 				// Not installed, so not part of the closure — but recorded rather
 				// than dropped, so "we chose not to expand this" stays visible and
 				// filterable instead of looking like it does not exist.
-				mu.Lock()
-				w.markDeclared(g, child, why)
-				mu.Unlock()
+				child.reason = why
+				skipped = append(skipped, child)
 				continue
 			}
 			kids = append(kids, child)
 		}
+	}
+
+	if len(skipped) > 0 {
+		mu.Lock()
+		for _, c := range skipped {
+			w.markDeclared(g, c, c.reason)
+		}
+		mu.Unlock()
 	}
 	return kids, nil
 }

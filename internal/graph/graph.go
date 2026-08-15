@@ -57,6 +57,16 @@ func (g *Graph) Link(e Edge) {
 
 func (g *Graph) Node(id NodeID) Node { return g.nodes[id] }
 
+// Len is the node count, in constant time.
+//
+// It exists because the walker checked its node bound with len(g.Nodes()),
+// which allocates a slice of every node and SORTS it — O(n log n) plus an
+// allocation of the whole graph — once per candidate version, per requirement,
+// while holding the walker's global mutex. In can-mode, where every requirement
+// expands to many versions, that turned the bound check into the dominant cost
+// and serialised all sixteen workers behind it.
+func (g *Graph) Len() int { return len(g.nodes) }
+
 func (g *Graph) Has(id NodeID) bool {
 	_, ok := g.nodes[id]
 	return ok

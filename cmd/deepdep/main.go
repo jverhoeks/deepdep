@@ -60,7 +60,7 @@ deepdep tools                         supply-chain surfaces this build recognise
   --format text|json|cyclonedx
   --max-depth N          closure depth bound (default 32)
   --max-versions N       per-range expansion bound in can mode (default 25)
-  --concurrency N        registry fetch workers (default 16)
+  --concurrency N        registry fetch workers (default 32)
   --max-metadata-age D   re-fetch a packument observation older than this (default 24h)
   --cache-dir PATH       immutable blob store
   --db PATH              run store
@@ -372,7 +372,7 @@ func scan(args []string) ([]byte, error) {
 		format      = fs.String("format", "json", "")
 		maxDepth    = fs.Int("max-depth", 32, "")
 		maxVersions = fs.Int("max-versions", 25, "")
-		concurrency = fs.Int("concurrency", 16, "")
+		concurrency = fs.Int("concurrency", 32, "")
 		metadataAge = fs.Duration("max-metadata-age", 24*time.Hour, "")
 		cacheDir    = fs.String("cache-dir", defaultCacheDir(), "")
 		dbPath      = fs.String("db", defaultDBPath(), "")

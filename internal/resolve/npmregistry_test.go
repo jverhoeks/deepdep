@@ -163,3 +163,45 @@ func TestUnknownPackageIsAnError(t *testing.T) {
 		t.Error("a 404 must surface, so the walker can mark the node error:404 rather than dropping it")
 	}
 }
+
+// TestParsedVersionMemoRespectsMaxAge.
+//
+// Versions() memoises the PARSED and sorted version list, because re-parsing a
+// thousand version strings per requirement cost more than the fetch it avoided.
+// That memo is derived from a MUTABLE document, so it has to die when the
+// document is refetched — otherwise the packument refreshes and the list it was
+// derived from does not, which is precisely the freeze the observation design
+// exists to prevent.
+func TestParsedVersionMemoRespectsMaxAge(t *testing.T) {
+	abbrev, err := os.ReadFile("testdata/is-string-abbrev.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Write(abbrev)
+	}))
+	defer srv.Close()
+
+	now := time.Now()
+	r := resolve.NewNPMResolver(srv.URL, cache.NewFS(t.TempDir()), srv.Client(),
+		time.Hour, func() time.Time { return now })
+
+	for i := 0; i < 5; i++ {
+		if _, err := r.Versions(context.Background(), "is-string", false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if hits != 1 {
+		t.Fatalf("within maxAge: %d fetches, want 1 — the memo must absorb repeats", hits)
+	}
+
+	now = now.Add(2 * time.Hour)
+	if _, err := r.Versions(context.Background(), "is-string", false); err != nil {
+		t.Fatal(err)
+	}
+	if hits != 2 {
+		t.Fatalf("after maxAge: %d fetches, want 2 — the memo must not outlive the document", hits)
+	}
+}

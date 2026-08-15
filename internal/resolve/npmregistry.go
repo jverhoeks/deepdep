@@ -39,6 +39,11 @@ type NPMResolver struct {
 	mu   sync.Mutex
 	memo map[string]observation // in-process view, avoids re-querying the store
 	docs map[string]*packument  // parsed, keyed by name+form
+	// vers is the PARSED and SORTED version list, memoised per name+form.
+	// Versions() is called once per requirement, and a package like
+	// @types/node has a thousand of them: re-parsing and re-sorting that list
+	// on every call cost more than the HTTP fetch it was avoiding.
+	vers map[string][]VersionInfo
 }
 
 type observation struct {
@@ -59,6 +64,7 @@ func NewNPMResolver(base string, c cache.Cache, hc *http.Client, maxAge time.Dur
 		maxAge: maxAge, now: now,
 		memo: map[string]observation{},
 		docs: map[string]*packument{},
+		vers: map[string][]VersionInfo{},
 	}
 }
 
@@ -131,6 +137,7 @@ func (r *NPMResolver) fetch(ctx context.Context, name string, full bool) (*packu
 	seen := r.now()
 	r.memo[name] = observation{sha: sha, observedAt: seen, full: full}
 	r.docs[docKey(name, full)] = doc
+
 	if r.obs != nil {
 		if err := r.obs.RecordPackument(ctx, "npm", name, sha, seen, full); err != nil {
 			return nil, err
@@ -187,9 +194,26 @@ func splitEscape(name string) []string {
 }
 
 func (r *NPMResolver) Versions(ctx context.Context, name string, needPublished bool) ([]VersionInfo, error) {
+	// fetch FIRST, always. It is the single authority on freshness — it returns
+	// the memoised document when one is current and re-fetches when
+	// --max-metadata-age has passed — and it is cheap on a hit.
+	//
+	// An earlier version consulted the parsed-version memo before calling fetch,
+	// which meant freshness was never evaluated at all: the list outlived the
+	// document it came from and --max-metadata-age silently stopped working.
 	doc, err := r.fetch(ctx, name, needPublished)
 	if err != nil {
 		return nil, err
+	}
+
+	// Keyed on the BODY hash, so a re-fetched packument cannot reuse the list
+	// derived from the previous one.
+	r.mu.Lock()
+	key := r.memo[name].sha + "\x00" + boolKey(needPublished)
+	cached, ok := r.vers[key]
+	r.mu.Unlock()
+	if ok {
+		return cached, nil
 	}
 	out := make([]VersionInfo, 0, len(doc.Versions))
 	for raw := range doc.Versions {
@@ -208,7 +232,20 @@ func (r *NPMResolver) Versions(ctx context.Context, name string, needPublished b
 	sort.SliceStable(out, func(i, j int) bool {
 		return version.NPM.Compare(out[i].Version, out[j].Version) < 0
 	})
+
+	r.mu.Lock()
+	r.vers[key] = out
+	r.mu.Unlock()
+	// Returned by reference and never mutated by callers; Enumerate filters into
+	// a fresh slice.
 	return out, nil
+}
+
+func boolKey(b bool) string {
+	if b {
+		return "full"
+	}
+	return "abbrev"
 }
 
 func (r *NPMResolver) Requirements(ctx context.Context, name string, v version.Version) ([]Requirement, error) {
