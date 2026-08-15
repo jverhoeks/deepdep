@@ -49,7 +49,29 @@ func formulationOf(g *graph.Graph, m Meta) *[]cdx.Formula {
 
 	for _, e := range g.Edges() {
 		n, ok := byID[e.To]
-		if !ok || n.Source == "" {
+		if !ok {
+			continue
+		}
+		// Prefer the FILE NODE the edge comes from. A base image shared by four
+		// Dockerfiles is one deduplicated node whose Source names only the first
+		// file that reached it, so grouping on Source silently reports the other
+		// three as having no FROM. Where an extractor does not yet emit a file
+		// node (the CI extractors), Source is the fallback — correct there
+		// because those repos have one pipeline file per closure.
+		// A file node IS the workflow, never an input to one. Without this the
+		// root -> file edge falls through to the Source fallback and every
+		// Dockerfile lists itself among its own base images.
+		if isFileNode(n) {
+			continue
+		}
+		owner := ""
+		if f, ok := byID[e.From]; ok && isFileNode(f) {
+			owner = f.Note // the path
+		}
+		if owner == "" {
+			owner = n.Source
+		}
+		if owner == "" {
 			continue
 		}
 		// Only two things make a file a workflow: it runs commands, or it pulls
@@ -65,11 +87,11 @@ func formulationOf(g *graph.Graph, m Meta) *[]cdx.Formula {
 		default:
 			continue
 		}
-		w := files[n.Source]
+		w := files[owner]
 		if w == nil {
 			w = &wf{seen: map[graph.NodeID]bool{}}
-			files[n.Source] = w
-			order = append(order, n.Source)
+			files[owner] = w
+			order = append(order, owner)
 		}
 		if w.seen[n.ID] {
 			continue
@@ -151,6 +173,12 @@ func stepName(cmd string) string {
 		return "step"
 	}
 	return line
+}
+
+// isFileNode reports whether a node stands for a build-definition FILE rather
+// than something the build pulls in.
+func isFileNode(n graph.Node) bool {
+	return strings.HasPrefix(string(n.ID), "pkg:generic/dockerfile@")
 }
 
 func shortHash(s string) string {

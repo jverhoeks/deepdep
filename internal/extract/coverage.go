@@ -27,6 +27,11 @@ type Coverage struct{}
 
 func (Coverage) Name() string { return "coverage" }
 
+// Fallback: Coverage reports what we could NOT expand, so it must not fire on a
+// file a real extractor already handled. The catalogue still LISTS those tools
+// (`deepdep tools`) — recognition and non-expansion are different claims.
+func (Coverage) Fallback() bool { return true }
+
 func (Coverage) Match(p string) bool {
 	_, _, ok := lookup(p)
 	return ok

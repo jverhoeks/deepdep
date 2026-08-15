@@ -169,6 +169,15 @@ func usesNode(uses string) (graph.Node, error) {
 // ?tag= qualifier; digest resolution arrives with the OCI extractor, at which
 // point these become Resolved.
 func imageNode(image string) (graph.Node, error) {
+	// A digest is split off FIRST. `maven:3.9-temurin@sha256:4015…` contains two
+	// colons, and taking the last one puts the tag and the literal "sha256" into
+	// the package NAME and the bare hex into the version — a nonsense identity
+	// for the one image form that is genuinely immutable.
+	digest := ""
+	if i := strings.Index(image, "@sha256:"); i > 0 {
+		digest, image = image[i+1:], image[:i]
+	}
+
 	ref := image
 	name := image
 	if i := strings.LastIndex(image, ":"); i > 0 && !strings.Contains(image[i:], "/") {
@@ -181,12 +190,24 @@ func imageNode(image string) (graph.Node, error) {
 	if i := strings.LastIndex(name, "/"); i >= 0 {
 		namespace, name = name[:i], name[i+1:]
 	}
-	p := packageurl.NewPackageURL(packageurl.TypeOCI, namespace, name, ref, nil, "")
+
+	// PURL's oci type wants the digest as the version and the tag as a
+	// qualifier: the digest is what identifies the bytes, the tag only says
+	// which label pointed there when we looked.
+	version, qualifiers := ref, packageurl.Qualifiers(nil)
+	if digest != "" {
+		version = digest
+		if ref != "latest" {
+			qualifiers = packageurl.Qualifiers{{Key: "tag", Value: ref}}
+		}
+	}
+
+	p := packageurl.NewPackageURL(packageurl.TypeOCI, namespace, name, version, qualifiers, "")
 	return graph.Node{
 		ID:           graph.NodeID(p.ToString()),
 		Ecosystem:    packageurl.TypeOCI,
 		Name:         name,
-		Version:      ref,
+		Version:      version,
 		Completeness: graph.Declared,
 		Reason:       graph.ReasonUnpinnedRef,
 	}, nil

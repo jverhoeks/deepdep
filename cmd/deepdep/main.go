@@ -63,6 +63,9 @@ deepdep tools                         supply-chain surfaces this build recognise
   --cache-dir PATH       immutable blob store
   --db PATH              run store
   --no-db                do not persist this run
+  --author NAME          SBOM author (NTIA field 6); defaults to the tool
+  --formulation          include the MBOM view in CycloneDX: pipelines, base
+                         images, build steps (default true)
   --offline              extractors only; nothing is resolved
   --timeout D            give up expanding after this long; the partial closure
                          is still emitted, with the frontier marked bound:timeout
@@ -402,6 +405,7 @@ func scan(args []string) ([]byte, error) {
 	reg.Register(extract.GitLabCI{})
 	reg.Register(extract.PyProject{})
 	reg.Register(extract.Requirements{})
+	reg.Register(extract.Dockerfile{})
 	// Reports supply-chain files we saw but cannot expand yet. Without this a
 	// Dockerfile or ansible playbook is silently absent, which reads as "this
 	// repo has none" — a wrong answer rather than a partial one.
