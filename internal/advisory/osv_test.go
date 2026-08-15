@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -130,5 +131,37 @@ func TestCheckChunksLargeInputs(t *testing.T) {
 	}
 	if *calls != 3 {
 		t.Errorf("batch calls = %d, want 3 for 2500 queries at 1000 per request", *calls)
+	}
+}
+
+// TestSameVulnerabilityIsReportedOnce.
+//
+// OSV carries a GHSA record and a CVE record for one flaw, aliased to each
+// other, and usually only the GHSA side has a qualitative severity. Reporting
+// both doubled every authlib finding: eleven vulnerabilities read as twenty-one,
+// half of them labelled with a raw CVSS vector where a severity band should be.
+func TestSameVulnerabilityIsReportedOnce(t *testing.T) {
+	const node = graph.NodeID("pkg:pypi/authlib@1.3.2")
+	in := []advisory.Finding{
+		{NodeID: node, Advisory: advisory.Advisory{
+			ID: "GHSA-aaaa", Aliases: []string{"CVE-2026-27962"},
+			Severity: "CRITICAL", Summary: "JWK header injection"}},
+		{NodeID: node, Advisory: advisory.Advisory{
+			ID: "CVE-2026-27962", Aliases: []string{"GHSA-aaaa"},
+			CVSS: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"}},
+		{NodeID: node, Advisory: advisory.Advisory{
+			ID: "GHSA-bbbb", Aliases: []string{"CVE-2026-28490"}, Severity: "HIGH"}},
+	}
+	got := advisory.Dedupe(in)
+	if len(got) != 2 {
+		t.Fatalf("findings = %d, want 2 distinct vulnerabilities: %+v", len(got), got)
+	}
+	for _, f := range got {
+		if f.Advisory.Severity == "" {
+			t.Errorf("%s kept the UNRATED record; the rated one must win", f.Advisory.ID)
+		}
+		if strings.HasPrefix(f.Advisory.Severity, "CVSS") {
+			t.Errorf("severity = %q, want a band — a CVSS vector is not a severity", f.Advisory.Severity)
+		}
 	}
 }

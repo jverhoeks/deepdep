@@ -38,7 +38,16 @@ func NodeIDFor(ecosystem, name, version string) (NodeID, error) {
 	case packageurl.TypePyPi:
 		return PyPINodeID(name, version), nil
 	default:
-		p := packageurl.NewPackageURL(ecosystem, "", name, version, nil, "")
+		// A name carrying a slash is a namespace/name pair that has already been
+		// flattened once — deb/debian/curl round-trips through split() as
+		// name="debian/curl". Passing that through whole percent-encodes the
+		// slash and mints pkg:deb/debian%2Fcurl, a SECOND node for a package
+		// that already exists, splitting its paths and its advisories.
+		namespace := ""
+		if i := strings.LastIndex(name, "/"); i > 0 {
+			namespace, name = name[:i], name[i+1:]
+		}
+		p := packageurl.NewPackageURL(ecosystem, namespace, name, version, nil, "")
 		return NodeID(p.ToString()), nil
 	}
 }

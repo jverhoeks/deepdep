@@ -160,7 +160,7 @@ func TestShortBatchResponseIsAnError(t *testing.T) {
 // TestScorecardMinusOneIsNotAFinding: -1 means the check DID NOT RUN.
 func TestScorecardMinusOneIsNotAFinding(t *testing.T) {
 	facts := []supply.Fact{{
-		NodeID: "pkg:npm/x@1.0.0", Known: true, Licenses: []string{"MIT"},
+		NodeID: "pkg:npm/x@1.0.0", Queried: true, Known: true, Licenses: []string{"MIT"},
 		SourceRepo: "github.com/o/r", RepoProvenance: "SLSA_ATTESTATION",
 	}}
 	projects := map[string]supply.Project{"github.com/o/r": {
@@ -186,7 +186,7 @@ func TestScorecardMinusOneIsNotAFinding(t *testing.T) {
 // metadata may describe a repo that is not the source of what installed.
 func TestUnverifiedSourceLinkIsFlagged(t *testing.T) {
 	attested := supply.Assess([]supply.Fact{{
-		NodeID: "pkg:npm/a@1.0.0", Known: true, Licenses: []string{"MIT"},
+		NodeID: "pkg:npm/a@1.0.0", Queried: true, Known: true, Licenses: []string{"MIT"},
 		SourceRepo: "github.com/o/r", RepoProvenance: "SLSA_ATTESTATION",
 	}}, map[string]supply.Project{"github.com/o/r": {HasScorecard: true, Checks: map[string]int{}}})[0]
 	if attested.Has("unattested-source") {
@@ -194,7 +194,7 @@ func TestUnverifiedSourceLinkIsFlagged(t *testing.T) {
 	}
 
 	metadata := supply.Assess([]supply.Fact{{
-		NodeID: "pkg:npm/b@1.0.0", Known: true, Licenses: []string{"MIT"},
+		NodeID: "pkg:npm/b@1.0.0", Queried: true, Known: true, Licenses: []string{"MIT"},
 		SourceRepo: "github.com/o/r", RepoProvenance: "UNVERIFIED_METADATA",
 	}}, map[string]supply.Project{"github.com/o/r": {HasScorecard: true, Checks: map[string]int{}}})[0]
 	if !metadata.Has("unattested-source") {
@@ -242,7 +242,7 @@ func TestProjectsDedupeAndEncodeSlashes(t *testing.T) {
 // publisher's own words, not a generic label.
 func TestDeprecatedCarriesPublisherReason(t *testing.T) {
 	a := supply.Assess([]supply.Fact{{
-		NodeID: "pkg:npm/request@2.88.2", Known: true, Licenses: []string{"Apache-2.0"},
+		NodeID: "pkg:npm/request@2.88.2", Queried: true, Known: true, Licenses: []string{"Apache-2.0"},
 		Deprecated: true, DeprecatedReason: "request has been deprecated, see issues/3142",
 		SourceRepo: "github.com/request/request", RepoProvenance: "SLSA_ATTESTATION",
 	}}, nil)[0]
@@ -259,4 +259,72 @@ func TestDeprecatedCarriesPublisherReason(t *testing.T) {
 		}
 	}
 	t.Errorf("no deprecated signal in %+v", a.Signals)
+}
+
+// TestUnsupportedEcosystemsAreNotQueried.
+//
+// deps.dev indexes language ecosystems only, and rejects anything else with a
+// 400 that fails the WHOLE batch — one pkg:oci digest aborted a 1400-package
+// report. Filtering also keeps container images and OS packages out of the
+// `unlisted` bucket, where they would read as three hundred typosquat alarms
+// rather than "this source does not cover that question".
+func TestUnsupportedEcosystemsAreNotQueried(t *testing.T) {
+	var sent []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Requests []struct {
+				PURL string `json:"purl"`
+			} `json:"requests"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+		var sb strings.Builder
+		sb.WriteString(`{"responses":[`)
+		for i, rq := range body.Requests {
+			sent = append(sent, rq.PURL)
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			fmt.Fprintf(&sb, `{"request":{"purl":%q},"result":{"version":{"licenses":["MIT"]}}}`, rq.PURL)
+		}
+		sb.WriteString(`]}`)
+		fmt.Fprint(w, sb.String())
+	}))
+	defer srv.Close()
+
+	in := []graph.NodeID{
+		"pkg:npm/lodash@4.17.21",
+		"pkg:oci/apache/spark@sha256:e334db96?tag=4.1.2",
+		"pkg:deb/debian/curl@7.88.1-10",
+		"pkg:pypi/requests@2.32.3",
+	}
+	got, err := supply.New(srv.URL, srv.Client()).Facts(context.Background(), in)
+	if err != nil {
+		t.Fatalf("an unsupported purl must not fail the batch: %v", err)
+	}
+	if len(got) != len(in) {
+		t.Fatalf("facts = %d, want %d — one per input regardless", len(got), len(in))
+	}
+	for _, s := range sent {
+		if strings.HasPrefix(s, "pkg:oci/") || strings.HasPrefix(s, "pkg:deb/") {
+			t.Errorf("sent an unsupported purl to deps.dev: %q", s)
+		}
+	}
+	want := map[graph.NodeID]bool{
+		"pkg:npm/lodash@4.17.21":                         true,
+		"pkg:oci/apache/spark@sha256:e334db96?tag=4.1.2": false,
+		"pkg:deb/debian/curl@7.88.1-10":                  false,
+		"pkg:pypi/requests@2.32.3":                       true,
+	}
+	for i, f := range got {
+		if f.Queried != want[in[i]] {
+			t.Errorf("%s Queried = %v, want %v", in[i], f.Queried, want[in[i]])
+		}
+	}
+
+	// An unqueried package must produce no signals at all — not `unlisted`.
+	for _, a := range supply.Assess(got, nil) {
+		if strings.HasPrefix(string(a.NodeID), "pkg:oci/") && a.Has("unlisted") {
+			t.Errorf("%s flagged unlisted, but deps.dev was never asked", a.NodeID)
+		}
+	}
 }

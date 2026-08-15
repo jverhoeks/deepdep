@@ -2,6 +2,7 @@ package graph_test
 
 import (
 	"fmt"
+	"github.com/package-url/packageurl-go"
 	"strings"
 	"testing"
 	"time"
@@ -134,6 +135,40 @@ func TestHeterogeneousIdentities(t *testing.T) {
 	} {
 		if _, err := graph.NewNodeID(s); err != nil {
 			t.Errorf("NewNodeID(%q): %v", s, err)
+		}
+	}
+}
+
+// TestNodeIDForRoundTripsNamespacedNames.
+//
+// The walker splits an id back into (ecosystem, name, version) and re-mints it,
+// and split() flattens a namespace into the name: pkg:deb/debian/curl comes
+// back as name="debian/curl". Minting that whole percent-encodes the slash and
+// produces pkg:deb/debian%2Fcurl — a second node for a package that already
+// exists, splitting its path count and its advisories in two. A real scan
+// carried both spellings of twelve alpine packages.
+func TestNodeIDForRoundTripsNamespacedNames(t *testing.T) {
+	for _, want := range []graph.NodeID{
+		"pkg:deb/debian/curl@7.88.1-10",
+		"pkg:apk/alpine/musl-dev",
+		"pkg:rpm/rocky/openssl@3.0.7",
+		"pkg:npm/%40types/node@20.1.0",
+		"pkg:pypi/requests@2.32.3",
+	} {
+		p, err := packageurl.FromString(string(want))
+		if err != nil {
+			t.Fatalf("%s: %v", want, err)
+		}
+		name := p.Name
+		if p.Namespace != "" {
+			name = p.Namespace + "/" + p.Name
+		}
+		got, err := graph.NodeIDFor(p.Type, name, p.Version)
+		if err != nil {
+			t.Fatalf("%s: %v", want, err)
+		}
+		if got != want {
+			t.Errorf("round trip\n got %q\nwant %q", got, want)
 		}
 	}
 }

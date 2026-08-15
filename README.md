@@ -259,6 +259,73 @@ Dockerfiles; it never observes a build, so it cannot know which transitive OS
 packages `apt` actually pulled into an image. That is a **Build** SBOM, and
 `syft <image>` is the tool for it. The two merge.
 
+## One report
+
+```
+deepdep report            # malicious + advisories + posture, over one run
+```
+
+Layered, **not scored**, and there will not be a score. Any composite averages
+"this package was hostile and ran with your build's credentials" against "this
+project has no fuzzing harness", and the reader loses the only distinction that
+tells them what to do this morning.
+
+```
+1. MALICIOUS PACKAGES   hostile code that already ran. Nothing outranks this.
+2. ADVISORIES           known flaws in what installs, worst band first
+3. POSTURE              repo-specific signals, split from ecosystem baseline
+4. BY APPLICATION       which deliverable carries which finding
+```
+
+### Malicious packages
+
+**Yes, there is an index, and it is the same query as the CVEs.** OSV ingests the
+OpenSSF `malicious-packages` feed as `MAL-YYYY-NNNNN`, with an explicit affected
+*version list* rather than a range, aliased to GHSA. The Shai-Hulud npm worm is
+in it.
+
+Those records carry **no severity field**, so a naive report sorts a live worm
+below a moderate ReDoS and labels it `UNKNOWN`. `MALICIOUS` is therefore its own
+class above `CRITICAL`, presented as a category rather than a CVSS band: a CVE
+says this code has a flaw, a MAL record says this code was hostile and you
+installed it.
+
+`report` defaults to `--state all`, because a package pulled in by a Dockerfile
+`RUN` line has no lockfile instance — which is exactly where the Shai-Hulud
+packages showed up in testing.
+
+## OS packages
+
+`apt-get`, `apk`, `yum`, `dnf`, `microdnf` and `zypper` installs are parsed from
+`RUN` lines into distro-namespaced PURLs:
+
+```
+FROM debian:12       + apt-get install curl=7.88.1-10  ->  pkg:deb/debian/curl@7.88.1-10
+FROM python:3.12-slim + apt-get install curl           ->  pkg:deb/debian/curl
+FROM node:24-alpine  + apk add curl=8.11.1-r0          ->  pkg:apk/alpine/curl@8.11.1-r0
+FROM rockylinux:9    + dnf install curl                ->  pkg:rpm/rocky/curl
+```
+
+The namespace is load-bearing, not cosmetic. Verified against OSV:
+`pkg:deb/debian/curl` returns **71** advisories, `pkg:deb/curl` returns **0** —
+and `alpine` is not a PURL type at all, the spec says `apk` with an `alpine`
+namespace.
+
+The **command** decides the family (you cannot run `apt-get` on Alpine); the
+stage's base image refines the distribution, tag included, because
+`python:3.12-slim` is Debian and only the tag says so. Where the base image does
+not identify a distribution the family default is used and the node is marked
+`distro-assumed` — `deb/debian` and `deb/ubuntu` carry different advisories, so
+a wrong guess is worse than none.
+
+A multi-stage Dockerfile can switch distributions between stages, so the base
+image is tracked per stage.
+
+**What this cannot see:** the packages already inside a base image. `FROM
+python:3.12-slim` ships several hundred Debian packages that no Dockerfile
+mentions. That is a **Build**-layer fact — `syft <image>` answers it, deepdep
+reads Dockerfiles and never builds them.
+
 ## Design notes
 
 - **Never executes analysed code.** No `npm install`, no `pip install`, no

@@ -75,6 +75,13 @@ func Assess(facts []Fact, projects map[string]Project) []Assessment {
 	for _, f := range facts {
 		a := Assessment{NodeID: f.NodeID, SourceRepo: f.SourceRepo}
 
+		if !f.Queried {
+			// Outside deps.dev's coverage (a container image, an OS package).
+			// Silent by design: it is neither a finding nor a gap in the data,
+			// just a question this source cannot answer.
+			out = append(out, a)
+			continue
+		}
 		if !f.Known {
 			// Not "clean" — unexamined. An internal package, a private-index
 			// package, and a typosquat-shaped name all land here.

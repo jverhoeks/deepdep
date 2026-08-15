@@ -23,9 +23,15 @@ import (
 
 // Advisory is one vulnerability record, reduced to what a report needs.
 type Advisory struct {
-	ID        string    `json:"id"`
-	Summary   string    `json:"summary"`
-	Severity  string    `json:"severity"`
+	ID      string `json:"id"`
+	Summary string `json:"summary"`
+	// Severity is the QUALITATIVE band (CRITICAL/HIGH/...) or empty. A CVSS
+	// vector never goes here: "CVSS_V3:CVSS:3.1/AV:N/AC:L/..." is not a band,
+	// sorts as unknown, and rendered one row per vector in a report as though
+	// each were its own severity class.
+	Severity string `json:"severity"`
+	// CVSS is the vector when the record carries one, kept for reference.
+	CVSS      string    `json:"cvss,omitempty"`
 	Published time.Time `json:"published"`
 	Withdrawn time.Time `json:"withdrawn,omitempty"`
 	Aliases   []string  `json:"aliases,omitempty"`
@@ -74,6 +80,52 @@ func (a Advisory) CVE() string {
 		return a.ID
 	}
 	return ""
+}
+
+// dedupe collapses records that describe the SAME vulnerability in the same
+// package.
+//
+// OSV carries a GHSA record and a CVE record for one flaw, aliased to each
+// other, and only the GHSA side usually has a qualitative severity. Listing
+// both doubled every authlib finding and made eleven vulnerabilities read as
+// twenty-one. The rated record wins; where neither is rated, the id decides so
+// the choice is deterministic.
+// Dedupe is exported for testing the collapse rule directly.
+func Dedupe(in []Finding) []Finding { return dedupe(in) }
+
+func dedupe(in []Finding) []Finding {
+	best := map[string]Finding{}
+	for _, f := range in {
+		key := string(f.NodeID) + "\x00" + f.Advisory.CVE()
+		if f.Advisory.CVE() == "" {
+			key = string(f.NodeID) + "\x00" + f.Advisory.ID
+		}
+		cur, ok := best[key]
+		if !ok || better(f.Advisory, cur.Advisory) {
+			best[key] = f
+		}
+	}
+	out := make([]Finding, 0, len(best))
+	for _, f := range best {
+		out = append(out, f)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].NodeID != out[j].NodeID {
+			return out[i].NodeID < out[j].NodeID
+		}
+		return out[i].Advisory.ID < out[j].Advisory.ID
+	})
+	return out
+}
+
+func better(a, b Advisory) bool {
+	if (a.Severity != "") != (b.Severity != "") {
+		return a.Severity != "" // a rated record beats an unrated one
+	}
+	if (a.Summary != "") != (b.Summary != "") {
+		return a.Summary != ""
+	}
+	return a.ID < b.ID
 }
 
 // Finding pairs a package version with an advisory affecting it.
@@ -198,7 +250,7 @@ func (c *Client) Check(ctx context.Context, purls []graph.NodeID, knownAt time.T
 			found = append(found, Finding{NodeID: n, Advisory: a})
 		}
 	}
-	return found, nil
+	return dedupe(found), nil
 }
 
 // fetchAll retrieves each advisory once, with bounded concurrency.
@@ -264,18 +316,16 @@ func (c *Client) fetch(ctx context.Context, id string) (Advisory, error) {
 	if r.Withdrawn != "" {
 		a.Withdrawn, _ = time.Parse(time.RFC3339, r.Withdrawn)
 	}
-	// Prefer the qualitative rating; fall back to the CVSS vector.
+	// The qualitative rating is the only thing that belongs in Severity.
+	// Deriving a band from a CVSS vector means implementing the CVSS formula;
+	// until that exists, an unrated record is honestly UNKNOWN and its vector is
+	// carried separately rather than impersonating a band.
 	a.Severity = r.DatabaseSpecific.Severity
-	if a.Severity == "" {
-		for _, s := range r.Severity {
-			if s.Score != "" {
-				a.Severity = s.Type + ":" + s.Score
-				break
-			}
+	for _, s := range r.Severity {
+		if s.Score != "" {
+			a.CVSS = s.Score
+			break
 		}
-	}
-	if a.Severity == "" {
-		a.Severity = "UNKNOWN"
 	}
 	return a, nil
 }

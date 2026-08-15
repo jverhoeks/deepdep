@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/package-url/packageurl-go"
+
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/source"
 )
@@ -52,6 +54,10 @@ const (
 	// ReasonInferredRun marks a package parsed out of a shell line rather than
 	// read from a manifest.
 	ReasonInferredRun = "inferred:run"
+	// ReasonAssumedDistro marks an OS package whose distribution namespace was
+	// defaulted because the base image did not identify it. deb/debian and
+	// deb/ubuntu carry DIFFERENT advisories, so the assumption is load-bearing.
+	ReasonAssumedDistro = "inferred:run,distro-assumed"
 )
 
 func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []graph.Node, error) {
@@ -87,6 +93,9 @@ func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []gra
 
 	args := map[string]string{}
 	stages := map[string]bool{}
+	// A multi-stage Dockerfile can switch distributions between stages, so the
+	// base image in force is tracked per stage rather than per file.
+	stageBase := ""
 
 	for _, ins := range parseDockerfile(f.Data) {
 		verb, rest := ins.verb, ins.args
@@ -114,9 +123,11 @@ func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []gra
 			}
 			expanded, complete := expandVars(base, args)
 			if !complete {
+				stageBase = ""
 				emit(unresolvedBase(expanded), graph.BuildsOn)
 				continue
 			}
+			stageBase = expanded
 			emit(baseImageNode(expanded), graph.BuildsOn)
 
 		case "RUN":
@@ -129,7 +140,7 @@ func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []gra
 			// the honest record when parsing fails) and any packages we can
 			// actually name.
 			emit(opaqueNode(cmd), graph.Installs)
-			for _, n := range runPackages(cmd) {
+			for _, n := range runPackages(cmd, stageBase) {
 				emit(n, graph.Installs)
 			}
 		}
@@ -278,20 +289,78 @@ func unresolvedBase(expr string) graph.Node {
 // ---- RUN package parsing -------------------------------------------------
 
 // installer maps a shell installer to the PURL type its packages carry.
+//
+// The OS types need a NAMESPACE — the distribution — and getting it wrong is
+// not cosmetic. Verified against OSV: pkg:deb/debian/curl returns 71
+// advisories, pkg:deb/curl returns 0, and `alpine` is not a PURL type at all
+// (the spec says apk with an `alpine` namespace). Every OS package this
+// extractor emitted before this was unmatchable by any advisory database.
+//
+// family is what the COMMAND proves: you cannot run apt-get on Alpine. The
+// distro namespace is refined from the stage's base image where it is knowable.
 var installers = []struct {
 	prefix []string
 	typ    string
+	family string // "" for language ecosystems, which need no distro
 	// pinSep is how that ecosystem pins a version on the command line.
 	pinSep string
 }{
-	{[]string{"apt-get", "install"}, "deb", "="},
-	{[]string{"apt", "install"}, "deb", "="},
-	{[]string{"apk", "add"}, "alpine", "="},
-	{[]string{"pip", "install"}, "pypi", "=="},
-	{[]string{"pip3", "install"}, "pypi", "=="},
-	{[]string{"uv", "pip", "install"}, "pypi", "=="},
-	{[]string{"npm", "install"}, "npm", "@"},
-	{[]string{"npm", "i"}, "npm", "@"},
+	{[]string{"apt-get", "install"}, "deb", "deb", "="},
+	{[]string{"apt", "install"}, "deb", "deb", "="},
+	{[]string{"apk", "add"}, "apk", "apk", "="},
+	{[]string{"yum", "install"}, "rpm", "rpm", "-"},
+	{[]string{"dnf", "install"}, "rpm", "rpm", "-"},
+	{[]string{"microdnf", "install"}, "rpm", "rpm", "-"},
+	{[]string{"zypper", "install"}, "rpm", "rpm", "-"},
+	{[]string{"pip", "install"}, "pypi", "", "=="},
+	{[]string{"pip3", "install"}, "pypi", "", "=="},
+	{[]string{"uv", "pip", "install"}, "pypi", "", "=="},
+	{[]string{"npm", "install"}, "npm", "", "@"},
+	{[]string{"npm", "i"}, "npm", "", "@"},
+}
+
+// distroDefaults is the namespace to use when the command names a family but
+// the base image does not identify the distribution.
+var distroDefaults = map[string]string{"deb": "debian", "apk": "alpine", "rpm": "redhat"}
+
+// distroOf infers the distribution from a base image reference.
+//
+// Two signals: the image NAME (alpine, debian, ubuntu, rockylinux) and the TAG,
+// because the overwhelming majority of language images are distro variants —
+// python:3.12-slim is Debian, node:24-alpine is Alpine — and the tag is the only
+// place that says so.
+func distroOf(image string) (family, distro string) {
+	l := strings.ToLower(image)
+	switch {
+	case strings.Contains(l, "alpine"):
+		return "apk", "alpine"
+	case strings.Contains(l, "ubuntu"),
+		containsAny(l, "jammy", "noble", "focal", "bionic", "plucky"):
+		return "deb", "ubuntu"
+	case strings.Contains(l, "debian"),
+		containsAny(l, "bookworm", "bullseye", "trixie", "buster", "slim"):
+		return "deb", "debian"
+	case containsAny(l, "rockylinux", "rocky"):
+		return "rpm", "rocky"
+	case strings.Contains(l, "almalinux"):
+		return "rpm", "almalinux"
+	case containsAny(l, "redhat", "ubi8", "ubi9", "rhel"):
+		return "rpm", "redhat"
+	case strings.Contains(l, "fedora"):
+		return "rpm", "fedora"
+	case strings.Contains(l, "opensuse"), strings.Contains(l, "suse"):
+		return "rpm", "opensuse"
+	}
+	return "", ""
+}
+
+func containsAny(s string, subs ...string) bool {
+	for _, x := range subs {
+		if strings.Contains(s, x) {
+			return true
+		}
+	}
+	return false
 }
 
 // runPackages names what a RUN line installs.
@@ -304,7 +373,8 @@ var installers = []struct {
 // Deliberately conservative. Anything with a shell variable, a subshell, or a
 // requirements file is left to the opaque node — guessing there produces
 // confident nonsense, which is worse than a named unknown.
-func runPackages(cmd string) []graph.Node {
+func runPackages(cmd, baseImage string) []graph.Node {
+	imgFamily, imgDistro := distroOf(baseImage)
 	var out []graph.Node
 	for _, part := range splitShell(cmd) {
 		fields := strings.Fields(part)
@@ -353,13 +423,28 @@ func runPackages(cmd string) []graph.Node {
 				if name == "" || !plainName(name) {
 					continue
 				}
-				id, err := graph.NodeIDFor(ins.typ, name, ver)
+				// The COMMAND is authoritative about the family; the base image
+				// only refines which distribution inside it. If they disagree,
+				// trust the command — you cannot run apt-get on Alpine.
+				namespace, reason := "", ReasonInferredRun
+				if ins.family != "" {
+					if imgFamily == ins.family && imgDistro != "" {
+						namespace = imgDistro
+					} else {
+						// Guessing ubuntu when it is debian yields the WRONG
+						// advisories, which is worse than none, so the
+						// assumption is recorded rather than hidden.
+						namespace = distroDefaults[ins.family]
+						reason = ReasonAssumedDistro
+					}
+				}
+				id, err := osNodeID(ins.typ, namespace, name, ver)
 				if err != nil {
 					continue
 				}
 				out = append(out, graph.Node{
 					ID: id, Ecosystem: ins.typ, Name: name, Version: ver,
-					Completeness: graph.Inferred, Reason: ReasonInferredRun,
+					Completeness: graph.Inferred, Reason: reason,
 					Note: strings.TrimSpace(part),
 				})
 			}
@@ -454,4 +539,12 @@ func plainName(s string) bool {
 
 func isAlnum(r rune) bool {
 	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+}
+
+// osNodeID mints an OS package id with its distribution namespace.
+func osNodeID(typ, namespace, name, ver string) (graph.NodeID, error) {
+	if namespace == "" {
+		return graph.NodeIDFor(typ, name, ver)
+	}
+	return graph.NodeID(packageurl.NewPackageURL(typ, namespace, name, ver, nil, "").ToString()), nil
 }

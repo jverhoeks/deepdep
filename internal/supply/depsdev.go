@@ -38,6 +38,21 @@ import (
 // batchLimit is the server's real cap. Exceeding it truncates SILENTLY.
 const batchLimit = 100
 
+// supported are the ecosystems deps.dev actually indexes. Anything else is
+// rejected with a 400 that fails the WHOLE batch — one pkg:oci digest aborted a
+// 1400-package report — so unsupported types are filtered before the request
+// rather than discovered by the server.
+var supported = map[string]bool{
+	"npm": true, "pypi": true, "cargo": true, "maven": true,
+	"golang": true, "nuget": true,
+}
+
+func queryable(id graph.NodeID) bool {
+	s := strings.TrimPrefix(string(id), "pkg:")
+	typ, _, _ := strings.Cut(s, "/")
+	return supported[typ]
+}
+
 // Fact is what deps.dev knows about one exact package version.
 //
 // Known separates "deps.dev says this is fine" from "deps.dev has never heard
@@ -45,14 +60,19 @@ const batchLimit = 100
 // typo'd name all come back with no result — reporting that as clean is the
 // failure mode this field exists to prevent.
 type Fact struct {
-	NodeID           graph.NodeID `json:"node_id"`
-	Known            bool         `json:"known"`
-	Deprecated       bool         `json:"deprecated,omitempty"`
-	DeprecatedReason string       `json:"deprecated_reason,omitempty"`
-	Licenses         []string     `json:"licenses,omitempty"`
-	AdvisoryIDs      []string     `json:"advisory_ids,omitempty"`
-	PublishedAt      time.Time    `json:"published_at,omitempty"`
-	Attested         bool         `json:"attested,omitempty"` // a VERIFIED provenance attestation
+	NodeID graph.NodeID `json:"node_id"`
+	// Queried separates "deps.dev has never heard of this" from "we never
+	// asked". deps.dev covers language ecosystems only, so a container image or
+	// an OS package is outside its remit — reporting those as `unlisted`
+	// alongside a typosquat would be three hundred false alarms.
+	Queried          bool      `json:"queried"`
+	Known            bool      `json:"known"`
+	Deprecated       bool      `json:"deprecated,omitempty"`
+	DeprecatedReason string    `json:"deprecated_reason,omitempty"`
+	Licenses         []string  `json:"licenses,omitempty"`
+	AdvisoryIDs      []string  `json:"advisory_ids,omitempty"`
+	PublishedAt      time.Time `json:"published_at,omitempty"`
+	Attested         bool      `json:"attested,omitempty"` // a VERIFIED provenance attestation
 
 	// SourceRepo is the project the scorecard will describe, and RepoProvenance
 	// is how strongly it is attached. SLSA_ATTESTATION means the published
@@ -131,14 +151,23 @@ type versionDoc struct {
 // never seen, so a caller can never quietly lose a package between the two.
 func (c *Client) Facts(ctx context.Context, purls []graph.NodeID) ([]Fact, error) {
 	out := make([]Fact, len(purls))
+	// Only the queryable subset is sent, and the results are mapped back by
+	// index into the FULL slice so a caller still gets one Fact per input.
+	var ask []graph.NodeID
+	var askIdx []int
 	for i, p := range purls {
 		out[i] = Fact{NodeID: p}
+		if queryable(p) {
+			out[i].Queried = true
+			ask = append(ask, p)
+			askIdx = append(askIdx, i)
+		}
 	}
 
 	type chunk struct{ lo, hi int }
 	var chunks []chunk
-	for lo := 0; lo < len(purls); lo += batchLimit {
-		hi := min(lo+batchLimit, len(purls))
+	for lo := 0; lo < len(ask); lo += batchLimit {
+		hi := min(lo+batchLimit, len(ask))
 		chunks = append(chunks, chunk{lo, hi})
 	}
 
@@ -155,7 +184,7 @@ func (c *Client) Facts(ctx context.Context, purls []graph.NodeID) ([]Fact, error
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			facts, err := c.factBatch(ctx, purls[ch.lo:ch.hi])
+			facts, err := c.factBatch(ctx, ask[ch.lo:ch.hi])
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
@@ -164,7 +193,11 @@ func (c *Client) Facts(ctx context.Context, purls []graph.NodeID) ([]Fact, error
 				}
 				return
 			}
-			copy(out[ch.lo:ch.hi], facts)
+			for j, f := range facts {
+				i := askIdx[ch.lo+j]
+				f.Queried = true
+				out[i] = f
+			}
 		}(ch)
 	}
 	wg.Wait()

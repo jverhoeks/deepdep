@@ -186,7 +186,7 @@ func TestLineContinuationAndComments(t *testing.T) {
 	if opaque != 1 {
 		t.Errorf("opaque steps = %d, want 1 — the continuation is a single RUN", opaque)
 	}
-	for _, want := range []graph.NodeID{"pkg:alpine/python3", "pkg:alpine/curl@8.11.1"} {
+	for _, want := range []graph.NodeID{"pkg:apk/alpine/python3", "pkg:apk/alpine/curl@8.11.1"} {
 		if _, ok := got[want]; !ok {
 			t.Errorf("missing %q; got %v", want, nodeKeys(got))
 		}
@@ -207,7 +207,7 @@ func TestRunEmitsBothTheCommandAndTheParsedPackages(t *testing.T) {
 	if !sawCommand {
 		t.Error("the raw RUN must survive as an opaque step for formulation")
 	}
-	for _, want := range []graph.NodeID{"pkg:deb/python3", "pkg:deb/curl"} {
+	for _, want := range []graph.NodeID{"pkg:deb/debian/python3", "pkg:deb/debian/curl"} {
 		n, ok := by[want]
 		if !ok {
 			t.Fatalf("missing %q; got %v", want, nodeKeys(by))
@@ -218,12 +218,12 @@ func TestRunEmitsBothTheCommandAndTheParsedPackages(t *testing.T) {
 	}
 	// `apt-get update` installs nothing; splitting on && is what keeps its
 	// arguments from being read as package names.
-	if _, ok := by["pkg:deb/update"]; ok {
+	if _, ok := by["pkg:deb/debian/update"]; ok {
 		t.Error("`apt-get update` was misread as installing a package named update")
 	}
 	// Flags must never become packages.
 	for id := range by {
-		if id == "pkg:deb/-y" || id == "pkg:deb/--no-install-recommends" {
+		if id == "pkg:deb/debian/-y" || id == "pkg:deb/debian/--no-install-recommends" {
 			t.Errorf("flag %q parsed as a package", id)
 		}
 	}
@@ -333,5 +333,68 @@ func TestScopedNPMPackagesSurviveRunParsing(t *testing.T) {
 	// A real path argument must still be rejected.
 	if _, ok := by["pkg:npm/usr/local/bin"]; ok {
 		t.Error("a filesystem path was parsed as a package")
+	}
+}
+
+// TestOSPackagesCarryTheirDistroNamespace.
+//
+// Verified against OSV: pkg:deb/debian/curl returns 71 advisories,
+// pkg:deb/curl returns 0, and `alpine` is not a PURL type at all — the spec
+// says apk with an `alpine` namespace. Every OS package this extractor emitted
+// before was unmatchable by any advisory database, which reads as "no OS
+// vulnerabilities" rather than "we asked the wrong question".
+func TestOSPackagesCarryTheirDistroNamespace(t *testing.T) {
+	cases := []struct {
+		name, dockerfile string
+		want             graph.NodeID
+	}{
+		{"debian explicit", "FROM debian:12\nRUN apt-get install -y curl=7.88.1-10\n",
+			"pkg:deb/debian/curl@7.88.1-10"},
+		{"ubuntu explicit", "FROM ubuntu:24.04\nRUN apt-get install -y curl=8.5.0-2\n",
+			"pkg:deb/ubuntu/curl@8.5.0-2"},
+		// The tag is the only thing that says python:3.12-slim is Debian.
+		{"debian via tag", "FROM python:3.12-slim\nRUN apt-get install -y curl=7.88.1-10\n",
+			"pkg:deb/debian/curl@7.88.1-10"},
+		{"ubuntu via codename", "FROM buildpack-deps:jammy\nRUN apt-get install -y curl=8.5.0-2\n",
+			"pkg:deb/ubuntu/curl@8.5.0-2"},
+		{"alpine via tag", "FROM node:24-alpine\nRUN apk add curl=8.11.1-r0\n",
+			"pkg:apk/alpine/curl@8.11.1-r0"},
+		{"rpm", "FROM rockylinux:9\nRUN dnf install -y curl\n",
+			"pkg:rpm/rocky/curl"},
+	}
+	for _, c := range cases {
+		by := dockerNodes(t, c.dockerfile)
+		if _, ok := by[c.want]; !ok {
+			t.Errorf("%s: missing %q; got %v", c.name, c.want, nodeKeys(by))
+		}
+	}
+}
+
+// TestCommandOutranksBaseImageForFamily: you cannot run apt-get on Alpine, so
+// when the two disagree the COMMAND decides the family — and the assumed
+// distribution is recorded, because deb/debian and deb/ubuntu carry different
+// advisories and a wrong guess is worse than none.
+func TestCommandOutranksBaseImageForFamily(t *testing.T) {
+	by := dockerNodes(t, "FROM node:24-alpine\nRUN apt-get install -y curl=7.88.1-10\n")
+
+	n, ok := by["pkg:deb/debian/curl@7.88.1-10"]
+	if !ok {
+		t.Fatalf("got %v, want the deb family from the COMMAND", nodeKeys(by))
+	}
+	if n.Reason != extract.ReasonAssumedDistro {
+		t.Errorf("reason = %q, want the assumption recorded", n.Reason)
+	}
+}
+
+// TestUnknownBaseStillNamesAFamily — a scratch or unresolvable base still knows
+// apt means Debian-family; it just cannot narrow the distribution.
+func TestUnknownBaseStillNamesAFamily(t *testing.T) {
+	by := dockerNodes(t, "ARG BASE\nFROM ${BASE}\nRUN apk add curl=8.11.1-r0\n")
+	n, ok := by["pkg:apk/alpine/curl@8.11.1-r0"]
+	if !ok {
+		t.Fatalf("got %v", nodeKeys(by))
+	}
+	if n.Reason != extract.ReasonAssumedDistro {
+		t.Errorf("reason = %q, want the assumption recorded", n.Reason)
 	}
 }

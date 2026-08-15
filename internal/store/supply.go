@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 	"time"
 
@@ -127,4 +128,81 @@ func (s *Store) SupplyFacts(ctx context.Context, nodes []graph.Node) (map[graph.
 		}
 	}
 	return out, nil
+}
+
+// NodeOwners maps each node to the applications and build files that pull it in.
+//
+// Two sources, because a package can arrive either way: an instance's locator
+// directory names the application whose lockfile installed it, and an edge from
+// a build-file node names the Dockerfile or workflow that runs it. A node with
+// neither is repository-level.
+//
+// Read from the store rather than recomputed, so a report can attribute a
+// finding without re-scanning the tree.
+func (s *Store) NodeOwners(ctx context.Context, runID string) (map[graph.NodeID][]string, error) {
+	out := map[graph.NodeID]map[string]bool{}
+	add := func(id graph.NodeID, owner string) {
+		if owner == "" {
+			return
+		}
+		if out[id] == nil {
+			out[id] = map[string]bool{}
+		}
+		out[id][owner] = true
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT node_id, locator FROM instances WHERE run_id=?`, runID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id, locator string
+		if err := rows.Scan(&id, &locator); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		dir, _, ok := strings.Cut(locator, "#")
+		if !ok || dir == "" {
+			dir = "."
+		}
+		add(graph.NodeID(id), dir)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// A build file's node id carries its path as the PURL subpath, so the owner
+	// name comes straight out of the join with no second lookup.
+	rows, err = s.db.QueryContext(ctx, `
+	  SELECT e.to_id, e.from_id FROM edges e
+	   WHERE e.run_id=? AND e.from_id LIKE 'pkg:generic/buildfile/%'`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var to, from string
+		if err := rows.Scan(&to, &from); err != nil {
+			return nil, err
+		}
+		if _, p, ok := strings.Cut(from, "#"); ok {
+			add(graph.NodeID(to), p)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	final := make(map[graph.NodeID][]string, len(out))
+	for id, set := range out {
+		names := make([]string, 0, len(set))
+		for n := range set {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		final[id] = names
+	}
+	return final, nil
 }
