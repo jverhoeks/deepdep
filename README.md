@@ -41,8 +41,13 @@ pull is strictly larger than what it **will** pull today.
 ```
 one dependency — "is-string": "^1.0.0"
 
-  will    19 packages,  311 edges     ← what an SBOM shows you
-  can     81 packages, 1553 edges     ← what the range actually permits
+  will    19 packages,     311 edges     ← what an SBOM shows you
+  can     81 packages,    1553 edges     ← what the range actually permits
+
+facebook/react, whole repository
+
+  will  4505 packages,  41497 edges     4m
+  can  45446 packages,   1.4M edges     7m
 ```
 
 ---
@@ -403,9 +408,10 @@ Go 1.26+. 15 packages, ~11k lines with ~5.5k lines of tests, green under `-race`
 
 ## Limits
 
-- **`can` mode does not scale to large monorepos.** It works — 19 → 81 packages
-  from a single dependency — but does not complete within 10 minutes on `react`.
-  `--timeout` fires and emits the partial closure marked `bound:timeout`.
+- **`can` mode is expensive.** react's full can-closure takes ~7 minutes and
+  stops at the 50,000-node cap (`--max-nodes`), not at the clock. It is a
+  deliberate bound, not a scaling failure, but it is not a thing to put in a
+  pre-commit hook.
 - **Yarn and Go have no effective resolver**, so `yarn.lock` / `go.sum`-only repos
   resolve far less. grafana and kubernetes report 0 installed packages for this
   reason and their findings come from Dockerfiles alone. A low coverage ratio
