@@ -206,3 +206,38 @@ func (s *Store) NodeOwners(ctx context.Context, runID string) (map[graph.NodeID]
 	}
 	return final, nil
 }
+
+// Nodes returns a run's full node list.
+//
+// The rollup views cover package VERSIONS; control detection needs the rest of
+// the graph — CI actions, shell steps, recognised-but-unexpanded config files —
+// because that is where the evidence of a security control lives.
+func (s *Store) Nodes(ctx context.Context, runID string) ([]graph.Node, error) {
+	rows, err := s.db.QueryContext(ctx, `
+	  SELECT id, ecosystem, name, version, completeness, reason, source_file, note
+	    FROM nodes WHERE run_id=? ORDER BY id`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []graph.Node
+	for rows.Next() {
+		var n graph.Node
+		var reason, source, note *string
+		if err := rows.Scan(&n.ID, &n.Ecosystem, &n.Name, &n.Version,
+			&n.Completeness, &reason, &source, &note); err != nil {
+			return nil, err
+		}
+		n.Reason, n.Source, n.Note = deref(reason), deref(source), deref(note)
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jverhoeks/deepdep/internal/advisory"
+	"github.com/jverhoeks/deepdep/internal/controls"
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/rollup"
 	"github.com/jverhoeks/deepdep/internal/store"
@@ -111,8 +112,18 @@ func reportCmd(args []string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Control detection is a query over the whole graph, not another scan: a CI
+	// action is a node, a shell step is a node carrying its command, and a
+	// recognised config file is a coverage frontier.
+	allNodes, err := db.Nodes(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
 
 	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners)
+	r.Controls = controls.Detect(allNodes)
+	r.MissingControls = controls.Missing(r.Controls)
+	r.ControlsAssessable = controls.Assessable(allNodes)
 	if *format == "json" {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)
@@ -142,12 +153,15 @@ type reportDoc struct {
 	// Baseline are the ones nearly every open-source dependency carries; keeping
 	// them apart is what stops the biggest number from reading as the biggest
 	// problem.
-	RepoSignals []count           `json:"repo_signals"`
-	Baseline    []count           `json:"ecosystem_baseline"`
-	ByOwner     []ownerRow        `json:"by_application"`
-	Coverage    map[string]int    `json:"coverage_frontier"`
-	Notes       map[string]string `json:"notes"`
-	Sources     map[string]string `json:"sources"`
+	RepoSignals        []count            `json:"repo_signals"`
+	Baseline           []count            `json:"ecosystem_baseline"`
+	ByOwner            []ownerRow         `json:"by_application"`
+	Controls           []controls.Control `json:"controls"`
+	ControlsAssessable bool               `json:"controls_assessable"`
+	MissingControls    []controls.Kind    `json:"controls_missing"`
+	Coverage           map[string]int     `json:"coverage_frontier"`
+	Notes              map[string]string  `json:"notes"`
+	Sources            map[string]string  `json:"sources"`
 }
 
 type finding struct {
@@ -401,6 +415,39 @@ func renderReport(r reportDoc) []byte {
 		for _, o := range r.ByOwner {
 			fmt.Fprintf(&b, "   %-40s %10d %9d %5d %6d\n", o.Name, o.Malicious, o.Critical, o.High, o.Other)
 		}
+	}
+
+	fmt.Fprintf(&b, "\n5. CONTROLS IN USE  (what this repo already runs)\n")
+	if !r.ControlsAssessable {
+		// Evidence of absence vs absence of evidence. kubernetes runs Prow and
+		// has no .github/workflows at all; reporting "none" there would say
+		// "runs nothing" when the truth is "their CI is somewhere we cannot see".
+		fmt.Fprintf(&b, "   NOT ASSESSABLE: no GitHub Actions or GitLab CI configuration found.\n")
+		fmt.Fprintf(&b, "   This repository's pipeline lives somewhere deepdep does not read\n")
+		fmt.Fprintf(&b, "   (Prow, Jenkins, Buildkite, an internal system). Nothing follows about\n")
+		fmt.Fprintf(&b, "   which controls it does or does not run.\n")
+	} else if len(r.Controls) == 0 {
+		fmt.Fprintf(&b, "   none detected\n")
+	} else {
+		for _, c := range r.Controls {
+			tag := ""
+			if c.Commercial {
+				tag = "  [commercial]"
+			}
+			fmt.Fprintf(&b, "   %-20s %-24s %s%s\n", c.Kind, c.Tool,
+				truncate(strings.Join(c.Evidence, ", "), 46), tag)
+		}
+	}
+	if len(r.MissingControls) > 0 && r.ControlsAssessable {
+		// The actionable half. "Runs CodeQL" is mildly interesting; "runs no
+		// dependency scanner and no secret scanner" is the finding, and only a
+		// tool that knows the full checklist can say it.
+		var names []string
+		for _, k := range r.MissingControls {
+			names = append(names, string(k))
+		}
+		fmt.Fprintf(&b, "   not detected: %s\n", strings.Join(names, ", "))
+		fmt.Fprintf(&b, "   (absence of evidence in CI: a control run outside this repo is invisible here)\n")
 	}
 
 	fmt.Fprintf(&b, "\nno composite score: layers are reported separately, because any single\n")

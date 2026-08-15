@@ -218,6 +218,45 @@ MALICIOUS  MAL-2025-47141  npm/@ctrl/tinycolor@4.1.1  Malicious code in @ctrl/ti
 Found through a `RUN npm install` line in a Dockerfile, with no lockfile
 involved — which is why `report` queries every state by default.
 
+### Controls already in place
+
+The closure already holds the evidence — a CI action is a node, a shell step is
+a node carrying its command — so detecting what a repo already runs is a query,
+not another scan. `report` checks nine categories and, more usefully, says which
+are **missing**:
+
+```
+5. CONTROLS IN USE
+   container-scanning   Trivy            .github/workflows/security-trivy-scan-callable.yml
+   static-analysis      CodeQL           .github/workflows/sec-poutine-reusable.yml
+   signing              cosign           .github/workflows/docker-build-push.yml
+   signing              SLSA generator   .github/workflows/docker-build-push.yml
+   not detected: dependency-scanning, sbom, secret-scanning, iac-scanning,
+                 dependency-updates, ci-hardening
+```
+
+Across the ten repositories above:
+
+| repo | controls detected |
+|---|---|
+| n8n | Trivy, CodeQL, cosign, SLSA generator |
+| home-assistant | CodeQL, cosign, Dependabot, Renovate |
+| grafana | CodeQL, TruffleHog, Dependabot, Renovate |
+| airflow | govulncheck, CodeQL, Dependabot |
+| react / langchain / vscode | Dependabot only |
+| **next.js / django** | **none** |
+| kubernetes | *not assessable* |
+
+Detection matches the **invoked command**, never a mention: a step that greps for
+`trivy` or writes `sbom.json` is not running a scanner, and `npm audit` counts
+while `npm ci` does not. Commercial products (Snyk, SonarQube, Veracode,
+Checkmarx, Mend, FOSSA, Docker Scout, Harden-Runner) are detected and marked.
+
+`kubernetes` is reported as **not assessable** rather than "none": it runs Prow
+and has no `.github/workflows` at all. Absence of evidence and evidence of
+absence are different findings, and a report that conflates them is worse than
+one that says nothing.
+
 ---
 
 ## Commands
