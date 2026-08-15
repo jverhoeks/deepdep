@@ -17,15 +17,32 @@ func glExtract(t *testing.T, body string) (map[graph.NodeID]graph.EdgeKind, map[
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Exactly one edge is root-anchored: root -> the CI file. Everything else
+	// hangs off that file node, which is what keeps attribution per-occurrence
+	// when several pipeline files share an action or an image.
 	kinds := map[graph.NodeID]graph.EdgeKind{}
+	var file graph.NodeID
 	for _, e := range edges {
-		if e.From != "" {
-			t.Errorf("edge From = %q, want empty", e.From)
+		if e.From == "" {
+			if file != "" {
+				t.Errorf("second root edge to %q; want exactly one, to the file node", e.To)
+			}
+			file = e.To
+			continue
+		}
+		if e.From != file {
+			t.Errorf("edge From = %q, want the CI file node %q", e.From, file)
 		}
 		kinds[e.To] = e.Kind
 	}
+	if file == "" {
+		t.Fatal("no root edge to a file node")
+	}
 	byID := map[graph.NodeID]graph.Node{}
 	for _, n := range nodes {
+		if n.ID == file {
+			continue // scaffolding for attribution, not a finding
+		}
 		byID[n.ID] = n
 	}
 	return kinds, byID

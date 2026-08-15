@@ -90,7 +90,11 @@ type pyProjectDoc struct {
 		Dependencies         []string            `toml:"dependencies"`
 		OptionalDependencies map[string][]string `toml:"optional-dependencies"`
 	} `toml:"project"`
-	DependencyGroups map[string][]string `toml:"dependency-groups"`
+	// PEP 735 groups mix requirement STRINGS with Dependency Group Includes —
+	// {include-group = "dev"} — so the element type is not []string. Airflow's
+	// pyproject.toml does exactly this, and decoding it as []string failed the
+	// whole scan rather than one group.
+	DependencyGroups map[string][]any `toml:"dependency-groups"`
 }
 
 func (PyProject) Extract(_ context.Context, f source.File) ([]graph.Edge, []graph.Node, error) {
@@ -120,12 +124,14 @@ func (PyProject) Extract(_ context.Context, f source.File) ([]graph.Edge, []grap
 	}
 	// PEP 735 groups are development-time by construction.
 	for _, g := range sortedStringKeys(doc.DependencyGroups) {
-		add(doc.DependencyGroups[g], graph.Dev)
+		add(resolveGroup(doc.DependencyGroups, g, map[string]bool{}), graph.Dev)
 	}
 	return edges, nil, nil
 }
 
-func sortedStringKeys(m map[string][]string) []string {
+// sortedStringKeys keeps extraction deterministic: TOML and Go maps both
+// iterate unordered.
+func sortedStringKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
@@ -223,4 +229,31 @@ func indexOption(line string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// resolveGroup flattens one PEP 735 group, following Dependency Group Includes.
+//
+// An include pulls in another group's requirements wholesale, so a group that
+// contains nothing but includes — airflow's `ci-image` is four of them and no
+// requirements — would otherwise contribute nothing at all. Includes may nest;
+// the spec forbids cycles, and `seen` makes a malformed file terminate rather
+// than hang.
+func resolveGroup(groups map[string][]any, name string, seen map[string]bool) []string {
+	if seen[name] {
+		return nil
+	}
+	seen[name] = true
+
+	var out []string
+	for _, item := range groups[name] {
+		switch v := item.(type) {
+		case string:
+			out = append(out, v)
+		case map[string]any:
+			if inc, ok := v["include-group"].(string); ok {
+				out = append(out, resolveGroup(groups, inc, seen)...)
+			}
+		}
+	}
+	return out
 }

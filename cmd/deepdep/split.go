@@ -35,7 +35,7 @@ func writeSplitSBOMs(dir string, g *graph.Graph, inst []effective.Instance,
 	)
 	fmt.Fprintf(&manifest, "%d documents in %s\n\n", len(units), dir)
 	for _, u := range units {
-		name := strings.NewReplacer("/", "_", " ", "-").Replace(u.Name) + ".cdx.json"
+		name := documentName(u.Name)
 		p := filepath.Join(dir, name)
 
 		um := m
@@ -93,4 +93,19 @@ func countComponents(b []byte) (int, error) {
 		return 0, err
 	}
 	return len(doc.Components), nil
+}
+
+// documentName turns a unit name into a usable filename.
+//
+// Two things a naive replace gets wrong, both seen on real repos: a unit named
+// ".github/workflows/ci.yml" becomes a HIDDEN file, so half a deliverables
+// directory is invisible to `ls` and to a shell glob; and a single-project
+// repo's application unit is named "." and produced a file called "..cdx.json".
+func documentName(unit string) string {
+	s := strings.NewReplacer("/", "_", " ", "-", string(filepath.Separator), "_").Replace(unit)
+	s = strings.TrimLeft(s, ".")
+	if s == "" {
+		s = "root"
+	}
+	return s + ".cdx.json"
 }

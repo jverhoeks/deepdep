@@ -21,7 +21,7 @@ func dockerNodes(t *testing.T, body string) map[graph.NodeID]graph.Node {
 	for _, n := range nodes {
 		// The Dockerfile's own node is scaffolding for attribution; these tests
 		// are about what it pulls IN.
-		if strings.HasPrefix(string(n.ID), "pkg:generic/dockerfile@") {
+		if strings.HasPrefix(string(n.ID), extract.BuildFilePrefix) {
 			continue
 		}
 		by[n.ID] = n

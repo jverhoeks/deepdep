@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jverhoeks/deepdep/internal/effective"
+	"github.com/jverhoeks/deepdep/internal/extract"
 	"github.com/jverhoeks/deepdep/internal/graph"
 )
 
@@ -19,7 +20,7 @@ import (
 // separate documents first.
 type Unit struct {
 	Name  string // backend, cli, cli/Dockerfile, _repo
-	Kind  string // application | image | repository
+	Kind  string // application | image | pipeline | repository
 	Graph *graph.Graph
 	Root  graph.NodeID
 }
@@ -30,9 +31,10 @@ type Unit struct {
 //
 //  1. An instance's locator directory names an APPLICATION. The lockfile
 //     already decided what installs where, so this is read, not inferred.
-//  2. Everything reachable from a Dockerfile's file node belongs to that IMAGE.
-//  3. Whatever is left — the CI pipeline, its steps and base images, the
-//     coverage frontiers — goes to a single REPOSITORY unit.
+//  2. Everything reachable from a build-definition file belongs to that file:
+//     an IMAGE for a Dockerfile, a PIPELINE for a workflow or CI config.
+//  3. Whatever is left — coverage frontiers, anything with no owner — goes to a
+//     single REPOSITORY unit.
 //
 // Rule 3 is the one worth stating out loud. Repo-level artifacts have no
 // instance locator and belong to no application. Duplicating them into every
@@ -75,12 +77,14 @@ func Split(g *graph.Graph, inst []effective.Instance, root graph.NodeID) []Unit 
 		claimed[i.NodeID] = true
 	}
 
-	// 2. Images, from each Dockerfile's file node.
+	// 2. One unit per build-definition file: an image for a Dockerfile, a
+	// pipeline for a workflow or CI config.
 	for _, n := range g.Nodes() {
 		if !isFileNode(n) {
 			continue
 		}
 		unit := n.Note // the file path
+		kind := buildFileKind(n)
 		claimed[n.ID] = true
 		// The file node itself is a member, and so are the build steps. Both are
 		// needed for the induced subgraph to contain the file -> step and
@@ -89,10 +93,10 @@ func Split(g *graph.Graph, inst []effective.Instance, root graph.NodeID) []Unit 
 		// exactly the "build requirements" the split exists to deliver. The
 		// emitter drops build steps from components[] on its own, so including
 		// them here cannot pollute the component list.
-		add(unit, "image", n.ID)
+		add(unit, kind, n.ID)
 		for _, id := range reachable(out, n.ID) {
 			claimed[id] = true
-			add(unit, "image", id)
+			add(unit, kind, id)
 		}
 	}
 
@@ -189,6 +193,16 @@ func sanitiseUnit(s string) string {
 		return "root"
 	}
 	return s
+}
+
+// buildFileKind names the unit after what the file IS. Labelling a
+// .gitlab-ci.yml as an "image" because it happens to reference base images
+// would misdescribe the deliverable in the manifest a human reads.
+func buildFileKind(n graph.Node) string {
+	if strings.HasPrefix(string(n.ID), extract.BuildFilePrefix+"dockerfile@") {
+		return "image"
+	}
+	return "pipeline"
 }
 
 func reachable(out map[graph.NodeID][]graph.Edge, from graph.NodeID) []graph.NodeID {

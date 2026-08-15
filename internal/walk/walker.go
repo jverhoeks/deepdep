@@ -92,7 +92,18 @@ func (w *Walker) seed(ctx context.Context, s source.Source, g *graph.Graph, root
 		for _, e := range w.registry.For(f.Path) {
 			edges, nodes, err := e.Extract(ctx, f)
 			if err != nil {
-				return err
+				// One unparseable file must not abort the repository.
+				//
+				// A single PEP 735 construct we did not handle killed an entire
+				// airflow scan — 300MB of repo reported as nothing at all. The
+				// tool's whole premise is that a blind spot gets NAMED rather
+				// than silently swallowing the answer, and an aborted run is the
+				// most complete swallow there is. The file becomes a frontier
+				// carrying the parser's own error, and the walk continues.
+				n := extract.ParseErrorNode(e.Name(), f.Path, err)
+				g.Add(n)
+				g.Link(graph.Edge{From: root, To: n.ID, Kind: graph.Installs})
+				continue
 			}
 			// Extractor-supplied metadata carries completeness only the
 			// extractor could know (a moving tag, an opaque run step).
@@ -368,8 +379,19 @@ func (w *Walker) markDeclared(g *graph.Graph, r req, reason string) {
 	if err != nil {
 		return
 	}
+	// The declared range does NOT go on the node.
+	//
+	// A range is per-occurrence: seven parents can want seven different ranges
+	// of the same package, and the node is deduplicated, so whichever concurrent
+	// worker arrives last decides what Note says. Two runs of an identical scan
+	// then differ — react emitted "^7.2.0" and "^7.18.9" for the same node on
+	// consecutive runs — which breaks the reproducibility guarantee outright.
+	//
+	// Edge.Spec below already records every range, once per parent, losing
+	// nothing. Third time this codebase has had to relearn that multiplicity
+	// belongs on edges.
 	g.Add(graph.Node{ID: id, Ecosystem: r.eco, Name: r.name,
-		Completeness: graph.Declared, Reason: reason, Note: r.spec})
+		Completeness: graph.Declared, Reason: reason})
 	g.Link(graph.Edge{From: r.from, To: id, Kind: graph.DependsOn, Spec: r.spec, Scope: r.scope})
 }
 

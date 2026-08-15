@@ -59,19 +59,27 @@ func (GHActions) Extract(_ context.Context, f source.File) ([]graph.Edge, []grap
 		return nil, nil, fmt.Errorf("%s: %w", f.Path, err)
 	}
 
+	// Everything this workflow pulls in hangs off the workflow FILE, not off the
+	// repository root. A repo with several workflows shares actions and images
+	// between them, and a shared node's Source names only the first file that
+	// reached it — so root-anchored edges make every other workflow look empty.
+	file := BuildFileNode("workflow", f.Path)
+
 	var (
-		edges []graph.Edge
-		nodes []graph.Node
+		edges = []graph.Edge{{From: "", To: file.ID, Kind: graph.Invokes}}
+		nodes = []graph.Node{file}
 		seen  = map[graph.NodeID]bool{}
 	)
 	emit := func(n graph.Node, kind graph.EdgeKind) {
+		// The EDGE is always recorded — that is the attribution — while the node
+		// is added once.
+		edges = append(edges, graph.Edge{From: file.ID, To: n.ID, Kind: kind})
 		if seen[n.ID] {
 			return
 		}
 		seen[n.ID] = true
 		n.Source = f.Path
 		nodes = append(nodes, n)
-		edges = append(edges, graph.Edge{From: "", To: n.ID, Kind: kind})
 	}
 
 	// Sorted job names keep extraction deterministic; YAML maps decode unordered.

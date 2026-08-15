@@ -13,7 +13,7 @@ import (
 func splitFixture() (*graph.Graph, []effective.Instance, graph.NodeID) {
 	g := graph.New()
 	root := graph.NodeID("pkg:generic/repo@deadbeef")
-	dockerfile := graph.NodeID("pkg:generic/dockerfile@aaa111#backend/Dockerfile")
+	dockerfile := graph.NodeID("pkg:generic/buildfile/dockerfile@aaa111#backend/Dockerfile")
 
 	for _, n := range []graph.Node{
 		{ID: root, Name: "repo", Completeness: graph.Resolved},

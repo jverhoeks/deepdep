@@ -64,7 +64,7 @@ func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []gra
 	// a real scan for exactly that reason. Attribution is per-occurrence data, so
 	// it has to live on edges; the interface already allows an explicit From, and
 	// only From == "" is rewritten to the root.
-	file := fileNode(f.Path)
+	file := BuildFileNode("dockerfile", f.Path)
 
 	var (
 		edges = []graph.Edge{{From: "", To: file.ID, Kind: graph.Invokes}}
@@ -139,17 +139,6 @@ func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []gra
 		nodes[i].Source = f.Path
 	}
 	return edges, nodes, nil
-}
-
-// fileNode identifies the Dockerfile itself. The path travels as the PURL
-// subpath so two Dockerfiles in one repo stay distinct and stay readable.
-func fileNode(p string) graph.Node {
-	n := hashedNode("dockerfile", p)
-	n.Completeness = graph.Resolved // we read it in full; nothing about it is unknown
-	n.Name = path.Base(p)
-	n.Note = p
-	n.ID = graph.NodeID(string(n.ID) + "#" + p)
-	return n
 }
 
 // ---- parsing -------------------------------------------------------------

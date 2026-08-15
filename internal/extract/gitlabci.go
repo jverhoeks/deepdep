@@ -141,19 +141,22 @@ func (GitLabCI) Extract(_ context.Context, f source.File) ([]graph.Edge, []graph
 		return nil, nil, fmt.Errorf("%s: %w", f.Path, err)
 	}
 
+	// Findings hang off the CI file, not the repository root: see BuildFileNode.
+	file := BuildFileNode("gitlab-ci", f.Path)
+
 	var (
-		edges []graph.Edge
-		nodes []graph.Node
+		edges = []graph.Edge{{From: "", To: file.ID, Kind: graph.Invokes}}
+		nodes = []graph.Node{file}
 		seen  = map[graph.NodeID]bool{}
 	)
 	emit := func(n graph.Node, kind graph.EdgeKind) {
+		edges = append(edges, graph.Edge{From: file.ID, To: n.ID, Kind: kind})
 		if seen[n.ID] {
 			return
 		}
 		seen[n.ID] = true
 		n.Source = f.Path
 		nodes = append(nodes, n)
-		edges = append(edges, graph.Edge{From: "", To: n.ID, Kind: kind})
 	}
 
 	addJob := func(j job) {

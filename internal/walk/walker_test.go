@@ -2,6 +2,9 @@ package walk_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,4 +239,100 @@ func ids(g *graph.Graph) []graph.NodeID {
 		out = append(out, n.ID)
 	}
 	return out
+}
+
+// TestOneUnparseableFileDoesNotAbortTheScan.
+//
+// A single PEP 735 construct we did not handle killed an entire airflow scan:
+// 300MB of repository reported as nothing at all. The tool's whole premise is
+// that a blind spot is NAMED rather than swallowing the answer, and an aborted
+// run is the most complete swallow there is.
+type brokenExtractor struct{}
+
+func (brokenExtractor) Name() string        { return "broken" }
+func (brokenExtractor) Match(p string) bool { return p == "broken.toml" }
+func (brokenExtractor) Extract(context.Context, source.File) ([]graph.Edge, []graph.Node, error) {
+	return nil, nil, errors.New("line 1409: incompatible types")
+}
+
+func TestOneUnparseableFileDoesNotAbortTheScan(t *testing.T) {
+	reg := extract.NewRegistry()
+	reg.Register(extract.NPMManifest{})
+	reg.Register(brokenExtractor{})
+
+	fr := fakeResolver{vers: map[string][]string{"a": {"1.0.0"}}}
+	src := source.Static([]source.File{
+		{Path: "broken.toml", Data: []byte("nonsense")},
+		{Path: "package.json", Data: []byte(`{"name":"r","dependencies":{"a":"^1.0.0"}}`)},
+	})
+	w := walk.New(walk.Bounds{
+		MaxDepth: 8, MaxNodes: 100, Concurrency: 2,
+		Version: version.BoundPolicy{Mode: version.ModeLatest},
+	}, map[string]resolve.Resolver{"npm": fr}, reg, map[string]version.VersionScheme{"npm": version.NPM})
+
+	g, err := w.Walk(context.Background(), src, "pkg:generic/root@test")
+	if err != nil {
+		t.Fatalf("a broken file aborted the whole scan: %v", err)
+	}
+	if !g.Has("pkg:npm/a@1.0.0") {
+		t.Error("the healthy manifest was not extracted")
+	}
+
+	var found bool
+	for _, n := range g.Nodes() {
+		if n.Reason != extract.ReasonParseError {
+			continue
+		}
+		found = true
+		if !strings.Contains(n.Note, "incompatible types") {
+			t.Errorf("note = %q, want the parser's own message", n.Note)
+		}
+		if n.Source != "broken.toml" {
+			t.Errorf("source = %q, want the offending file", n.Source)
+		}
+	}
+	if !found {
+		t.Error("the unparseable file vanished; a parse failure must be a NAMED frontier")
+	}
+}
+
+// TestDeclaredFrontierIsDeterministicUnderConcurrency.
+//
+// Many parents, each declaring a DIFFERENT range for the same package. The node
+// is deduplicated and expansion is concurrent, so storing the range on the node
+// let whichever worker finished last decide — two identical scans of react
+// emitted "^7.2.0" and "^7.18.9" for the same node on consecutive runs.
+// Determinism is a stated global constraint, so this is asserted, not assumed.
+func TestDeclaredFrontierIsDeterministicUnderConcurrency(t *testing.T) {
+	var deps []string
+	for i := 0; i < 40; i++ {
+		deps = append(deps, fmt.Sprintf("%q:%q", fmt.Sprintf("p%02d", i), fmt.Sprintf("^%d.0.0", i+1)))
+	}
+	manifest := `{"name":"r","dependencies":{` + strings.Join(deps, ",") + `}}`
+
+	// No resolvers at all: every dependency lands on the declared frontier.
+	reg := extract.NewRegistry()
+	reg.Register(extract.NPMManifest{})
+
+	run := func() string {
+		src := source.Static([]source.File{{Path: "package.json", Data: []byte(manifest)}})
+		w := walk.New(walk.Bounds{MaxDepth: 8, MaxNodes: 1000, Concurrency: 16,
+			Version: version.BoundPolicy{Mode: version.ModeLatest}},
+			map[string]resolve.Resolver{}, reg, map[string]version.VersionScheme{"npm": version.NPM})
+		g, err := w.Walk(context.Background(), src, rootID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var b strings.Builder
+		for _, n := range g.Nodes() {
+			fmt.Fprintf(&b, "%s|%s|%s|%s\n", n.ID, n.Completeness, n.Reason, n.Note)
+		}
+		return b.String()
+	}
+	first := run()
+	for i := 0; i < 5; i++ {
+		if got := run(); got != first {
+			t.Fatalf("run %d differs from run 0 — node emission is nondeterministic", i+1)
+		}
+	}
 }

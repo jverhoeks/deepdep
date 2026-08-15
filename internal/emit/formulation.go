@@ -8,6 +8,7 @@ import (
 
 	cdx "github.com/CycloneDX/cyclonedx-go"
 
+	"github.com/jverhoeks/deepdep/internal/extract"
 	"github.com/jverhoeks/deepdep/internal/graph"
 )
 
@@ -178,7 +179,7 @@ func stepName(cmd string) string {
 // isFileNode reports whether a node stands for a build-definition FILE rather
 // than something the build pulls in.
 func isFileNode(n graph.Node) bool {
-	return strings.HasPrefix(string(n.ID), "pkg:generic/dockerfile@")
+	return strings.HasPrefix(string(n.ID), extract.BuildFilePrefix)
 }
 
 func shortHash(s string) string {

@@ -38,12 +38,23 @@ jobs:
   call:
     uses: myorg/shared/.github/workflows/release.yml@v1
 `)
+	// One root edge, to the workflow file; everything the workflow pulls in
+	// hangs off that node so several workflows cannot steal each other's
+	// findings through a shared, deduplicated action or image.
 	kind := map[graph.NodeID]graph.EdgeKind{}
+	var file graph.NodeID
 	for _, e := range edges {
-		if e.From != "" {
-			t.Errorf("edge From = %q, want empty — a workflow file has no self-identity", e.From)
+		if e.From == "" {
+			file = e.To
+			continue
+		}
+		if e.From != file {
+			t.Errorf("edge From = %q, want the workflow file node %q", e.From, file)
 		}
 		kind[e.To] = e.Kind
+	}
+	if file == "" {
+		t.Fatal("no root edge to the workflow file node")
 	}
 
 	for id, want := range map[graph.NodeID]graph.EdgeKind{
@@ -190,4 +201,57 @@ func keysN(m map[graph.NodeID]graph.Node) []graph.NodeID {
 		out = append(out, k)
 	}
 	return out
+}
+
+// TestSharedActionIsAttributedToEveryWorkflow is the attribution bug, in the
+// place it is most likely to matter: nearly every workflow in a repo uses
+// actions/checkout, and a deduplicated node's Source names only the first file
+// that reached it. Anchoring findings to the repository root made every
+// workflow after the first report having pulled in nothing.
+func TestSharedActionIsAttributedToEveryWorkflow(t *testing.T) {
+	const body = `
+jobs:
+  b:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker://alpine:3.19
+`
+	files := map[graph.NodeID][]graph.NodeID{}
+	for _, p := range []string{".github/workflows/ci.yml", ".github/workflows/release.yml"} {
+		edges, _, err := extract.GHActions{}.Extract(context.Background(),
+			source.File{Path: p, Data: []byte(body)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var self graph.NodeID
+		for _, e := range edges {
+			if e.From == "" {
+				self = e.To
+			}
+		}
+		for _, e := range edges {
+			if e.From == self {
+				files[self] = append(files[self], e.To)
+			}
+		}
+	}
+	if len(files) != 2 {
+		t.Fatalf("workflow file nodes = %d, want 2 distinct", len(files))
+	}
+	for f, targets := range files {
+		want := map[graph.NodeID]bool{
+			"pkg:github/actions/checkout@v4": false,
+			"pkg:oci/alpine@3.19":            false,
+		}
+		for _, to := range targets {
+			if _, ok := want[to]; ok {
+				want[to] = true
+			}
+		}
+		for id, seen := range want {
+			if !seen {
+				t.Errorf("%s has no edge to %s — attribution lost to deduplication", f, id)
+			}
+		}
+	}
 }
