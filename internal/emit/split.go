@@ -82,23 +82,27 @@ func Split(g *graph.Graph, inst []effective.Instance, root graph.NodeID) []Unit 
 		}
 		unit := n.Note // the file path
 		claimed[n.ID] = true
+		// The file node itself is a member, and so are the build steps. Both are
+		// needed for the induced subgraph to contain the file -> step and
+		// file -> image edges, which is what formulationOf walks. Without them
+		// the per-image document listed a base image and no build steps at all —
+		// exactly the "build requirements" the split exists to deliver. The
+		// emitter drops build steps from components[] on its own, so including
+		// them here cannot pollute the component list.
+		add(unit, "image", n.ID)
 		for _, id := range reachable(out, n.ID) {
-			// A build step is not a component and never becomes one, but it is
-			// claimed so it does not fall through to the repository unit.
 			claimed[id] = true
-			if !isBuildStep(byID[id]) {
-				add(unit, "image", id)
-			}
-		}
-		if members[unit] == nil {
-			add(unit, "image", n.ID) // a FROM-less Dockerfile still gets a document
-			delete(members[unit], n.ID)
+			add(unit, "image", id)
 		}
 	}
 
-	// 3. Everything else.
+	// 3. Everything else — including build steps, which are the pipeline's own
+	// commands. Excluding them here silently dropped all 26 .gitlab-ci.yml steps
+	// from the repository document while the per-image ones survived, so the
+	// split reported 50 of the closure's 76 steps. components[] filtering is the
+	// emitter's job, not the partition's.
 	for _, n := range g.Nodes() {
-		if claimed[n.ID] || isBuildStep(n) {
+		if claimed[n.ID] {
 			continue
 		}
 		add("_repo", "repository", n.ID)
@@ -150,9 +154,19 @@ func subgraph(g *graph.Graph, byID map[graph.NodeID]graph.Node,
 		hasParent[e.To] = true
 	}
 	for id := range member {
-		if !hasParent[id] {
-			sub.Link(graph.Edge{From: rootID, To: id, Kind: graph.DependsOn})
+		if hasParent[id] {
+			continue
 		}
+		// The synthetic root stands in for whatever parent did not survive the
+		// partition, so it must inherit that parent's EDGE KIND. Defaulting to
+		// DependsOn silently reclassified every root-level `installs` edge and
+		// formulation then found no steps: the repository document reported zero
+		// pipeline commands while its graph held all 26.
+		kind := graph.DependsOn
+		if in := g.InboundTo(id); len(in) > 0 {
+			kind = in[0].Kind
+		}
+		sub.Link(graph.Edge{From: rootID, To: id, Kind: kind})
 	}
 	_ = repoRoot
 	return sub

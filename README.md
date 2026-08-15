@@ -226,6 +226,18 @@ go in `_repo` rather than being copied into every application. Duplicating them
 would inflate each document and double-count the union; dropping them would make
 every document look cleaner than the repository is.
 
+### Known limitations
+
+The GitHub Actions and GitLab CI extractors do not yet emit file nodes, so a
+repo with several `.github/workflows/*.yml` attributes a shared action or base
+image to whichever workflow reached it first — the bug the Dockerfile extractor
+fixes by hanging its findings off a file node. One `.gitlab-ci.yml` is
+unambiguous; several workflows are not.
+
+The build layer lands as `possible`, not `installed`: `deepdep audit` checks
+lockfile-backed packages by default, so base images and packages parsed out of
+`RUN` lines need `--state possible`.
+
 ### What this is not
 
 A **Source** SBOM, in CISA's taxonomy — recorded in the document as

@@ -185,6 +185,10 @@ func componentType(n graph.Node) cdx.ComponentType {
 	case strings.HasPrefix(string(n.ID), "pkg:github/"),
 		strings.HasPrefix(string(n.ID), "pkg:gitlab/"):
 		return cdx.ComponentTypeApplication
+	case isFileNode(n):
+		// A build-definition file. It is a real artifact in the repository AND
+		// the subject of a formulation workflow; the two are not in conflict.
+		return cdx.ComponentTypeFile
 	case n.Reason == "no-extractor":
 		// A file we saw and could not expand. CycloneDX has a type for exactly
 		// this, and it keeps the frontier from masquerading as a library.

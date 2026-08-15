@@ -1,6 +1,7 @@
 package emit_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jverhoeks/deepdep/internal/effective"
@@ -96,13 +97,40 @@ func TestRepoLevelNodesGetTheirOwnDocument(t *testing.T) {
 	}
 }
 
-// TestBuildStepsAreNotInAnyUnit: a shell command is formulation, never a
-// component, so it must not be counted into a per-app or per-image document.
-func TestBuildStepsAreNotInAnyUnit(t *testing.T) {
-	for name, u := range unitsByName(emit.Split(splitFixture())) {
-		if u.Graph.Has("pkg:generic/opaque@bbb222") {
-			t.Errorf("%s contains a build step as a component", name)
+// TestImageUnitCarriesItsBuildSteps: the per-image document must contain the
+// build requirements, which is the whole point of splitting per Dockerfile.
+//
+// The unit's GRAPH deliberately holds the build steps — formulation walks the
+// file -> step edges — while the emitted components[] must not, because a shell
+// command is not a library. Asserting only the graph, as an earlier version of
+// this test did, passed while every per-image document shipped with zero steps.
+func TestImageUnitCarriesItsBuildSteps(t *testing.T) {
+	var img emit.Unit
+	for _, u := range emit.Split(splitFixture()) {
+		if u.Name == "backend/Dockerfile" {
+			img = u
 		}
+	}
+	if img.Graph == nil {
+		t.Fatal("no image unit")
+	}
+
+	m := emit.Meta{Ref: unitRefOf(img.Root), Repo: img.Name, ToolVersion: "test"}
+	b := encode(t, img.Graph, m, emit.CycloneDXOptions{Formulation: true})
+
+	for _, c := range b.Components {
+		if c.BOMRef == "pkg:generic/opaque@bbb222" {
+			t.Error("a build step must not appear in components[]")
+		}
+	}
+	var steps int
+	for _, f := range b.Formulation {
+		for _, w := range f.Workflows {
+			steps += len(w.Steps)
+		}
+	}
+	if steps == 0 {
+		t.Error("the per-image document has no build steps — the build requirements are missing")
 	}
 }
 
@@ -125,4 +153,40 @@ func keysOf(m map[string]emit.Unit) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// unitRefOf mirrors what the CLI does: the emitter picks metadata.component by
+// matching Meta.Ref against a node id's version half.
+func unitRefOf(id graph.NodeID) string {
+	s := string(id)
+	if i := strings.LastIndex(s, "@"); i >= 0 {
+		return s[i+1:]
+	}
+	return ""
+}
+
+// TestNoStepIsLostBySplitting: every build step in the closure must land in
+// exactly one document. Excluding steps from the repository unit dropped all 26
+// pipeline commands while the per-image ones survived — a partition that loses
+// a third of the build evidence and reports nothing.
+func TestNoStepIsLostBySplitting(t *testing.T) {
+	g, inst, root := splitFixture()
+
+	var want int
+	for _, n := range g.Nodes() {
+		if n.Completeness == graph.Opaque {
+			want++
+		}
+	}
+	got := map[graph.NodeID]bool{}
+	for _, u := range emit.Split(g, inst, root) {
+		for _, n := range u.Graph.Nodes() {
+			if n.Completeness == graph.Opaque {
+				got[n.ID] = true
+			}
+		}
+	}
+	if len(got) != want {
+		t.Errorf("build steps after splitting = %d, want %d — the partition lost some", len(got), want)
+	}
 }
