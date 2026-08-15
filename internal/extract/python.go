@@ -62,7 +62,30 @@ func parseRequirement(s string) (name, spec string, ok bool) {
 		// A direct URL reference pins to a URL, not a version.
 		return name, "", true
 	}
+	// The SPECIFIER has to look like one. Any first word is a valid package
+	// name, so without this check a line of prose parses: Django's
+	// docs/ref/models/constraints.txt yielded a package named "when" with the
+	// specifier "there are multiple fields, and to the :attr:`.Field.unique`
+	// error". Reading documentation as a dependency manifest invents packages
+	// that do not exist, which is worse than missing ones that do.
+	if spec != "" && !isSpecifier(spec) {
+		return "", "", false
+	}
 	return name, spec, true
+}
+
+// isSpecifier reports whether s opens like a PEP 440 version specifier or an
+// extras group. Anything else is not a requirement.
+func isSpecifier(s string) bool {
+	if strings.HasPrefix(s, "[") { // extras: requests[security]
+		return true
+	}
+	for _, op := range []string{"===", "==", "!=", "~=", ">=", "<=", ">", "<"} {
+		if strings.HasPrefix(s, op) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------- pyproject ---
@@ -173,8 +196,10 @@ func inPythonEnv(p string) bool {
 
 func (Requirements) Extract(_ context.Context, f source.File) ([]graph.Edge, []graph.Node, error) {
 	var (
-		edges []graph.Edge
-		nodes []graph.Node
+		edges      []graph.Edge
+		nodes      []graph.Node
+		considered int // non-blank, non-comment, non-option lines
+		parsed     int
 	)
 	for _, raw := range strings.Split(string(f.Data), "\n") {
 		line := strings.TrimSpace(raw)
@@ -207,14 +232,25 @@ func (Requirements) Extract(_ context.Context, f source.File) ([]graph.Edge, []g
 			continue
 		}
 
+		considered++
 		name, spec, ok := parseRequirement(line)
 		if !ok {
 			continue
 		}
+		parsed++
 		edges = append(edges, graph.Edge{
 			From: "", To: pypiNodeID(name, ""),
 			Kind: graph.DependsOn, Spec: spec, Scope: graph.Prod,
 		})
+	}
+
+	// A file that mostly does not parse is not a requirements file, whatever it
+	// is called. `constraints.txt` is both a pip constraints file and the name
+	// Django gives two documentation pages, and matching on the name alone let
+	// reStructuredText prose through. Emitting nothing is the honest answer;
+	// the coverage frontier still reports the file was seen.
+	if considered >= 4 && parsed*2 < considered {
+		return nil, nil, nil
 	}
 	return edges, nodes, nil
 }

@@ -104,3 +104,42 @@ func TestRegistryDispatchesByPath(t *testing.T) {
 		t.Errorf("For(other.txt) = %d extractors, want 0", len(got))
 	}
 }
+
+// TestProtocolSpecsAreNotVersionRanges.
+//
+// pnpm's workspace:, catalog:, link: and file: protocols name a resolution
+// MECHANISM, not a version range. n8n declares 396 of them, and recording those
+// strings in a spec field made a sibling package in the same repo look like an
+// unbounded dependency on a public one — wrong in the more alarming direction,
+// and unparseable by any semver scheme.
+func TestProtocolSpecsAreNotVersionRanges(t *testing.T) {
+	f := source.File{Path: "package.json", Data: []byte(`{
+      "name":"app",
+      "dependencies":{
+        "@n8n/config":"workspace:*",
+        "vue":"catalog:frontend",
+        "local-rules":"link:./scripts/eslint-rules",
+        "lodash":"^4.17.0"
+      }}`)}
+	edges, _, err := extract.NPMManifest{}.Extract(context.Background(), f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[graph.NodeID]string{}
+	for _, e := range edges {
+		got[e.To] = e.Spec
+	}
+	for _, id := range []graph.NodeID{"pkg:npm/%40n8n/config", "pkg:npm/vue", "pkg:npm/local-rules"} {
+		spec, ok := got[id]
+		if !ok {
+			t.Errorf("%s missing entirely; the dependency is still real", id)
+			continue
+		}
+		if spec != "" {
+			t.Errorf("%s spec = %q, want empty — a protocol is not a range", id, spec)
+		}
+	}
+	if got["pkg:npm/lodash"] != "^4.17.0" {
+		t.Errorf("a real range was lost: %q", got["pkg:npm/lodash"])
+	}
+}

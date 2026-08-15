@@ -30,7 +30,7 @@ func riskCmd(args []string) ([]byte, error) {
 	fs.SetOutput(new(bytes.Buffer))
 	var (
 		dbPath     = fs.String("db", defaultDBPath(), "")
-		state      = fs.String("state", "installed", "")
+		state      = fs.String("state", "installed", "installed|possible|unknown|all")
 		format     = fs.String("format", "text", "")
 		base       = fs.String("depsdev", "https://api.deps.dev", "")
 		osvBase    = fs.String("osv", "https://api.osv.dev", "")
@@ -70,7 +70,14 @@ func riskCmd(args []string) ([]byte, error) {
 	if fs.NArg() == 1 {
 		runID = fs.Arg(0)
 	}
-	targets, meta, err := db.AuditTargets(ctx, runID, rollup.State(*state))
+	// "all" is an empty filter, matching `audit` and `report`. Without it a
+	// Dockerfile-only repo has no auditable state at all: with no lockfile there
+	// is no effective resolution, so everything lands in `unknown`.
+	want := rollup.State(*state)
+	if *state == "all" {
+		want = ""
+	}
+	targets, meta, err := db.AuditTargets(ctx, runID, want)
 	if err != nil {
 		return nil, err
 	}

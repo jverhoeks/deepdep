@@ -67,13 +67,24 @@ func (NPMManifest) Extract(_ context.Context, f source.File) ([]graph.Edge, []gr
 			if err != nil {
 				return fmt.Errorf("%s: %w", f.Path, err)
 			}
-			edges = append(edges, graph.Edge{
+			// pnpm's protocol specs are NOT version ranges. `workspace:*` is a
+			// sibling package in this repo, never fetched from a registry;
+			// `catalog:` defers to pnpm-workspace.yaml. n8n declares 396 of them,
+			// and recording those strings as ranges makes a local package look
+			// like an unbounded dependency on a public one — the wrong answer in
+			// the more alarming direction.
+			e := graph.Edge{
 				From:  "", // the walker rewrites this to the run's root node
 				To:    id,
 				Kind:  graph.DependsOn,
 				Spec:  spec,
 				Scope: scope,
-			})
+			}
+			if proto, ok := protocolSpec(spec); ok {
+				e.Spec = ""
+				e.Kind = proto
+			}
+			edges = append(edges, e)
 		}
 		return nil
 	}
@@ -95,4 +106,19 @@ func (NPMManifest) Extract(_ context.Context, f source.File) ([]graph.Edge, []gr
 	// No nodes: a version-less target has no metadata the manifest can supply.
 	// The resolver mints concrete version nodes later.
 	return edges, nil, nil
+}
+
+// protocolSpec recognises the non-semver dependency protocols.
+//
+// Each names a RESOLUTION MECHANISM rather than a version range, so the spec is
+// dropped and the relation is retyped: keeping "workspace:*" in a range field
+// would classify a sibling package as an unbounded public dependency, and it
+// would fail any semver parse downstream.
+func protocolSpec(spec string) (graph.EdgeKind, bool) {
+	for _, p := range []string{"workspace:", "catalog:", "link:", "file:", "portal:"} {
+		if strings.HasPrefix(spec, p) {
+			return graph.DependsOn, true
+		}
+	}
+	return "", false
 }
