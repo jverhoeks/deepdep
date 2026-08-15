@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
+	"time"
 
 	git "github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/plumbing"
 )
 
 // openRemote clones into a directory keyed by the remote URL and then reads it
@@ -31,12 +35,32 @@ func openRemote(ctx context.Context, url, cacheDir, at string) (Source, error) {
 		}
 	}
 
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return nil, err
+	}
+
+	// A plain branch or tag NAME only needs that ref's tip, which git can fetch
+	// shallowly. Only a SHA or a date genuinely requires history. Cloning
+	// grafana in full to read one branch tip is minutes of transfer for a
+	// question answerable in seconds.
+	if needHistory && looksLikeRefName(at) {
+		if err := shallowRef(ctx, dst, url, at); err == nil {
+			s, err := openLocal(dst, at)
+			if err == nil {
+				if ls, ok := s.(*localSource); ok {
+					ls.repo = url
+				}
+				return s, nil
+			}
+		}
+		// The ref was not a branch or tag after all (or the server refused the
+		// narrow fetch). Fall through to the full clone rather than guess again.
+		_ = os.RemoveAll(dst)
+	}
+
 	depth := 1
 	if needHistory {
 		depth = 0 // full clone
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return nil, err
 	}
 	if _, err := git.PlainCloneContext(ctx, dst, &git.CloneOptions{
 		URL:   url,
@@ -59,3 +83,42 @@ func isShallow(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".git", "shallow"))
 	return err == nil
 }
+
+// shallowRef fetches one ref's tip. Branch first, then tag: go-git needs to be
+// told which namespace the name lives in, and there is no way to ask.
+func shallowRef(ctx context.Context, dst, url, ref string) error {
+	for _, name := range []plumbing.ReferenceName{
+		plumbing.NewBranchReferenceName(ref),
+		plumbing.NewTagReferenceName(ref),
+	} {
+		_, err := git.PlainCloneContext(ctx, dst, &git.CloneOptions{
+			URL:           url,
+			ReferenceName: name,
+			SingleBranch:  true,
+			Depth:         1,
+			Bare:          false,
+		})
+		if err == nil {
+			return nil
+		}
+		_ = os.RemoveAll(dst)
+	}
+	return errors.New("not a branch or tag")
+}
+
+// looksLikeRefName excludes the forms that genuinely need history: a commit SHA
+// (which a shallow single-ref clone will not contain) and a date.
+func looksLikeRefName(at string) bool {
+	if at == "" || shaLike.MatchString(at) {
+		return false
+	}
+	if _, err := time.Parse(time.RFC3339, at); err == nil {
+		return false
+	}
+	if _, err := time.Parse("2006-01-02", at); err == nil {
+		return false
+	}
+	return true
+}
+
+var shaLike = regexp.MustCompile(`^[0-9a-fA-F]{7,40}$`)

@@ -302,3 +302,36 @@ func TestLocalProjectInstallIsNotAPackage(t *testing.T) {
 		}
 	}
 }
+
+// TestScopedNPMPackagesSurviveRunParsing.
+//
+// A slash normally means a path, so rejecting it dropped every SCOPED npm
+// package installed from a RUN line. Scoped packages are precisely what the
+// Shai-Hulud worm compromised — @ctrl/tinycolor, @crowdstrike/* — so this
+// silently hid the highest-severity finding the tool can make, and only showed
+// up when a malicious-package fixture was run end to end.
+func TestScopedNPMPackagesSurviveRunParsing(t *testing.T) {
+	by := dockerNodes(t, "FROM node:24-alpine\nRUN npm install @ctrl/tinycolor@4.1.1 angulartics2@14.1.2 @types/node\n")
+
+	for id, wantVer := range map[graph.NodeID]string{
+		"pkg:npm/%40ctrl/tinycolor@4.1.1": "4.1.1",
+		"pkg:npm/angulartics2@14.1.2":     "14.1.2",
+		"pkg:npm/%40types/node":           "", // unpinned, still a real package
+	} {
+		n, ok := by[id]
+		if !ok {
+			t.Errorf("missing %q; got %v", id, nodeKeys(by))
+			continue
+		}
+		if n.Version != wantVer {
+			t.Errorf("%s version = %q, want %q — the scope's @ is part of the NAME", id, n.Version, wantVer)
+		}
+		if n.Completeness != graph.Inferred {
+			t.Errorf("%s completeness = %q, want inferred", id, n.Completeness)
+		}
+	}
+	// A real path argument must still be rejected.
+	if _, ok := by["pkg:npm/usr/local/bin"]; ok {
+		t.Error("a filesystem path was parsed as a package")
+	}
+}

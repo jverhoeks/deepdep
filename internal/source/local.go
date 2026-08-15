@@ -1,9 +1,11 @@
 package source
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -79,7 +81,11 @@ func openLocal(dir, at string) (Source, error) {
 func treeAt(repo *git.Repository, at string) (*object.Tree, string, time.Time, error) {
 	h, err := repo.ResolveRevision(plumbing.Revision(at))
 	if err != nil {
-		return nil, "", time.Time{}, err
+		// "reference not found" alone leaves the user guessing whether they
+		// mistyped, whether the ref exists, or whether the clone is too shallow
+		// to contain it. Express tags releases as "4.18.0", not "v4.18.0", and
+		// the bare error made that a five-minute detour.
+		return nil, "", time.Time{}, fmt.Errorf("--at %q: %w%s", at, err, nearbyRefs(repo, at))
 	}
 	commit, err := repo.CommitObject(*h)
 	if err != nil {
@@ -162,4 +168,30 @@ func skipped(path string) bool {
 		}
 	}
 	return false
+}
+
+// nearbyRefs suggests refs that resemble what was asked for, so a near-miss is
+// self-correcting. Best effort: it appends nothing if it cannot enumerate.
+func nearbyRefs(repo *git.Repository, at string) string {
+	iter, err := repo.References()
+	if err != nil {
+		return ""
+	}
+	probe := strings.ToLower(strings.TrimPrefix(at, "v"))
+	var hits []string
+	_ = iter.ForEach(func(r *plumbing.Reference) error {
+		if !r.Name().IsTag() && !r.Name().IsBranch() {
+			return nil
+		}
+		short := r.Name().Short()
+		if strings.Contains(strings.ToLower(short), probe) && len(hits) < 5 {
+			hits = append(hits, short)
+		}
+		return nil
+	})
+	if len(hits) == 0 {
+		return ""
+	}
+	sort.Strings(hits)
+	return "; did you mean " + strings.Join(hits, ", ") + "?"
 }

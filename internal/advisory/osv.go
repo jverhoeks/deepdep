@@ -31,6 +31,38 @@ type Advisory struct {
 	Aliases   []string  `json:"aliases,omitempty"`
 }
 
+// Malicious reports whether this record says the package version WAS hostile,
+// rather than that it has a flaw.
+//
+// OSV ingests the OpenSSF malicious-packages feed as MAL-YYYY-NNNNN, and those
+// records carry NO severity field — so a naive report sorts the Shai-Hulud worm
+// below a moderate ReDoS and labels it "UNKNOWN". The distinction is a
+// CATEGORY, not a CVSS band: a CVE says this code has a flaw, a MAL record says
+// this code was hostile and you installed it.
+func (a Advisory) Malicious() bool {
+	if strings.HasPrefix(a.ID, "MAL-") {
+		return true
+	}
+	for _, al := range a.Aliases {
+		if strings.HasPrefix(al, "MAL-") {
+			return true
+		}
+	}
+	return false
+}
+
+// SeverityLabel is what a report should print: the malicious CATEGORY when it
+// applies, the CVSS band otherwise.
+func (a Advisory) SeverityLabel() string {
+	if a.Malicious() {
+		return "MALICIOUS"
+	}
+	if a.Severity == "" {
+		return "UNKNOWN"
+	}
+	return a.Severity
+}
+
 // CVE returns the CVE alias if the record has one; OSV ids are often GHSA.
 func (a Advisory) CVE() string {
 	for _, al := range a.Aliases {

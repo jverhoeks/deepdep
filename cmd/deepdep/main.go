@@ -52,7 +52,8 @@ deepdep tools                         supply-chain surfaces this build recognise
 
   --mode will|can        will: what installs today (lockfile pins, else max-satisfying)
                          can:  every version the declared ranges permit
-  --at REV               git tag, SHA or date; forces a full clone
+  --at REV               git branch, tag, SHA or date. A branch or tag name
+                         clones shallowly; a SHA or date needs full history
   --as-of TIME           resolution time (RFC3339); errors if publish times are unavailable
   --known-at TIME        knowledge time; recorded now, consumed by advisory enrichment
   --format json|cyclonedx
@@ -185,7 +186,7 @@ func auditCmd(args []string) ([]byte, error) {
 	var (
 		dbPath     = fs.String("db", defaultDBPath(), "")
 		knownAtStr = fs.String("known-at", "", "")
-		state      = fs.String("state", "installed", "")
+		state      = fs.String("state", "installed", "installed|possible|unknown|all")
 		format     = fs.String("format", "text", "")
 		osvBase    = fs.String("osv", "https://api.osv.dev", "")
 		timeout    = fs.Duration("timeout", 10*time.Minute, "")
@@ -214,7 +215,14 @@ func auditCmd(args []string) ([]byte, error) {
 	if fs.NArg() == 1 {
 		runID = fs.Arg(0)
 	}
-	targets, meta, err := db.AuditTargets(ctx, runID, rollup.State(*state))
+	// "all" is an empty filter. Without it a Dockerfile-only repo is
+	// unauditable: with no lockfile there is no effective resolution, so every
+	// package lands in `unknown` and neither `installed` nor `possible` sees it.
+	want := rollup.State(*state)
+	if *state == "all" {
+		want = ""
+	}
+	targets, meta, err := db.AuditTargets(ctx, runID, want)
 	if err != nil {
 		return nil, err
 	}
@@ -253,19 +261,19 @@ func auditCmd(args []string) ([]byte, error) {
 
 	// Worst first: a report read top-down should start with what matters.
 	sort.Slice(findings, func(i, j int) bool {
-		if severityRank(findings[i].Advisory.Severity) != severityRank(findings[j].Advisory.Severity) {
-			return severityRank(findings[i].Advisory.Severity) > severityRank(findings[j].Advisory.Severity)
+		if severityRank(findings[i].Advisory.SeverityLabel()) != severityRank(findings[j].Advisory.SeverityLabel()) {
+			return severityRank(findings[i].Advisory.SeverityLabel()) > severityRank(findings[j].Advisory.SeverityLabel())
 		}
 		return findings[i].NodeID < findings[j].NodeID
 	})
 	bySev := map[string]int{}
 	affected := map[graph.NodeID]bool{}
 	for _, f := range findings {
-		bySev[f.Advisory.Severity]++
+		bySev[f.Advisory.SeverityLabel()]++
 		affected[f.NodeID] = true
 	}
 	fmt.Fprintf(&buf, "%d advisories across %d package versions\n", len(findings), len(affected))
-	for _, s := range []string{"CRITICAL", "HIGH", "MODERATE", "LOW", "UNKNOWN"} {
+	for _, s := range []string{"MALICIOUS", "CRITICAL", "HIGH", "MODERATE", "LOW", "UNKNOWN"} {
 		if bySev[s] > 0 {
 			fmt.Fprintf(&buf, "  %-9s %d\n", s, bySev[s])
 		}
@@ -277,8 +285,8 @@ func auditCmd(args []string) ([]byte, error) {
 			cve = "-"
 		}
 		fmt.Fprintf(&buf, "%-9s %-16s %-18s %-42s %s\n",
-			f.Advisory.Severity, f.Advisory.ID, cve,
-			strings.TrimPrefix(string(f.NodeID), "pkg:"),
+			f.Advisory.SeverityLabel(), f.Advisory.ID, cve,
+			label(f.NodeID), // percent-encoded scopes are correct identity, unreadable in a report
 			truncate(f.Advisory.Summary, 60))
 	}
 	return buf.Bytes(), nil
@@ -286,6 +294,11 @@ func auditCmd(args []string) ([]byte, error) {
 
 func severityRank(s string) int {
 	switch {
+	// Above CRITICAL on purpose. A malicious package is not a severe flaw, it is
+	// hostile code that already ran with your credentials; ranking it by CVSS
+	// puts the Shai-Hulud worm below a ReDoS.
+	case s == "MALICIOUS":
+		return 5
 	case strings.HasPrefix(s, "CRITICAL"):
 		return 4
 	case strings.HasPrefix(s, "HIGH"):
@@ -395,9 +408,14 @@ func scan(args []string) ([]byte, error) {
 	explicitAsOf := *asOfStr != ""
 
 	// --at pins resolution time to the commit: resolving a 2023 source tree
-	// against today's registry silently mixes two instants. Offline there is no
-	// resolution to pin, so deriving a filter we cannot apply would be theatre.
-	if *at != "" && asOf.IsZero() && !*offline {
+	// against today's registry silently mixes two instants.
+	//
+	// This applies offline too. An earlier version skipped it there, reasoning
+	// that a filter we cannot apply is theatre — true of the FILTER, false of
+	// the DOCUMENT. AsOf is now metadata.timestamp in every CycloneDX we emit,
+	// so an offline scan of a year-old tag shipped an SBOM stamped today: the
+	// same two-instants confusion the flag exists to prevent, inverted.
+	if *at != "" && asOf.IsZero() {
 		if t, ok := commitTime(src); ok {
 			asOf = t
 		}

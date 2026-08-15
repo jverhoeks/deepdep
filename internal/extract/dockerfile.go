@@ -330,13 +330,23 @@ func runPackages(cmd string) []graph.Node {
 					}
 					continue
 				}
-				if strings.ContainsAny(tok, "$`(){}*/") {
-					continue // variable, subshell, glob or a path: not a name
+				if strings.ContainsAny(tok, "$`(){}*") {
+					continue // variable, subshell or glob: not a name
+				}
+				// A slash normally means a path, EXCEPT in an npm scope. Rejecting
+				// it outright dropped every scoped package installed from a RUN
+				// line — and scoped packages are precisely what the Shai-Hulud
+				// worm compromised (@ctrl/tinycolor, @crowdstrike/*), so this
+				// silently hid the highest-severity findings the tool can make.
+				if strings.Contains(tok, "/") && !isNPMScope(tok) {
+					continue
 				}
 				if isFilename(tok) {
 					continue // a file argument that slipped past the flag list
 				}
 				name, ver := tok, ""
+				// LastIndex, and strictly > 0: a scoped name's leading @ is at
+				// index 0 and is part of the NAME, not a version separator.
 				if i := strings.LastIndex(tok, ins.pinSep); i > 0 {
 					name, ver = tok[:i], tok[i+len(ins.pinSep):]
 				}
@@ -414,18 +424,27 @@ func isFilename(s string) bool {
 // installs the local project, and "." passes a naive character check, then PEP
 // 503 normalisation turns it into a package literally named "-". That reached a
 // real SBOM as pkg:pypi/-.
+// isNPMScope matches @scope/name: a leading @ and exactly one slash.
+func isNPMScope(tok string) bool {
+	return strings.HasPrefix(tok, "@") && strings.Count(tok, "/") == 1
+}
+
 func plainName(s string) bool {
 	if s == "" {
 		return false
 	}
-	first := rune(s[0])
-	if !isAlnum(first) {
+	// A scoped npm name legitimately starts with @ and contains one slash.
+	body := s
+	if isNPMScope(s) {
+		body = strings.ReplaceAll(strings.TrimPrefix(s, "@"), "/", "")
+	}
+	if body == "" || !isAlnum(rune(body[0])) {
 		return false
 	}
-	for _, r := range s {
+	for _, r := range body {
 		switch {
 		case isAlnum(r):
-		case r == '-', r == '_', r == '.', r == '+', r == '@':
+		case r == '-', r == '_', r == '.', r == '+':
 		default:
 			return false
 		}
