@@ -79,21 +79,25 @@ func TestTerminatesOnCycleViaSCC(t *testing.T) {
 // 20 chained diamonds is 2^20 paths. The count must saturate rather than
 // overflow, and the report must say "10000+" rather than a wrong number.
 func TestPathCountSaturates(t *testing.T) {
-	g := graph.New()
-	g.Add(graph.Node{ID: "n0"})
-	for i := 0; i < 20; i++ {
-		prev := graph.NodeID(fmt.Sprintf("n%d", i))
-		l := graph.NodeID(fmt.Sprintf("l%d", i))
-		r := graph.NodeID(fmt.Sprintf("r%d", i))
-		n := graph.NodeID(fmt.Sprintf("n%d", i+1))
-		link(g, prev, l)
-		link(g, prev, r)
-		link(g, l, n)
-		link(g, r, n)
+	// Real package PURLs: only package nodes reach the version rollup, because a
+	// build file and a shell step carry a version field and are not packages.
+	id := func(pfx string, i int) graph.NodeID {
+		return graph.NodeID(fmt.Sprintf("pkg:npm/%s%d@1.0.0", pfx, i))
 	}
-	got := versions(rollup.Compute(g, nil, "n0"))
-	if got["n20"].Paths != rollup.PathCap {
-		t.Errorf("paths = %d, want saturation at %d", got["n20"].Paths, rollup.PathCap)
+	g := graph.New()
+	g.Add(graph.Node{ID: id("n", 0), Ecosystem: "npm", Name: "n0", Version: "1.0.0"})
+	for i := 0; i < 20; i++ {
+		for _, n := range []graph.NodeID{id("l", i), id("r", i), id("n", i+1)} {
+			g.Add(graph.Node{ID: n, Ecosystem: "npm", Name: string(n), Version: "1.0.0"})
+		}
+		link(g, id("n", i), id("l", i))
+		link(g, id("n", i), id("r", i))
+		link(g, id("l", i), id("n", i+1))
+		link(g, id("r", i), id("n", i+1))
+	}
+	got := versions(rollup.Compute(g, nil, id("n", 0)))
+	if got[id("n", 20)].Paths != rollup.PathCap {
+		t.Errorf("paths = %d, want saturation at %d", got[id("n", 20)].Paths, rollup.PathCap)
 	}
 }
 

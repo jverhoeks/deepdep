@@ -241,3 +241,24 @@ func deref(s *string) string {
 	}
 	return *s
 }
+
+// PinningCounts returns how many package versions are pinned, locked or
+// floating — the hygiene input to the score.
+func (s *Store) PinningCounts(ctx context.Context, runID string) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT pinning, COUNT(*) FROM version_rollup WHERE run_id=? GROUP BY pinning`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var k string
+		var n int
+		if err := rows.Scan(&k, &n); err != nil {
+			return nil, err
+		}
+		out[k] = n
+	}
+	return out, rows.Err()
+}

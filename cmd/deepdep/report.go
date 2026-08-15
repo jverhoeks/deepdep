@@ -14,6 +14,7 @@ import (
 	"github.com/jverhoeks/deepdep/internal/controls"
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/rollup"
+	"github.com/jverhoeks/deepdep/internal/score"
 	"github.com/jverhoeks/deepdep/internal/store"
 	"github.com/jverhoeks/deepdep/internal/supply"
 )
@@ -77,18 +78,21 @@ func reportCmd(args []string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("no %s packages in run %q; scan first", *state, meta.RunID)
-	}
-
+	// Zero targets is a REPORT, not an error. A repo with no lockfile scanned
+	// offline resolves no versions at all — django does exactly this — and the
+	// honest output is a coverage-suppressed report naming the reason, not a
+	// failure that looks like the tool broke.
 	knownAt := time.Now().UTC()
-	findings, err := advisory.New(*osvBase, nil).Check(ctx, targets, knownAt)
-	if err != nil {
-		return nil, err
+	var findings []advisory.Finding
+	if len(targets) > 0 {
+		findings, err = advisory.New(*osvBase, nil).Check(ctx, targets, knownAt)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var assessments []supply.Assessment
-	if *posture {
+	if *posture && len(targets) > 0 {
 		client := supply.New(*ddBase, nil)
 		facts, err := client.Facts(ctx, targets)
 		if err != nil {
@@ -120,10 +124,16 @@ func reportCmd(args []string) ([]byte, error) {
 		return nil, err
 	}
 
-	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners)
+	pins, err := db.PinningCounts(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+
+	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners, allNodes)
 	r.Controls = controls.Detect(allNodes)
 	r.MissingControls = controls.Missing(r.Controls)
 	r.ControlsAssessable = controls.Assessable(allNodes)
+	r.Score = computeScore(r, pins)
 	if *format == "json" {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)
@@ -156,6 +166,9 @@ type reportDoc struct {
 	RepoSignals        []count            `json:"repo_signals"`
 	Baseline           []count            `json:"ecosystem_baseline"`
 	ByOwner            []ownerRow         `json:"by_application"`
+	Score              score.Result       `json:"score"`
+	PackageNodes       int                `json:"package_nodes"`
+	Auditable          float64            `json:"auditable_share"`
 	Controls           []controls.Control `json:"controls"`
 	ControlsAssessable bool               `json:"controls_assessable"`
 	MissingControls    []controls.Kind    `json:"controls_missing"`
@@ -204,11 +217,17 @@ var baselineSignals = map[string]bool{
 
 func buildReport(meta store.Run, state string, knownAt time.Time,
 	targets []graph.NodeID, findings []advisory.Finding,
-	assessments []supply.Assessment, owners map[graph.NodeID][]string) reportDoc {
+	assessments []supply.Assessment, owners map[graph.NodeID][]string,
+	nodes []graph.Node) reportDoc {
 
 	r := reportDoc{
 		RunID: meta.RunID, Ref: meta.Ref, Mode: meta.Mode, State: state,
 		AsOf: meta.AsOf, KnownAt: knownAt, Checked: len(targets),
+		// Initialised, not left nil: a nil slice marshals as `null`, and a
+		// consumer parsing the JSON should not have to null-guard every field
+		// to tell "no findings" from "field absent".
+		Malicious: []finding{}, Advisory: []finding{}, BySev: []count{},
+		RepoSignals: []count{}, Baseline: []count{}, ByOwner: []ownerRow{},
 		Coverage: map[string]int{},
 		Notes: map[string]string{
 			"scoring": "none. Layers are reported separately; a composite would average " +
@@ -317,6 +336,32 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 	for _, n := range names {
 		r.ByOwner = append(r.ByOwner, *byOwner[n])
 	}
+	// Coverage: what we could NOT read. Without it the score would treat a repo
+	// where 15% of packages were auditable the same as one at 95%, and its
+	// zero findings would read as a clean bill.
+	var pkgNodes, resolved int
+	for _, n := range nodes {
+		if graph.IsPackage(n.ID) {
+			pkgNodes++
+			if n.Completeness == graph.Resolved {
+				resolved++
+			}
+		}
+		// Inferred is a SUCCESS: we named the package from a shell line. Only
+		// Declared and Opaque nodes are frontiers, and listing an inference
+		// under "could not expand" reads as a failure to do the thing we did.
+		if n.Reason != "" && (n.Completeness == graph.Declared || n.Completeness == graph.Opaque) {
+			r.Coverage[n.Reason]++
+		}
+	}
+	r.PackageNodes = pkgNodes
+	if pkgNodes > 0 {
+		r.Auditable = float64(len(targets)) / float64(pkgNodes)
+		if r.Auditable > 1 {
+			r.Auditable = 1
+		}
+	}
+
 	sort.SliceStable(r.ByOwner, func(i, j int) bool {
 		a, b := r.ByOwner[i], r.ByOwner[j]
 		if a.Malicious != b.Malicious {
@@ -356,6 +401,27 @@ func renderReport(r reportDoc) []byte {
 	fmt.Fprintf(&b, "run %s  ref %s  mode %s  state %s\n", r.RunID, short(r.Ref), r.Mode, r.State)
 	fmt.Fprintf(&b, "as-of %s   known-at %s   %d package versions\n\n",
 		r.AsOf.Format("2006-01-02"), r.KnownAt.Format("2006-01-02"), r.Checked)
+
+	// The score first, with its arithmetic immediately under it. A number a
+	// reader cannot take apart is a number they have to either trust or ignore,
+	// and neither is useful.
+	if r.Score.Suppressed {
+		fmt.Fprintf(&b, "RISK  —  NOT GRADED\n")
+		fmt.Fprintf(&b, "  %s\n", r.Score.Reason)
+	} else {
+		fmt.Fprintf(&b, "RISK  %s  (%d/100, higher is worse)\n", r.Score.Grade, r.Score.Score)
+		if r.Score.Reason != "" {
+			fmt.Fprintf(&b, "  %s\n", r.Score.Reason)
+		}
+	}
+	for _, t := range r.Score.Terms {
+		if t.Name == "malicious" && t.Points == 0 && len(r.Malicious) == 0 {
+			fmt.Fprintf(&b, "  %-17s %-52s   none\n", t.Name, t.Detail)
+			continue
+		}
+		fmt.Fprintf(&b, "  %-17s %-52s %+5.0f / %d\n", t.Name, truncate(t.Detail, 52), t.Points, t.Max)
+	}
+	fmt.Fprintf(&b, "  %d%% of package nodes were auditable\n\n", int(r.Auditable*100+0.5))
 
 	fmt.Fprintf(&b, "1. MALICIOUS PACKAGES  (%d)\n", len(r.Malicious))
 	if len(r.Malicious) == 0 {
@@ -417,6 +483,13 @@ func renderReport(r reportDoc) []byte {
 		}
 	}
 
+	if len(r.Coverage) > 0 {
+		fmt.Fprintf(&b, "\n4b. COVERAGE FRONTIER  (what could not be expanded)\n")
+		for _, k := range sortedIntKeys(r.Coverage) {
+			fmt.Fprintf(&b, "   %-22s %d\n", k, r.Coverage[k])
+		}
+	}
+
 	fmt.Fprintf(&b, "\n5. CONTROLS IN USE  (what this repo already runs)\n")
 	if !r.ControlsAssessable {
 		// Evidence of absence vs absence of evidence. kubernetes runs Prow and
@@ -469,5 +542,56 @@ func sortedKeys(m map[string]string) []string {
 		out = append(out, k)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// computeScore assembles the score's inputs from the report that was just built,
+// so the number can never disagree with the sections above it.
+func computeScore(r reportDoc, pins map[string]int) score.Result {
+	in := score.Input{
+		Checked:            r.Checked,
+		Malicious:          len(r.Malicious),
+		Floating:           pins["floating"],
+		Pinned:             pins["pinned"],
+		Locked:             pins["locked"],
+		ControlsMissing:    len(r.MissingControls),
+		ControlsTotal:      len(controls.Kinds),
+		ControlsAssessable: r.ControlsAssessable,
+		Auditable:          r.Auditable,
+	}
+	for _, c := range r.BySev {
+		switch c.Name {
+		case "CRITICAL":
+			in.Critical = c.Versions
+		case "HIGH":
+			in.High = c.Versions
+		case "MODERATE":
+			in.Moderate = c.Versions
+		}
+	}
+	for _, c := range r.RepoSignals {
+		switch c.Name {
+		case "unmaintained":
+			in.Unmaintained = c.Versions
+		case "dangerous-workflow":
+			in.DangerousWorkflow = c.Versions
+		case "unreviewed-code":
+			in.UnreviewedCode = c.Versions
+		}
+	}
+	return score.Compute(in)
+}
+
+func sortedIntKeys(m map[string]int) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if m[out[i]] != m[out[j]] {
+			return m[out[i]] > m[out[j]]
+		}
+		return out[i] < out[j]
+	})
 	return out
 }

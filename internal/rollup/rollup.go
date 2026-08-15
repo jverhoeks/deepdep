@@ -194,6 +194,14 @@ func ComputeWith(g *graph.Graph, inst []effective.Instance, root graph.NodeID,
 			p.PathCount = satAdd(p.PathCount, paths[n.ID])
 			continue
 		}
+		// A build file, a shell step and a container image all carry a version
+		// field and none of them is a package version. Rolling them up put 195
+		// non-packages and 3 packages into kubernetes' version list, which
+		// overstated the audited count, sent build-file PURLs to OSV, and
+		// counted shell steps as floating dependencies.
+		if !graph.IsPackage(n.ID) {
+			continue
+		}
 
 		st := stateOf(instances[n.ID], haveResolution)
 		declared := specs[n.ID]

@@ -82,7 +82,10 @@ func riskCmd(args []string) ([]byte, error) {
 		return nil, err
 	}
 	if len(targets) == 0 {
-		return nil, fmt.Errorf("no %s packages in run %q; scan first", *state, meta.RunID)
+		return nil, fmt.Errorf("run %s resolved no package versions in state %q.\n"+
+			"With no lockfile an offline scan resolves nothing; re-scan online, or\n"+
+			"use `deepdep report` which describes the coverage gap instead of failing",
+			meta.RunID, *state)
 	}
 
 	client := supply.New(*base, nil)

@@ -77,3 +77,28 @@ func NPMNodeID(name, version string) (NodeID, error) {
 	p := packageurl.NewPackageURL(packageurl.TypeNPM, namespace, name, version, nil, "")
 	return NodeID(p.ToString()), nil
 }
+
+// packageTypes are the PURL types that denote a software package — something a
+// registry publishes and an advisory database can match.
+var packageTypes = map[string]bool{
+	"npm": true, "pypi": true, "deb": true, "apk": true, "rpm": true,
+	"cargo": true, "maven": true, "golang": true, "nuget": true,
+	"gem": true, "composer": true, "hex": true, "pub": true, "conan": true,
+	"cocoapods": true, "swift": true, "cran": true, "hackage": true,
+}
+
+// IsPackage reports whether an id denotes a software package.
+//
+// A container image, a workflow file, a shell step and a coverage frontier are
+// all legitimate NODES, and none of them is a package version. Treating them as
+// one inflated every "checked N package versions" claim — kubernetes reported
+// 198 where 3 were packages — sent build-file PURLs to OSV, and counted shell
+// steps as floating dependencies in the hygiene metrics.
+func IsPackage(id NodeID) bool {
+	s := strings.TrimPrefix(string(id), "pkg:")
+	typ, _, ok := strings.Cut(s, "/")
+	if !ok {
+		return false
+	}
+	return packageTypes[typ]
+}

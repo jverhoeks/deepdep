@@ -57,7 +57,7 @@ deepdep tools                         supply-chain surfaces this build recognise
                          clones shallowly; a SHA or date needs full history
   --as-of TIME           resolution time (RFC3339); errors if publish times are unavailable
   --known-at TIME        knowledge time; recorded now, consumed by advisory enrichment
-  --format json|cyclonedx
+  --format text|json|cyclonedx
   --max-depth N          closure depth bound (default 32)
   --max-versions N       per-range expansion bound in can mode (default 25)
   --concurrency N        registry fetch workers (default 16)
@@ -230,7 +230,10 @@ func auditCmd(args []string) ([]byte, error) {
 		return nil, err
 	}
 	if len(targets) == 0 {
-		return nil, fmt.Errorf("no %s packages in run %q; scan first", *state, meta.RunID)
+		return nil, fmt.Errorf("run %s resolved no package versions in state %q.\n"+
+			"With no lockfile an offline scan resolves nothing; re-scan online, or\n"+
+			"use `deepdep report` which describes the coverage gap instead of failing",
+			meta.RunID, *state)
 	}
 
 	findings, err := advisory.New(*osvBase, nil).Check(ctx, targets, knownAt)
@@ -541,6 +544,12 @@ func scan(args []string) ([]byte, error) {
 			return writeSplitSBOMs(*sbomDir, g, inst, rootID, m, opts)
 		}
 		err = emit.CycloneDX(&buf, g, m, opts)
+	case "text":
+		// A SUMMARY, deliberately not a second report. scan has no OSV or
+		// deps.dev data, so it can only describe what it found on disk; two
+		// commands each printing a partly-overlapping "report" is worse than
+		// one that hands off.
+		buf.Write(scanSummary(g, res, inst, m, *dbPath, *noDB))
 	case "json":
 		err = emit.JSON(&buf, g, m)
 	default:
