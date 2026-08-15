@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jverhoeks/deepdep/internal/emit"
+	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/supply"
 )
 
@@ -76,4 +78,53 @@ func (s *Store) RecordSupply(ctx context.Context, facts []supply.Fact,
 	}
 
 	return tx.Commit()
+}
+
+// SupplyFacts returns the NEWEST deps.dev observation for each node.
+//
+// Newest, not "the one from this run": these are observations of a mutable
+// upstream, and an SBOM should carry the best information available at emission
+// time. The observed_at that produced each row stays in the table, so a later
+// question about what we knew when is still answerable.
+//
+// An empty result is legitimate and load-bearing — it means `deepdep risk` has
+// never run — and the emitter turns it into a named gap rather than letting the
+// document read as "these components genuinely have no licence".
+func (s *Store) SupplyFacts(ctx context.Context, nodes []graph.Node) (map[graph.NodeID]emit.Facts, error) {
+	rows, err := s.db.QueryContext(ctx, `
+	  SELECT d.purl, d.licenses, d.source_repo, d.repo_provenance
+	    FROM depsdev_obs d
+	    JOIN (SELECT purl, MAX(observed_at) AS newest FROM depsdev_obs GROUP BY purl) m
+	      ON m.purl = d.purl AND m.newest = d.observed_at
+	   WHERE d.known = 1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	all := map[graph.NodeID]emit.Facts{}
+	for rows.Next() {
+		var purl, licenses, repo, prov string
+		if err := rows.Scan(&purl, &licenses, &repo, &prov); err != nil {
+			return nil, err
+		}
+		f := emit.Facts{SourceRepo: repo, RepoProvenance: prov}
+		if licenses != "" {
+			f.Licenses = strings.Split(licenses, ",")
+		}
+		all[graph.NodeID(purl)] = f
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Return only what this graph asked about, so a caller cannot accidentally
+	// emit a licence for a package that is not in the document.
+	out := make(map[graph.NodeID]emit.Facts, len(nodes))
+	for _, n := range nodes {
+		if f, ok := all[n.ID]; ok {
+			out[n.ID] = f
+		}
+	}
+	return out, nil
 }

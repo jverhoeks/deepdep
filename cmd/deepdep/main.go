@@ -352,6 +352,8 @@ func scan(args []string) ([]byte, error) {
 		cacheDir    = fs.String("cache-dir", defaultCacheDir(), "")
 		dbPath      = fs.String("db", defaultDBPath(), "")
 		noDB        = fs.Bool("no-db", false, "")
+		author      = fs.String("author", "", "SBOM author (NTIA field 6); defaults to the tool")
+		formulation = fs.Bool("formulation", true, "include the CycloneDX MBOM view: pipelines, base images, build steps")
 		offline     = fs.Bool("offline", false, "")
 		timeout     = fs.Duration("timeout", 5*time.Minute, "")
 		registry    = fs.String("registry", "https://registry.npmjs.org", "")
@@ -491,7 +493,19 @@ func scan(args []string) ([]byte, error) {
 	var buf bytes.Buffer
 	switch *format {
 	case "cyclonedx":
-		err = emit.CycloneDX(&buf, g, m)
+		// Licences and suppliers come from deps.dev observations, which exist
+		// only if `deepdep risk` has run. Absent is a NAMED gap in the document,
+		// never silently licence-free components.
+		var facts map[graph.NodeID]emit.Facts
+		if db != nil {
+			facts, err = db.SupplyFacts(ctx, g.Nodes())
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = emit.CycloneDX(&buf, g, m, emit.CycloneDXOptions{
+			Author: *author, Enrichment: facts, Formulation: *formulation,
+		})
 	case "json":
 		err = emit.JSON(&buf, g, m)
 	default:

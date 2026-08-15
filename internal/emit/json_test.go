@@ -84,20 +84,27 @@ func TestJSONRecordsBothTimeAxesAndFrontiers(t *testing.T) {
 	}
 }
 
-func TestCycloneDXEmitsOnlyResolvedWillSlice(t *testing.T) {
+// TestCycloneDXKeepsFrontiersDropsBuildSteps replaces an earlier assertion that
+// the BOM contained ONLY resolved components. That was wrong twice over: NTIA
+// practice #3 requires "known unknowns" to be flagged rather than omitted, and
+// dependencies[] cannot reference a node the document dropped. What genuinely
+// does not belong is a shell step — `RUN make install` is not a library, and it
+// is carried in formulation instead.
+func TestCycloneDXKeepsFrontiersDropsBuildSteps(t *testing.T) {
 	g := graph.New()
 	g.Add(graph.Node{ID: "pkg:npm/lodash@4.17.21", Name: "lodash", Version: "4.17.21", Completeness: graph.Resolved})
-	g.Add(graph.Node{ID: "pkg:generic/opaque@abc123", Name: "opaque", Completeness: graph.Opaque})
-	g.Add(graph.Node{ID: "pkg:npm/x@1.0.0", Name: "x", Version: "1.0.0", Completeness: graph.Declared})
+	g.Add(graph.Node{ID: "pkg:generic/opaque@abc123", Name: "opaque", Completeness: graph.Opaque, Note: "make install"})
+	g.Add(graph.Node{ID: "pkg:npm/x@1.0.0", Name: "x", Version: "1.0.0", Completeness: graph.Declared, Reason: "bound:depth"})
 
 	var buf bytes.Buffer
-	if err := emit.CycloneDX(&buf, g, meta()); err != nil {
+	if err := emit.CycloneDX(&buf, g, meta(), emit.CycloneDXOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	var bom struct {
 		BOMFormat  string `json:"bomFormat"`
 		Components []struct {
-			PURL string `json:"purl"`
+			PURL       string                         `json:"purl"`
+			Properties []struct{ Name, Value string } `json:"properties"`
 		} `json:"components"`
 	}
 	if err := json.Unmarshal(buf.Bytes(), &bom); err != nil {
@@ -106,11 +113,23 @@ func TestCycloneDXEmitsOnlyResolvedWillSlice(t *testing.T) {
 	if bom.BOMFormat != "CycloneDX" {
 		t.Errorf("bomFormat = %q", bom.BOMFormat)
 	}
-	if len(bom.Components) != 1 {
-		t.Fatalf("components = %d, want 1 — an SBOM can only express the resolved slice", len(bom.Components))
+
+	got := map[string]map[string]string{}
+	for _, c := range bom.Components {
+		props := map[string]string{}
+		for _, p := range c.Properties {
+			props[p.Name] = p.Value
+		}
+		got[c.PURL] = props
 	}
-	if bom.Components[0].PURL != "pkg:npm/lodash@4.17.21" {
-		t.Errorf("purl = %q", bom.Components[0].PURL)
+	if _, ok := got["pkg:generic/opaque@abc123"]; ok {
+		t.Error("a shell step must not be a component")
+	}
+	if got["pkg:npm/lodash@4.17.21"]["deepdep:completeness"] != "resolved" {
+		t.Errorf("lodash props = %v", got["pkg:npm/lodash@4.17.21"])
+	}
+	if got["pkg:npm/x@1.0.0"]["deepdep:reason"] != "bound:depth" {
+		t.Errorf("a bounded frontier must be emitted WITH its reason, got %v", got["pkg:npm/x@1.0.0"])
 	}
 }
 
