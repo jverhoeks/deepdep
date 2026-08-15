@@ -5,8 +5,9 @@ container images, OS packages, CI actions, build steps — and report what it
 costs you.
 
 ```
-deepdep scan   .          # build the closure
-deepdep report            # malicious packages, CVEs, supply-chain posture
+deepdep scan   .                     # build the closure
+deepdep report                       # risk grade, CVEs, posture, controls
+deepdep report --format json         # the same, for a pipeline
 ```
 
 Offline, from a git checkout. No daemon, no image pull, and it **never executes
@@ -256,6 +257,47 @@ Checkmarx, Mend, FOSSA, Docker Scout, Harden-Runner) are detected and marked.
 and has no `.github/workflows` at all. Absence of evidence and evidence of
 absence are different findings, and a report that conflates them is worse than
 one that says nothing.
+
+### The risk grade
+
+One number, printed with the arithmetic that produced it. A score you cannot
+take apart is a score you have to either trust or ignore:
+
+```
+RISK  C  (37/100, higher is worse)
+  malicious         0 packages                                        none
+  vulnerabilities   0 critical, 36 high, 11 moderate in 3124 packages  +15 / 45
+  hygiene           0% floating (2 of 3124 unheld by any constraint)    +0 / 20
+  controls          6 of 9 categories absent from CI                   +13 / 20
+  upstream posture  862 unmaintained, 73 dangerous-workflow            +10 / 15
+  81% of package nodes were auditable
+```
+
+Two rules keep it honest:
+
+**A malicious package clamps the grade to F**, whatever the other terms say.
+Averaging hostile code that already ran with your build's credentials into a
+mid-range number is the exact failure a composite score is accused of, so it is
+made impossible rather than merely unlikely.
+
+**Below 50% auditable coverage there is no grade at all.** home-assistant has
+zero findings and 15% of its packages readable; that is an unanswered question,
+not an A. Coverage gates the grade and never adds points — charging for the
+tool's own blind spots would invert the meaning.
+
+The vulnerability term is severity-weighted *density* on a square-root curve: a
+raw count punishes size rather than risk, and a linear term either gives
+airflow's 36 HIGH across 3124 packages one point out of 45 or saturates react
+and next.js alike. Weights are exported constants; recompute it if you disagree.
+
+| repo | grade | | repo | grade |
+|---|---|---|---|---|
+| next.js | **F** (76) | | airflow | C (37) |
+| react | D (69) | | langchain | B (31) |
+| n8n | C (40) | | vscode, grafana, django, kubernetes, home-assistant | *not graded* |
+
+Five of ten are ungraded offline, which is the point: without a supported
+lockfile there is nothing to grade, and saying so beats inventing an A.
 
 ---
 
