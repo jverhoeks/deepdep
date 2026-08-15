@@ -1,88 +1,115 @@
 # deepdep
 
 Compute the transitive closure of everything a repository pulls in — packages,
-container images, CI actions, toolchains — over both the resolution that
-installs today and the space of resolutions its version ranges permit.
+container images, OS packages, CI actions, build steps — and report what it
+costs you.
 
 ```
-deepdep scan --mode will .    # what installs today
-deepdep scan --mode can  .    # what a future install could pull
+deepdep scan   .          # build the closure
+deepdep report            # malicious packages, CVEs, supply-chain posture
 ```
 
-On a manifest declaring one dependency (`is-string: ^1.0.0`), against the live
-npm registry:
+Offline, from a git checkout. No daemon, no image pull, and it **never executes
+the code it analyses**.
 
-| mode | nodes | edges |
-|---|---|---|
-| `will` | 19 | 28 |
-| `can` | **66** | **280** |
+---
 
 ## Why
 
-Existing tools (syft, trivy, osv-scanner, cyclonedx-gomod) answer one question:
-*what is installed right now, given the lockfiles present.* They stop in three
-places that matter.
+Ask an SBOM tool what your repository depends on and it answers with your package
+manager's lockfile. That is a real answer to a smaller question. Three things it
+leaves out, all of which run with your build's credentials:
 
-**They stop at package managers.** A `.pre-commit-config.yaml` pins git repos
-that execute on every commit. A `Dockerfile` pulls a base image *and* runs
-`apt-get install` / `curl | sh`. A CI workflow pulls third-party actions,
-container images, and reusable workflows that call further workflows. None of it
-appears in an SBOM.
+**The pipeline.** `grafana` runs **104 third-party GitHub Actions across 94
+workflow files** — more third-party code in CI than in the application itself. A
+re-pointed tag on any of them executes on your runner. That is the tj-actions
+attack, and it appears in no SBOM.
 
-**They stop at the resolved graph.** Manifests declare *ranges*. Every version
-satisfying a range has its own dependency set, so what a future install **can**
+**The image.** `FROM python:3.12-slim` plus `RUN apt-get install curl` are two
+supply-chain decisions your `package.json` knows nothing about. `kubernetes` has
+**36 Dockerfiles and 2 npm/PyPI packages**.
+
+**What the tool could not read.** A scanner that silently skips a
+`docker-compose.yml` reports the same clean result as one that read it and found
+nothing. Those are different answers and a report has to distinguish them.
+
+And one thing every SBOM gets structurally wrong: it describes **one
+resolution**. Manifests declare *ranges*. What a future `npm install` **can**
 pull is strictly larger than what it **will** pull today.
 
-**They silently omit what they cannot see.** `RUN make install` is statically
-undecidable. Reporting a clean SBOM that quietly dropped it is a wrong answer,
-not a partial one.
-
-## Three orthogonal axes
-
-Conflating any two of these produces confident nonsense, so they are separate
-fields on every node.
-
-**Completeness** — how well do we know this?
-`resolved` · `declared` · `inferred` · `opaque`
-
-**State** — will it land on disk?
-`installed` · `possible` · `unknown`
-
-**Pinning** — what is holding it there?
-`pinned` · `locked` · `floating`
-
-The third is the one people miss. These two packages install the same version
-and carry completely different exposure:
-
 ```
-pyproject: ">4.5.0"  + lock 4.6.1   ->  locked   regenerate the lock and it moves
-pyproject: "==4.6.1"                ->  pinned   regenerating changes nothing
+one dependency — "is-string": "^1.0.0"
+
+  will    19 packages,  311 edges     ← what an SBOM shows you
+  can     81 packages, 1553 edges     ← what the range actually permits
 ```
 
-## Time travel
+---
 
-Supply-chain questions have two independent time axes, because a CVE published
-today applies to a version published years ago.
+## How
+
+One heterogeneous graph. Nodes are PURL-identified artifacts of any kind —
+`pkg:npm/lodash@4.17.21`, `pkg:oci/python@3.12-slim`, `pkg:deb/debian/curl`,
+`pkg:github/actions/checkout@v4`. Edges are "pulls in", typed `depends_on`,
+`builds_on`, `invokes`, `installs`.
+
+Two plugin seams do the work. **Extractors** turn files into edges; **Resolvers**
+expand a node through registry APIs. A bounded concurrent BFS drives both to
+closure. Everything else — the SBOM, the CVE audit, the risk report — is a
+projection of that one graph.
+
+### Three axes that are not the same thing
+
+Conflating any two produces confident nonsense, so each is a separate field.
+
+| | |
+|---|---|
+| **Completeness** | how well we know it — `resolved` `declared` `inferred` `opaque` |
+| **State** | will it land on disk — `installed` `possible` `unknown` |
+| **Pinning** | what holds it there — `pinned` `locked` `floating` |
+
+The third is the one people miss:
+
+```
+pyproject: ">4.5.0"  + lock 4.6.1   →  locked    regenerate the lock and it moves
+pyproject: "==4.6.1"                →  pinned    regenerating changes nothing
+```
+
+Same installed version. Completely different exposure.
+
+### Blind spots are named, never silent
+
+Every node that could not be expanded carries a machine-readable reason:
+`bound:depth`, `offline`, `unpinned-ref`, `no-extractor`, `error:parse`,
+`unresolved-arg`. `deepdep tools` lists the **95 tool/category pairs** it
+recognises; anything recognised but not expandable is reported as a frontier
+rather than dropped.
+
+That is NTIA practice #3, "known unknowns" — the thing an ordinary SBOM omits.
+
+### Time travel
+
+Supply-chain questions have two independent clocks, because a CVE published today
+applies to a version published years ago.
 
 | `--as-of` | `--known-at` | question |
 |---|---|---|
 | now | now | what are we exposed to today? |
 | release T | T | was this a known problem when we shipped? |
-| release T | now | what do we now know was wrong with what we shipped? |
+| release T | now | what do we *now* know was wrong with what we shipped? |
 
-Rows 2 and 3 together separate negligence from bad luck. A third axis, `--at`,
-recomputes the closure at any point in the repository's own history:
+Rows 2 and 3 together separate negligence from bad luck.
 
 ```
-deepdep scan --at v1.2.0 .     # the closure as it stood at that tag
-deepdep history .              # when each dependency changed, and to what
+deepdep scan --at 4.18.0 https://github.com/expressjs/express   # tag
+deepdep scan --at 5.x    https://github.com/expressjs/express   # branch
+deepdep history .                                               # when each dep changed
 ```
 
-`history` distinguishes a range change from a lockfile-only bump — the latter
-moves what installs while the manifest stands still, and a range diff misses it
-entirely.
+A branch or tag *name* clones shallowly — express at tag `4.18.0` is 7 MB in
+2.5 s. Only a SHA or a date needs full history.
 
-### What cannot be reconstructed later
+**What cannot be reconstructed later**, and is therefore recorded on every run:
 
 | axis | retroactive? | why |
 |---|---|---|
@@ -90,284 +117,224 @@ entirely.
 | version existence at T | yes | registry publish times |
 | advisory existence at T | yes | OSV `published` / `withdrawn` |
 | advisory *content* at T | **no** | `modified` is destructive |
-| **tag → SHA at T** | **no** | no API exposes it; record it or lose it |
-| **OpenSSF Scorecard at T** | **no** | deps.dev serves only the newest; no history endpoint |
+| tag → SHA at T | **no** | no API exposes it |
+| OpenSSF Scorecard at T | **no** | deps.dev serves only the newest |
 
-The last two rows are why every scan writes observed SHAs and digests to
-`ref_obs`, and every `risk` run appends to `depsdev_obs` / `scorecard_obs`, from
-the first run. `deepdep risk --known-at` therefore **errors** rather than
-returning today's posture under a historical flag.
+---
 
-## Coverage, not silence
+## Results
 
-`deepdep` reports supply-chain files it saw and could **not** expand, as
-`declared` / `no-extractor` frontiers. A scanner that silently omits a Dockerfile
-reads as "this repo has none".
+Ten widely-used applications and libraries, scanned offline from a git checkout.
 
-```
-deepdep tools     # 95 tool/category pairs recognised
-```
+### What actually executes
 
-Categories are ordered by leverage: `hook` first, because those execute on an
-ordinary commit or install, with your credentials, before any review.
+| repo | packages | images | OS pkgs | CI actions | Dockerfiles | workflows | build steps |
+|---|---|---|---|---|---|---|---|
+| next.js | 7099 | 8 | 13 | 35 | 13 | 38 | 150 |
+| n8n | 4626 | 16 | 42 | 83 | 10 | 94 | 275 |
+| airflow | 3842 | 17 | 7 | 59 | 30 | 52 | 334 |
+| home-assistant | 1232 | 3 | 0 | 40 | 4 | 13 | 114 |
+| react | 1070 | 0 | 0 | 16 | 0 | 22 | 105 |
+| langchain | 728 | 1 | 6 | 25 | 1 | 27 | 68 |
+| grafana | 434 | 28 | 27 | **104** | 25 | **94** | 366 |
+| vscode | 421 | 2 | 3 | 19 | 4 | 15 | 143 |
+| django | 119 | 0 | 0 | 13 | 0 | 17 | 51 |
+| kubernetes | 2 | 11 | 19 | 0 | 36 | 0 | 39 |
 
-## Supported today
+Seconds per repo, on trees up to 865 MB. Byte-identical across runs under a fixed
+`--as-of`.
 
-| | extract | resolve | effective |
-|---|---|---|---|
-| npm | `package.json` | registry | `package-lock.json` |
-| PyPI | `pyproject.toml`, `requirements*.txt` | PyPI JSON | `uv.lock` |
-| GitHub Actions | workflows | — | — |
-| GitLab CI | `.gitlab-ci.yml`, includes, components | — | — |
-| pnpm | — | — | `pnpm-lock.yaml` |
-| Dockerfile | `FROM`, `RUN` | — | — |
+### Hygiene
 
-Enrichment: OSV (advisories, bitemporal) and deps.dev + OpenSSF Scorecard
-(posture, current-records only).
-
-Everything else in the catalogue — pre-commit, mise, ansible, Cargo, Maven,
-Helm, Terraform — is detected and reported as a frontier.
-
-## CVE checking
-
-```
-deepdep scan  --mode will --offline .   # index what is installed
-deepdep audit                           # check it against OSV
-```
-
-`audit` checks the **installed** set by default — what is really there — not the
-can-closure, because equating a hypothetical exposure with a real one is the
-mistake this tool exists to avoid. It is bitemporal: `--known-at` replays the
-advisories that existed at an instant, so a stored run can be re-audited against
-any point in time without rescanning.
-
-Two-stage against OSV, which is what the API offers: `querybatch` returns ids
-1000 at a time, then each distinct advisory is fetched once. Packages share
-advisories, so the second stage is far smaller than the first.
-
-## Supply-chain posture
-
-```
-deepdep risk                            # deps.dev + OpenSSF Scorecard
-deepdep risk --signal deprecated --limit 0
-```
-
-A different question from `audit`. An advisory says *this version has a known
-flaw*. A posture signal says *this is how the code got here, and what a future
-compromise would cost*: the package is deprecated and nobody will patch it, its
-releases carry no provenance, its repo merges without review, its CI hands out
-write-all tokens.
-
-Reported as **named signals with counts, never a 0-100 score** — averaging a
-deprecated package against a missing fuzzing harness destroys the only
-distinction that makes the output actionable.
-
-Counts are given as **versions / distinct source projects**, both. A Scorecard
-finding is a property of a *project*: rollup ships 25 per-platform binary
-packages from one repo, so a version-only count turns three upstream problems
-into twenty-eight.
-
-Three things about the deps.dev API that silently corrupt a naive client, all
-verified and all pinned by tests:
-
-| behaviour | consequence |
-|---|---|
-| `purlbatch` echoes a **normalised** purl (`annotated_types` → `annotated-types`, `5.0` → `5.0.0`) | correlate by **index**, never by the echo, or facts cross between packages |
-| `purlbatch` caps at 100 and returns a `nextPageToken` instead of an error | chunk at 100; a short response is treated as a hard error |
-| Scorecard `score: -1` means **the check did not run** ("no releases found") | never a finding; only `>= 0` scores are evaluated |
-
-A package deps.dev has never seen is `unlisted` — **unexamined, not clean**.
-Internal packages, private-index packages and typo'd names all land there.
-
-`risk` also cross-checks its own advisory ids against `audit`'s OSV results over
-identical inputs. A delta is a lead, not a verdict — the common benign case is an
-OSS-Fuzz record attached to an upstream project by a GIT commit range, which says
-nothing about which published artifact shipped it.
-
-## SBOM output
-
-```
-deepdep scan --format cyclonedx .                      # one document
-deepdep scan --format cyclonedx --sbom-dir out/ .      # one per deliverable
-```
-
-CycloneDX 1.6, validated against the official JSON schema. **NTIA minimum
-elements: 6 of 7** — supplier, name, version, unique identifier, dependency
-relationships, author, timestamp. The seventh, component hash, needs registry
-digests and is not implemented; the document says so rather than omitting it
-quietly.
-
-Three things distinguish it from a `syft` BOM:
-
-**Frontiers are components.** A `Dockerfile` we could not expand, a bound that
-fired, a shell step we could not analyse — each is emitted with
-`deepdep:completeness` and `deepdep:reason` properties. That is NTIA practice #3,
-"known unknowns". A BOM that silently omits them reads as "this repo has none".
-
-**`dependencies[]` presence carries meaning.** CycloneDX distinguishes *known to
-have no dependencies* (present, empty `dependsOn`) from *dependencies unknown*
-(absent). That maps exactly onto completeness, so a frontier is never claimed
-to be a leaf.
-
-**`formulation` carries the build.** Pipelines, base images and shell steps —
-the MBOM view. A base image and a third-party CI action execute with the
-build's credentials and appear in no `components[]` list anywhere else.
-
-### Per-deliverable documents
-
-`--sbom-dir` writes one document per application (from lockfile locators), one
-per Dockerfile, and one `_repo` for the pipeline, then prints the
-`cyclonedx merge --hierarchical` line that assembles them. A monorepo's single
-1384-component BOM answers nobody's question; "what does the backend ship?" and
-"what goes into `cli/Dockerfile`?" are different documents.
-
-Repo-level artifacts — the pipeline, its base images, the coverage frontiers —
-go in `_repo` rather than being copied into every application. Duplicating them
-would inflate each document and double-count the union; dropping them would make
-every document look cleaner than the repository is.
-
-### Tested on
-
-| repo | nodes | build files | steps | documents | time |
+| repo | manifests | with lockfile | exact | caret | **open / any** |
 |---|---|---|---|---|---|
-| next.js | 7517 | 51 | 225 | 61 | 6.4s |
-| airflow | 4437 | 82 | 431 | 94 | 1.9s |
-| react | 1281 | 22 | 133 | 24 | 1.0s |
-| home-assistant/core | 1420 | 17 | 114 | 19 | 1.8s |
-| grafana | 1278 | 119 | 404 | 120 | 1.9s |
-| vscode | 671 | 19 | 194 | 21 | 1.9s |
+| langchain | 21 | 21 | 0% | 0% | **97%** |
+| airflow | 155 | 14 | 2% | 17% | **78%** |
+| django | 4 | **0** | 9% | 36% | 45% |
+| react | 129 | 47 | 11% | 86% | 1% |
+| next.js | 694 | 14 | 45% | 50% | 3% |
 
-339 CycloneDX documents, all valid against the official 1.6 schema, all with
-their own `metadata.component`. Offline, from a git checkout, seconds per repo.
+langchain and airflow declare nearly everything as `>=X` with no upper bound.
+Every rebuild can cross a major version.
 
-Every scan is byte-identical across runs under a fixed `--as-of`.
+### Reputation — and *why* it fired
 
-### Known limitations
-
-The build layer lands as `possible`, not `installed`: `deepdep audit` checks
-lockfile-backed packages by default, so base images and packages parsed out of
-`RUN` lines need `--state possible`.
-
-Yarn has no effective resolver, so a `yarn.lock`-only repo resolves far less
-than a pnpm or npm one (vscode: 77 of 671 nodes resolved offline).
-
-### What this is not
-
-A **Source** SBOM, in CISA's taxonomy — recorded in the document as
-`deepdep:cisa-sbom-type`. deepdep reads manifests, lockfiles, pipelines and
-Dockerfiles; it never observes a build, so it cannot know which transitive OS
-packages `apt` actually pulled into an image. That is a **Build** SBOM, and
-`syft <image>` is the tool for it. The two merge.
-
-## One report
+Not a score. Named signals carrying the upstream scanner's own evidence, with the
+file and line:
 
 ```
-deepdep report            # malicious + advisories + posture, over one run
+dangerous-workflow                     73 versions / 8 projects
+  github.com/jcrist/msgspec: untrusted code checkout '${{ ... }}'
+    .github/workflows/ci-capability-policy.yml:26
+  github.com/microsoft/rushstack: script injection with untrusted input
+    ' toJson(github.event) ': .github/workflows/file-doc-tickets.yml:30
+
+unmaintained                          862 versions / 764 projects
+  github.com/aio-libs/async-timeout: Repository is archived.
 ```
 
-Layered, **not scored**, and there will not be a score. Any composite averages
-"this package was hostile and ran with your build's credentials" against "this
-project has no fuzzing harness", and the reader loses the only distinction that
-tells them what to do this morning.
+Across `next.js`, **half of all dependencies come from repos with under 100
+stars** (median 106). Contributor count is *not* exposed by deps.dev, so "single
+maintainer" is a proxy — stars, `Maintained`, `Code-Review` — and the report says
+so rather than implying a headcount.
+
+### Usage × severity, not a score
+
+There is no composite number here and there will not be one: any single figure
+averages *"this package was hostile and ran with your credentials"* against
+*"this project has no fuzzing harness"*. Two independently-sourced axes instead —
+dependent count from deps.dev, severity band from OSV:
+
+| usage (dependents) | MALICIOUS | CRITICAL | HIGH |
+|---|---|---|---|
+| very-high >100k | 0 | **1** | **12** |
+| high 10k–100k | 0 | 9 | 72 |
+| med 1k–10k | 0 | 9 | 103 |
+| low <1k | 0 | 51 | 337 |
 
 ```
-1. MALICIOUS PACKAGES   hostile code that already ran. Nothing outranks this.
-2. ADVISORIES           known flaws in what installs, worst band first
-3. POSTURE              repo-specific signals, split from ecosystem baseline
-4. BY APPLICATION       which deliverable carries which finding
+615522 dependents  HIGH  npm/brace-expansion@1.1.11   (react)
+214508 dependents  HIGH  npm/postcss@8.4.31           (next.js)
+191685 dependents  HIGH  npm/form-data@2.3.3          (next.js)
 ```
+
+13 findings in the top-left cell against 388 in the bottom-right — a 30× cut in
+what to read first, while staying two honest axes.
 
 ### Malicious packages
 
-**Yes, there is an index, and it is the same query as the CVEs.** OSV ingests the
+**There is an index, and it is the same query as the CVEs.** OSV ingests the
 OpenSSF `malicious-packages` feed as `MAL-YYYY-NNNNN`, with an explicit affected
-*version list* rather than a range, aliased to GHSA. The Shai-Hulud npm worm is
-in it.
+*version list* rather than a range. The Shai-Hulud npm worm is in it.
 
 Those records carry **no severity field**, so a naive report sorts a live worm
-below a moderate ReDoS and labels it `UNKNOWN`. `MALICIOUS` is therefore its own
-class above `CRITICAL`, presented as a category rather than a CVSS band: a CVE
-says this code has a flaw, a MAL record says this code was hostile and you
-installed it.
-
-`report` defaults to `--state all`, because a package pulled in by a Dockerfile
-`RUN` line has no lockfile instance — which is exactly where the Shai-Hulud
-packages showed up in testing.
-
-## OS packages
-
-`apt-get`, `apk`, `yum`, `dnf`, `microdnf` and `zypper` installs are parsed from
-`RUN` lines into distro-namespaced PURLs:
+below a moderate ReDoS and labels it `UNKNOWN`. `MALICIOUS` is its own class
+above `CRITICAL` — a category, not a CVSS band:
 
 ```
-FROM debian:12       + apt-get install curl=7.88.1-10  ->  pkg:deb/debian/curl@7.88.1-10
-FROM python:3.12-slim + apt-get install curl           ->  pkg:deb/debian/curl
-FROM node:24-alpine  + apk add curl=8.11.1-r0          ->  pkg:apk/alpine/curl@8.11.1-r0
-FROM rockylinux:9    + dnf install curl                ->  pkg:rpm/rocky/curl
+MALICIOUS  MAL-2025-47141  npm/@ctrl/tinycolor@4.1.1  Malicious code in @ctrl/tinycolor
 ```
 
-The namespace is load-bearing, not cosmetic. Verified against OSV:
-`pkg:deb/debian/curl` returns **71** advisories, `pkg:deb/curl` returns **0** —
-and `alpine` is not a PURL type at all, the spec says `apk` with an `alpine`
-namespace.
+Found through a `RUN npm install` line in a Dockerfile, with no lockfile
+involved — which is why `report` queries every state by default.
 
-The **command** decides the family (you cannot run `apt-get` on Alpine); the
-stage's base image refines the distribution, tag included, because
-`python:3.12-slim` is Debian and only the tag says so. Where the base image does
-not identify a distribution the family default is used and the node is marked
-`distro-assumed` — `deb/debian` and `deb/ubuntu` carry different advisories, so
-a wrong guess is worse than none.
+---
 
-A multi-stage Dockerfile can switch distributions between stages, so the base
-image is tracked per stage.
+## Commands
 
-**What this cannot see:** the packages already inside a base image. `FROM
-python:3.12-slim` ships several hundred Debian packages that no Dockerfile
-mentions. That is a **Build**-layer fact — `syft <image>` answers it, deepdep
-reads Dockerfiles and never builds them.
+```
+deepdep scan    [flags] <git-url|directory>   build and store the closure
+deepdep report  [flags] [run-id]              malicious + CVEs + posture, layered
+deepdep audit   [flags] [run-id]              OSV advisories, bitemporal
+deepdep risk    [flags] [run-id]              deps.dev + OpenSSF Scorecard
+deepdep history [flags] <directory>           when each dependency changed
+deepdep tools                                 the recognition catalogue
+```
+
+### SBOM
+
+```
+deepdep scan --format cyclonedx .                  # one document
+deepdep scan --format cyclonedx --sbom-dir out/ .  # one per deliverable
+```
+
+CycloneDX 1.6, validated against the official JSON schema — **339 documents
+across the ten repos above, 0 errors**. **NTIA minimum elements: 6 of 7**; the
+seventh, component hash, needs registry digests, and the document says so rather
+than omitting it quietly.
+
+`--sbom-dir` writes one document per application, one per Dockerfile and one
+`_repo` for the pipeline, then prints the `cyclonedx merge --hierarchical` line
+that assembles them.
+
+`formulation` carries the build itself — pipelines, base images, shell steps —
+the CycloneDX MBOM view. A base image and a third-party action appear in no
+`components[]` list anywhere else.
+
+---
+
+## Supported
+
+| | extract | resolve | effective |
+|---|---|---|---|
+| npm | `package.json` | registry | `package-lock.json`, `pnpm-lock.yaml` |
+| PyPI | `pyproject.toml`, `requirements*.txt` | PyPI JSON | `uv.lock` |
+| Dockerfile | `FROM`, `RUN` | — | — |
+| GitHub Actions | workflows | — | — |
+| GitLab CI | `.gitlab-ci.yml`, includes, components | — | — |
+
+OS packages parsed from `RUN` lines carry their distribution namespace, which is
+load-bearing rather than cosmetic — verified against OSV, `pkg:deb/debian/curl`
+returns 71 advisories and `pkg:deb/curl` returns 0:
+
+```
+FROM debian:12       + apt-get install curl=7.88.1-10  →  pkg:deb/debian/curl@7.88.1-10
+FROM node:24-alpine  + apk add curl=8.11.1-r0          →  pkg:apk/alpine/curl@8.11.1-r0
+FROM rockylinux:9    + dnf install curl                →  pkg:rpm/rocky/curl
+```
+
+The command decides the family — you cannot run `apt-get` on Alpine — and the
+stage's base image refines the distribution. Where it cannot, the node is marked
+`distro-assumed`: `deb/debian` and `deb/ubuntu` carry different advisories, so a
+wrong guess is worse than none.
+
+Everything else in the catalogue — pre-commit, mise, ansible, Cargo, Maven, Helm,
+Terraform — is detected and reported as a frontier.
+
+---
 
 ## Design notes
 
-- **Never executes analysed code.** No `npm install`, no `pip install`, no
-  `docker build`. Resolution is registry-API-only. An analyser that runs
-  untrusted postinstall scripts to learn a dependency graph is a liability.
+- **Never executes analysed code.** No `npm install`, no `docker build`.
+  Resolution is registry-API-only. An analyser that runs untrusted postinstall
+  scripts to learn a dependency graph is a liability.
+- **Multiplicity lives on edges, never on nodes.** Nodes deduplicate by identity;
+  a base image used by four Dockerfiles is one node. Any per-occurrence fact —
+  which file pulled it in, which range was declared — must live on the edge, or
+  the last writer wins and the answer is both wrong and nondeterministic.
 - **Version semantics are per-ecosystem.** npm ranges and PEP 440 specifiers
-  disagree about ordering, about `~`, and about pre-releases. The npm scheme is
-  validated against node-semver's own fixture corpus; PEP 440 is validated
-  differentially against Python's `packaging` library (644 cases).
-- **Identity is deduplicated, provenance is not.** One node per package version;
-  every edge kept. `PathsTo` answers "why is this here?" with every chain.
-- **Advisory counts are never materialised.** They are a function of
-  `known_at`, a query parameter. Storing them would un-bitemporalise the design
-  at the last step.
-- **Bounds are named, never silent.** Depth, node count and timeout all mark
-  their frontier with a machine-readable reason.
+  disagree about ordering, about `~`, and about pre-releases. npm is validated
+  against node-semver's own fixture corpus; PEP 440 differentially against
+  Python's `packaging` (644 cases).
+- **Advisory counts are never materialised.** They are a function of `known_at`,
+  a query parameter. Storing them would un-bitemporalise the design.
+- **Bounds are named, never silent.** Depth, node count and timeout each mark
+  their frontier with a reason, and the partial closure is still emitted.
 
 ## Storage
 
-Runs persist to SQLite (`modernc.org/sqlite`, pure Go, no cgo). Indexed adjacency
-answers "why is this here?" in milliseconds; the flat package list sorts and
-paginates. Packument observations make a re-scan incremental — 2.78s to 0.12s on
-a repeat run.
+SQLite (`modernc.org/sqlite`, pure Go, no cgo — one static binary). Indexed
+adjacency answers "why is this here?" in milliseconds; observation tables record
+what cannot be reconstructed later.
 
 ```sql
 SELECT name, versions_installed, path_count, worst_completeness
   FROM package_rollup ORDER BY path_count DESC LIMIT 10;
 ```
 
-## Status
+## Install
 
-Working, tested, and honest about its limits. Not yet built: a graph UI,
-`deepdep diff`, hoisting simulation for lockfile-less repos, and the remaining
-ecosystem extractors. The schema for the UI is already in place, because
-knowledge-time, tag→SHA and scorecard history cannot be reconstructed after the
-fact.
+```
+go install github.com/jverhoeks/deepdep/cmd/deepdep@latest
+```
 
-Known limitation: `can` mode expands each declared range independently, so a
-package with a hard pin from one parent and a wider range from another still
-lists the wider range's versions as `possible`. A real resolver would intersect
-them away. It over-approximates, which is the safe direction for a security
-report, but it is imprecise.
+Go 1.26+. 15 packages, ~11k lines with ~5.5k lines of tests, green under `-race`.
+
+## Limits
+
+- **`can` mode does not scale to large monorepos.** It works — 19 → 81 packages
+  from a single dependency — but does not complete within 10 minutes on `react`.
+  `--timeout` fires and emits the partial closure marked `bound:timeout`.
+- **Yarn and Go have no effective resolver**, so `yarn.lock` / `go.sum`-only repos
+  resolve far less. grafana and kubernetes report 0 installed packages for this
+  reason and their findings come from Dockerfiles alone. A low coverage ratio
+  makes "0 CVEs" meaningless, so the report states the ratio.
+- **Base image contents are invisible.** `FROM python:3.12-slim` ships hundreds of
+  Debian packages no Dockerfile mentions. That is a *Build*-layer fact and
+  `syft <image>` answers it; deepdep reads Dockerfiles and never builds them.
+- **`can` over-approximates.** Ranges expand independently, so a package
+  hard-pinned by one parent still lists the wider range's versions as `possible`.
+  The safe direction for a security report, but imprecise.
 
 ## Licence
 
