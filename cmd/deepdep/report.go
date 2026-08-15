@@ -163,6 +163,9 @@ type count struct {
 	Name     string `json:"name"`
 	Versions int    `json:"versions"`
 	Projects int    `json:"projects,omitempty"`
+	// Why is the upstream scanner's own finding, one line per project, so the
+	// report says which workflow and which line rather than restating the rule.
+	Why []string `json:"why,omitempty"`
 }
 
 type ownerRow struct {
@@ -260,14 +263,19 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 
 	sigVers := map[string]int{}
 	sigRepos := map[string]map[string]bool{}
+	sigWhy := map[string]map[string]string{} // code -> project -> first warning
 	for _, a := range assessments {
 		for _, s := range a.Signals {
 			sigVers[s.Code]++
 			if sigRepos[s.Code] == nil {
 				sigRepos[s.Code] = map[string]bool{}
+				sigWhy[s.Code] = map[string]string{}
 			}
 			if a.SourceRepo != "" {
 				sigRepos[s.Code][a.SourceRepo] = true
+				if len(s.Evidence) > 0 {
+					sigWhy[s.Code][a.SourceRepo] = s.Evidence[0]
+				}
 			}
 		}
 	}
@@ -277,6 +285,9 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 			continue
 		}
 		c := count{Name: code, Versions: n, Projects: len(sigRepos[code])}
+		for _, proj := range sortedKeys(sigWhy[code]) {
+			c.Why = append(c.Why, proj+": "+sigWhy[code][proj])
+		}
 		if baselineSignals[code] {
 			r.Baseline = append(r.Baseline, c)
 		} else {
@@ -367,6 +378,15 @@ func renderReport(r reportDoc) []byte {
 		fmt.Fprintf(&b, "   actionable for this repository        versions  projects\n")
 		for _, c := range r.RepoSignals {
 			fmt.Fprintf(&b, "     %-32s %8d %9s\n", c.Name, c.Versions, orDashN(c.Projects))
+			// The upstream scanner's own words, so the row is actionable rather
+			// than a restatement of the rule.
+			for i, w := range c.Why {
+				if i >= 3 {
+					fmt.Fprintf(&b, "        ... %d more projects\n", len(c.Why)-i)
+					break
+				}
+				fmt.Fprintf(&b, "        %s\n", elideMiddle(w, 104))
+			}
 		}
 		fmt.Fprintf(&b, "   ecosystem baseline — what open-source publishing looks like,\n")
 		fmt.Fprintf(&b, "   not a property of this repo:\n")
@@ -394,4 +414,13 @@ func orDashN(n int) string {
 		return "-"
 	}
 	return fmt.Sprintf("%d", n)
+}
+
+func sortedKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

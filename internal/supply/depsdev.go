@@ -83,14 +83,31 @@ type Fact struct {
 	RepoProvenance string `json:"repo_provenance,omitempty"`
 }
 
+// Check is one Scorecard result.
+//
+// Score alone says a check failed; Reason and Warnings say WHY, with the file
+// and line. "CI workflow has an untrusted-input injection pattern" is a rule
+// description that fits every project; "untrusted code checkout ... :
+// .github/workflows/ci-capability-policy.yml:26" is a thing somebody can go and
+// fix.
+type Check struct {
+	Score  int    `json:"score"` // -1 means DID NOT RUN
+	Reason string `json:"reason,omitempty"`
+	// Warnings are the Warn/Error details only. Scorecard mixes Info lines into
+	// the same array to give context, and several of them describe settings that
+	// are CORRECT — Branch-Protection lists "'force pushes' disabled" as Info —
+	// so surfacing them as reasons would report good hygiene as a finding.
+	Warnings []string `json:"warnings,omitempty"`
+}
+
 // Project is a source repository plus its most recent OpenSSF Scorecard.
 type Project struct {
-	ID            string         `json:"id"`
-	Stars         int            `json:"stars,omitempty"`
-	HasScorecard  bool           `json:"has_scorecard"`
-	ScorecardDate time.Time      `json:"scorecard_date,omitempty"`
-	OverallScore  float64        `json:"overall_score,omitempty"`
-	Checks        map[string]int `json:"checks,omitempty"` // -1 means DID NOT RUN
+	ID            string           `json:"id"`
+	Stars         int              `json:"stars,omitempty"`
+	HasScorecard  bool             `json:"has_scorecard"`
+	ScorecardDate time.Time        `json:"scorecard_date,omitempty"`
+	OverallScore  float64          `json:"overall_score,omitempty"`
+	Checks        map[string]Check `json:"checks,omitempty"`
 }
 
 // Client queries deps.dev. No authentication: the API is free and unmetered.
@@ -295,8 +312,10 @@ type projectDoc struct {
 		Date         time.Time `json:"date"`
 		OverallScore float64   `json:"overallScore"`
 		Checks       []struct {
-			Name  string `json:"name"`
-			Score int    `json:"score"`
+			Name    string   `json:"name"`
+			Score   int      `json:"score"`
+			Reason  string   `json:"reason"`
+			Details []string `json:"details"`
 		} `json:"checks"`
 	} `json:"scorecard"`
 }
@@ -381,9 +400,16 @@ func (c *Client) project(ctx context.Context, id string) (Project, error) {
 		p.HasScorecard = true
 		p.ScorecardDate = doc.Scorecard.Date
 		p.OverallScore = doc.Scorecard.OverallScore
-		p.Checks = map[string]int{}
+		p.Checks = map[string]Check{}
 		for _, ck := range doc.Scorecard.Checks {
-			p.Checks[ck.Name] = ck.Score
+			c := Check{Score: ck.Score, Reason: ck.Reason}
+			for _, d := range ck.Details {
+				if strings.HasPrefix(d, "Warn:") || strings.HasPrefix(d, "Error:") {
+					c.Warnings = append(c.Warnings, strings.TrimSpace(
+						strings.TrimPrefix(strings.TrimPrefix(d, "Warn:"), "Error:")))
+				}
+			}
+			p.Checks[ck.Name] = c
 		}
 	}
 	return p, nil

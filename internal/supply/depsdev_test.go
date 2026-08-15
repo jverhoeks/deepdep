@@ -165,11 +165,12 @@ func TestScorecardMinusOneIsNotAFinding(t *testing.T) {
 	}}
 	projects := map[string]supply.Project{"github.com/o/r": {
 		ID: "github.com/o/r", HasScorecard: true,
-		Checks: map[string]int{
-			"Signed-Releases":     -1, // no releases found — not a weakness
-			"Pinned-Dependencies": -1,
-			"Maintained":          10,
-			"Code-Review":         0, // a REAL zero
+		Checks: map[string]supply.Check{
+			"Signed-Releases":     {Score: -1}, // no releases found — not a weakness
+			"Pinned-Dependencies": {Score: -1},
+			"Maintained":          {Score: 10},
+			"Code-Review": {Score: 0, Reason: "found 1/30 approved changesets", // a REAL zero
+				Warnings: []string{"no reviews found: .github/workflows/ci.yml:12"}},
 		},
 	}}
 
@@ -188,7 +189,7 @@ func TestUnverifiedSourceLinkIsFlagged(t *testing.T) {
 	attested := supply.Assess([]supply.Fact{{
 		NodeID: "pkg:npm/a@1.0.0", Queried: true, Known: true, Licenses: []string{"MIT"},
 		SourceRepo: "github.com/o/r", RepoProvenance: "SLSA_ATTESTATION",
-	}}, map[string]supply.Project{"github.com/o/r": {HasScorecard: true, Checks: map[string]int{}}})[0]
+	}}, map[string]supply.Project{"github.com/o/r": {HasScorecard: true, Checks: map[string]supply.Check{}}})[0]
 	if attested.Has("unattested-source") {
 		t.Error("an SLSA-attested source link must not be flagged")
 	}
@@ -196,7 +197,7 @@ func TestUnverifiedSourceLinkIsFlagged(t *testing.T) {
 	metadata := supply.Assess([]supply.Fact{{
 		NodeID: "pkg:npm/b@1.0.0", Queried: true, Known: true, Licenses: []string{"MIT"},
 		SourceRepo: "github.com/o/r", RepoProvenance: "UNVERIFIED_METADATA",
-	}}, map[string]supply.Project{"github.com/o/r": {HasScorecard: true, Checks: map[string]int{}}})[0]
+	}}, map[string]supply.Project{"github.com/o/r": {HasScorecard: true, Checks: map[string]supply.Check{}}})[0]
 	if !metadata.Has("unattested-source") {
 		t.Errorf("signals = %+v, want unattested-source", metadata.Signals)
 	}
@@ -213,7 +214,11 @@ func TestProjectsDedupeAndEncodeSlashes(t *testing.T) {
 		mu.Lock()
 		paths = append(paths, r.URL.EscapedPath())
 		mu.Unlock()
-		fmt.Fprint(w, `{"starsCount":42,"scorecard":{"overallScore":6.5,"checks":[{"name":"Maintained","score":10}]}}`)
+		fmt.Fprint(w, `{"starsCount":42,"scorecard":{"overallScore":6.5,"checks":[
+          {"name":"Maintained","score":10},
+          {"name":"Dangerous-Workflow","score":0,"reason":"dangerous workflow patterns detected",
+           "details":["Warn: untrusted code checkout: .github/workflows/ci.yml:26",
+                      "Info: this line is context, not a finding"]}]}}`)
 	}))
 	defer srv.Close()
 
@@ -233,7 +238,7 @@ func TestProjectsDedupeAndEncodeSlashes(t *testing.T) {
 			t.Errorf("path %q leaks the id's slashes into the URL path", p)
 		}
 	}
-	if got["github.com/ai/nanoid"].Checks["Maintained"] != 10 {
+	if got["github.com/ai/nanoid"].Checks["Maintained"].Score != 10 {
 		t.Errorf("scorecard not parsed: %+v", got["github.com/ai/nanoid"])
 	}
 }
@@ -327,4 +332,62 @@ func TestUnsupportedEcosystemsAreNotQueried(t *testing.T) {
 			t.Errorf("%s flagged unlisted, but deps.dev was never asked", a.NodeID)
 		}
 	}
+}
+
+// TestScorecardEvidenceIsCapturedAndInfoLinesAreNot.
+//
+// "CI workflow has an untrusted-input injection pattern" is a rule description
+// that fits every flagged project; only Scorecard's own detail says WHICH
+// workflow and WHICH line. Scorecard mixes Info lines into the same array as
+// context, and several describe settings that are CORRECT — Branch-Protection
+// lists "'force pushes' disabled" as Info — so treating them as reasons would
+// report good hygiene as a finding.
+func TestScorecardEvidenceIsCapturedAndInfoLinesAreNot(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"scorecard":{"checks":[
+          {"name":"Dangerous-Workflow","score":0,"reason":"dangerous workflow patterns detected",
+           "details":["Warn: untrusted code checkout '${{ github.event.pull_request.number }}': .github/workflows/ci.yml:26",
+                      "Info: not a finding"]},
+          {"name":"Branch-Protection","score":0,"reason":"branch protection not enabled",
+           "details":["Info: 'force pushes' disabled on branch 'main'"]}]}}`)
+	}))
+	defer srv.Close()
+
+	projects, err := supply.New(srv.URL, srv.Client()).Projects(context.Background(), []string{"github.com/o/r"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dw := projects["github.com/o/r"].Checks["Dangerous-Workflow"]
+	if dw.Reason == "" {
+		t.Error("the check's reason was dropped")
+	}
+	if len(dw.Warnings) != 1 {
+		t.Fatalf("warnings = %v, want exactly the Warn line", dw.Warnings)
+	}
+	if !strings.Contains(dw.Warnings[0], "ci.yml:26") {
+		t.Errorf("warning = %q, want the file and line", dw.Warnings[0])
+	}
+	if strings.Contains(dw.Warnings[0], "Warn:") {
+		t.Errorf("warning = %q, want the prefix stripped", dw.Warnings[0])
+	}
+	// An Info-only check must carry no evidence: "'force pushes' disabled" is
+	// good news and must never be printed as a reason the check failed.
+	if bp := projects["github.com/o/r"].Checks["Branch-Protection"]; len(bp.Warnings) != 0 {
+		t.Errorf("Info lines leaked into evidence: %v", bp.Warnings)
+	}
+
+	// And it reaches the signal.
+	a := supply.Assess([]supply.Fact{{
+		NodeID: "pkg:npm/x@1.0.0", Queried: true, Known: true, Licenses: []string{"MIT"},
+		SourceRepo: "github.com/o/r", RepoProvenance: "SLSA_ATTESTATION",
+	}}, projects)[0]
+	for _, s := range a.Signals {
+		if s.Code == "dangerous-workflow" {
+			if len(s.Evidence) == 0 {
+				t.Error("the signal carries no evidence; the report can only print the generic rule")
+			}
+			return
+		}
+	}
+	t.Error("no dangerous-workflow signal")
 }

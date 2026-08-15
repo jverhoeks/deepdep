@@ -232,6 +232,10 @@ func riskReport(meta store.Run, state string, observedAt time.Time,
 	// not as a per-package wall that buries the one class you can act on.
 	bySignal := map[string][]supply.Assessment{}
 	detail := map[string]map[graph.NodeID]string{}
+	// Scorecard's own finding, kept per SIGNAL rather than per package: the
+	// evidence is a property of the upstream project, and forty packages from
+	// one repo would otherwise print the same workflow line forty times.
+	evidence := map[string]map[string][]string{}
 	repos := map[string]map[string]bool{}
 	for _, a := range assessments {
 		for _, s := range a.Signals {
@@ -243,6 +247,12 @@ func riskReport(meta store.Run, state string, observedAt time.Time,
 			detail[s.Code][a.NodeID] = s.Detail
 			if a.SourceRepo != "" {
 				repos[s.Code][a.SourceRepo] = true
+				if len(s.Evidence) > 0 {
+					if evidence[s.Code] == nil {
+						evidence[s.Code] = map[string][]string{}
+					}
+					evidence[s.Code][a.SourceRepo] = s.Evidence
+				}
 			}
 		}
 	}
@@ -294,6 +304,29 @@ func riskReport(meta store.Run, state string, observedAt time.Time,
 			// Never truncate silently: an omitted tail reads as full coverage.
 			fmt.Fprintf(&buf, "  ... %d more (--limit 0 for all, --signal %s to focus)\n",
 				len(list)-len(shown), code)
+		}
+		// WHY, in the upstream scanner's own words, once per project.
+		if ev := evidence[code]; len(ev) > 0 {
+			names := make([]string, 0, len(ev))
+			for r := range ev {
+				names = append(names, r)
+			}
+			sort.Strings(names)
+			fmt.Fprintf(&buf, "  why:\n")
+			for i, r := range names {
+				if limit > 0 && i >= limit {
+					fmt.Fprintf(&buf, "    ... %d more projects\n", len(names)-i)
+					break
+				}
+				fmt.Fprintf(&buf, "    %s\n", r)
+				for j, w := range ev[r] {
+					if j >= 3 {
+						fmt.Fprintf(&buf, "      ... %d more\n", len(ev[r])-j)
+						break
+					}
+					fmt.Fprintf(&buf, "      %s\n", elideMiddle(w, 108))
+				}
+			}
 		}
 	}
 
@@ -349,4 +382,17 @@ func plural(n int, word string) string {
 		return word
 	}
 	return word + "s"
+}
+
+// elideMiddle shortens a line from the MIDDLE, because the actionable half of a
+// Scorecard warning is the file:line at the END. Trailing truncation removed
+// exactly the part a reader needs to go and look.
+func elideMiddle(s string, n int) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	if len(s) <= n {
+		return s
+	}
+	keepTail := n / 2
+	keepHead := n - keepTail - 1
+	return s[:keepHead] + "…" + s[len(s)-keepTail:]
 }

@@ -17,6 +17,11 @@ import (
 type Signal struct {
 	Code   string `json:"code"`
 	Detail string `json:"detail,omitempty"`
+	// Reason and Evidence are the upstream tool's own finding. A rule
+	// description fits every project; "untrusted code checkout ...:
+	// .github/workflows/ci.yml:26" is a thing somebody can go and fix.
+	Reason   string   `json:"reason,omitempty"`
+	Evidence []string `json:"evidence,omitempty"`
 }
 
 // Assessment is every signal for one package version.
@@ -90,9 +95,8 @@ func Assess(facts []Fact, projects map[string]Project) []Assessment {
 			// surface. deps.dev cannot tell them apart, so neither do we — but
 			// saying "unlisted" without saying what to check would leave the
 			// reader with a count and no next step.
-			a.Signals = append(a.Signals, Signal{"unlisted",
-				"no public registry record; check whether it resolves from a local " +
-					"path (benign) or by name from an index (confusable)"})
+			a.Signals = append(a.Signals, Signal{Code: "unlisted", Detail: "no public registry record; check whether it resolves from a local " +
+				"path (benign) or by name from an index (confusable)"})
 			out = append(out, a)
 			continue
 		}
@@ -102,43 +106,46 @@ func Assess(facts []Fact, projects map[string]Project) []Assessment {
 			if d == "" {
 				d = "publisher marked this version deprecated"
 			}
-			a.Signals = append(a.Signals, Signal{"deprecated", d})
+			a.Signals = append(a.Signals, Signal{Code: "deprecated", Detail: d})
 		}
 
 		switch {
 		case len(f.Licenses) == 0:
-			a.Signals = append(a.Signals, Signal{"no-license",
-				"no license recorded; redistribution terms are undetermined"})
+			a.Signals = append(a.Signals, Signal{Code: "no-license", Detail: "no license recorded; redistribution terms are undetermined"})
 		case hasNonStandardLicense(f.Licenses):
-			a.Signals = append(a.Signals, Signal{"non-standard-license",
-				strings.Join(f.Licenses, ", ")})
+			a.Signals = append(a.Signals, Signal{Code: "non-standard-license", Detail: strings.Join(f.Licenses, ", ")})
 		}
 
 		switch {
 		case f.SourceRepo == "":
-			a.Signals = append(a.Signals, Signal{"no-source-repo",
-				"published artifact is not attributable to any source repository"})
+			a.Signals = append(a.Signals, Signal{Code: "no-source-repo", Detail: "published artifact is not attributable to any source repository"})
 		case f.RepoProvenance != "SLSA_ATTESTATION":
 			// The scorecard below describes a repo linked only by publisher
 			// metadata. It may not be the source of what actually installed.
-			a.Signals = append(a.Signals, Signal{"unattested-source",
-				"source repo linked by " + strings.ToLower(f.RepoProvenance) +
-					" only; provenance not verified"})
+			a.Signals = append(a.Signals, Signal{Code: "unattested-source", Detail: "source repo linked by " + strings.ToLower(f.RepoProvenance) +
+				" only; provenance not verified"})
 		}
 
 		if p, ok := projects[f.SourceRepo]; ok && p.HasScorecard {
 			for _, r := range scorecardRules {
-				score, ran := p.Checks[r.check]
-				if !ran || score < 0 { // -1 == check did not run
+				c, ran := p.Checks[r.check]
+				if !ran || c.Score < 0 { // -1 == check did not run
 					continue
 				}
-				if score <= r.atOrBelow {
-					a.Signals = append(a.Signals, Signal{r.code, r.detail})
+				if c.Score <= r.atOrBelow {
+					a.Signals = append(a.Signals, Signal{
+						Code:   r.code,
+						Detail: r.detail,
+						// Scorecard's own words, with the file and line. The
+						// rule description says what the class of problem is;
+						// only this says which workflow and which line.
+						Reason:   c.Reason,
+						Evidence: c.Warnings,
+					})
 				}
 			}
 		} else if f.SourceRepo != "" {
-			a.Signals = append(a.Signals, Signal{"no-scorecard",
-				"no OpenSSF Scorecard for " + f.SourceRepo})
+			a.Signals = append(a.Signals, Signal{Code: "no-scorecard", Detail: "no OpenSSF Scorecard for " + f.SourceRepo})
 		}
 
 		out = append(out, a)
