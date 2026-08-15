@@ -66,6 +66,9 @@ deepdep tools                         supply-chain surfaces this build recognise
   --author NAME          SBOM author (NTIA field 6); defaults to the tool
   --formulation          include the MBOM view in CycloneDX: pipelines, base
                          images, build steps (default true)
+  --sbom-dir DIR         with --format cyclonedx: one document per application
+                         and per Dockerfile, plus a _repo document for the
+                         pipeline, ready for cyclonedx merge --hierarchical
   --offline              extractors only; nothing is resolved
   --timeout D            give up expanding after this long; the partial closure
                          is still emitted, with the frontier marked bound:timeout
@@ -357,6 +360,7 @@ func scan(args []string) ([]byte, error) {
 		noDB        = fs.Bool("no-db", false, "")
 		author      = fs.String("author", "", "SBOM author (NTIA field 6); defaults to the tool")
 		formulation = fs.Bool("formulation", true, "include the CycloneDX MBOM view: pipelines, base images, build steps")
+		sbomDir     = fs.String("sbom-dir", "", "write one CycloneDX document per application/image into this directory")
 		offline     = fs.Bool("offline", false, "")
 		timeout     = fs.Duration("timeout", 5*time.Minute, "")
 		registry    = fs.String("registry", "https://registry.npmjs.org", "")
@@ -507,9 +511,15 @@ func scan(args []string) ([]byte, error) {
 				return nil, err
 			}
 		}
-		err = emit.CycloneDX(&buf, g, m, emit.CycloneDXOptions{
-			Author: *author, Enrichment: facts, Formulation: *formulation,
-		})
+		opts := emit.CycloneDXOptions{Author: *author, Enrichment: facts, Formulation: *formulation}
+		if *sbomDir != "" {
+			// One document per deliverable. A monorepo's single 1384-component
+			// BOM answers nobody's question; "what does the backend ship?" and
+			// "what goes into cli/Dockerfile?" are different documents, and a
+			// hierarchical merge needs them to exist separately first.
+			return writeSplitSBOMs(*sbomDir, g, inst, rootID, m, opts)
+		}
+		err = emit.CycloneDX(&buf, g, m, opts)
 	case "json":
 		err = emit.JSON(&buf, g, m)
 	default:

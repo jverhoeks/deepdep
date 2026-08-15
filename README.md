@@ -120,12 +120,13 @@ ordinary commit or install, with your credentials, before any review.
 | GitHub Actions | workflows | — | — |
 | GitLab CI | `.gitlab-ci.yml`, includes, components | — | — |
 | pnpm | — | — | `pnpm-lock.yaml` |
+| Dockerfile | `FROM`, `RUN` | — | — |
 
 Enrichment: OSV (advisories, bitemporal) and deps.dev + OpenSSF Scorecard
 (posture, current-records only).
 
-Everything else in the catalogue — Dockerfile, pre-commit, mise, ansible, Cargo,
-Maven, Helm, Terraform — is detected and reported as a frontier.
+Everything else in the catalogue — pre-commit, mise, ansible, Cargo, Maven,
+Helm, Terraform — is detected and reported as a frontier.
 
 ## CVE checking
 
@@ -182,6 +183,56 @@ Internal packages, private-index packages and typo'd names all land there.
 identical inputs. A delta is a lead, not a verdict — the common benign case is an
 OSS-Fuzz record attached to an upstream project by a GIT commit range, which says
 nothing about which published artifact shipped it.
+
+## SBOM output
+
+```
+deepdep scan --format cyclonedx .                      # one document
+deepdep scan --format cyclonedx --sbom-dir out/ .      # one per deliverable
+```
+
+CycloneDX 1.6, validated against the official JSON schema. **NTIA minimum
+elements: 6 of 7** — supplier, name, version, unique identifier, dependency
+relationships, author, timestamp. The seventh, component hash, needs registry
+digests and is not implemented; the document says so rather than omitting it
+quietly.
+
+Three things distinguish it from a `syft` BOM:
+
+**Frontiers are components.** A `Dockerfile` we could not expand, a bound that
+fired, a shell step we could not analyse — each is emitted with
+`deepdep:completeness` and `deepdep:reason` properties. That is NTIA practice #3,
+"known unknowns". A BOM that silently omits them reads as "this repo has none".
+
+**`dependencies[]` presence carries meaning.** CycloneDX distinguishes *known to
+have no dependencies* (present, empty `dependsOn`) from *dependencies unknown*
+(absent). That maps exactly onto completeness, so a frontier is never claimed
+to be a leaf.
+
+**`formulation` carries the build.** Pipelines, base images and shell steps —
+the MBOM view. A base image and a third-party CI action execute with the
+build's credentials and appear in no `components[]` list anywhere else.
+
+### Per-deliverable documents
+
+`--sbom-dir` writes one document per application (from lockfile locators), one
+per Dockerfile, and one `_repo` for the pipeline, then prints the
+`cyclonedx merge --hierarchical` line that assembles them. A monorepo's single
+1384-component BOM answers nobody's question; "what does the backend ship?" and
+"what goes into `cli/Dockerfile`?" are different documents.
+
+Repo-level artifacts — the pipeline, its base images, the coverage frontiers —
+go in `_repo` rather than being copied into every application. Duplicating them
+would inflate each document and double-count the union; dropping them would make
+every document look cleaner than the repository is.
+
+### What this is not
+
+A **Source** SBOM, in CISA's taxonomy — recorded in the document as
+`deepdep:cisa-sbom-type`. deepdep reads manifests, lockfiles, pipelines and
+Dockerfiles; it never observes a build, so it cannot know which transitive OS
+packages `apt` actually pulled into an image. That is a **Build** SBOM, and
+`syft <image>` is the tool for it. The two merge.
 
 ## Design notes
 
