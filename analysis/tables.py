@@ -8,7 +8,7 @@ import json, os
 from collections import Counter, defaultdict
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-AGG = json.load(open(f"{ROOT}/out/aggregate.json"))
+AGG = json.load(open(f"{ROOT}/.out/aggregate.json"))
 R = AGG["repos"]
 SURFACES = ["manifest", "ci", "dockerfile"]
 

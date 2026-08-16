@@ -5,7 +5,7 @@
 # later — can reproduce a number in the write-up, and reproducibility is this
 # tool's whole argument.
 set -euo pipefail
-OUT="$(cd "$(dirname "$0")/.." && pwd)/analysis/out/lists"
+OUT="$(cd "$(dirname "$0")/.." && pwd)/analysis/.out/lists"
 mkdir -p "$OUT"
 cd "$OUT"
 

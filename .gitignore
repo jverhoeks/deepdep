@@ -4,4 +4,4 @@
 *.db-shm
 # Fleet-run bulk output: clones, per-repo run stores, raw scans.
 # The scripts and the frozen aggregates are committed; these are regenerable.
-/analysis/out/
+/analysis/.out/

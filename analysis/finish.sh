@@ -6,7 +6,7 @@
 # incompatible definitions of "direct".
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/analysis/out"
+OUT="$ROOT/analysis/.out"
 cd "$ROOT"
 
 echo "== 1. retry the repositories whose scan failed =========================="

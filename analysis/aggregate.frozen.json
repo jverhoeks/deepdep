@@ -4996,9 +4996,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 11827,
-    "resolved": 5510,
-    "declared": 6269,
+    "total": 11740,
+    "resolved": 5490,
+    "declared": 6202,
     "inferred": 13,
     "opaque": 35
    },
@@ -5011,9 +5011,9 @@
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 5496,
-   "package_nodes": 6423,
-   "auditable": 0.8556749182624942,
+   "checked": 5475,
+   "package_nodes": 6352,
+   "auditable": 0.861933249370277,
    "grade": "F",
    "score": 78,
    "suppressed": false,
@@ -5024,19 +5024,19 @@
     },
     "vulnerabilities": {
      "points": 45,
-     "detail": "25 critical, 489 high, 554 moderate in 5496 packages"
+     "detail": "25 critical, 489 high, 554 moderate in 5475 packages"
     },
     "hygiene": {
-     "points": 6.044395924308588,
-     "detail": "30% floating (1661 of 5496 versions unheld by any exact constraint)"
+     "points": 6.001826484018265,
+     "detail": "30% floating (1643 of 5475 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.117903930131004,
-     "detail": "1202 unmaintained, 98 dangerous-workflow, 1014 unreviewed"
+     "points": 7.098630136986301,
+     "detail": "1191 unmaintained, 98 dangerous-workflow, 1008 unreviewed"
     }
    },
    "malicious": 0,
@@ -5072,7 +5072,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 4880,
+     "checked": 4859,
      "affected": 198,
      "malicious": 0,
      "critical": 10,
@@ -10868,18 +10868,18 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 47,
-    "unlisted": 8,
-    "unmaintained": 1202,
+    "unlisted": 7,
+    "unmaintained": 1191,
     "dangerous-workflow": 98,
-    "unreviewed-code": 1014,
-    "no-branch-protection": 1317,
-    "overprivileged-ci": 2387,
-    "no-source-repo": 214,
+    "unreviewed-code": 1008,
+    "no-branch-protection": 1309,
+    "overprivileged-ci": 2377,
+    "no-source-repo": 213,
     "no-license": 98
    },
    "coverage": {
-    "bound:timeout": 914,
-    "dev-not-installed": 3895,
+    "bound:timeout": 863,
+    "dev-not-installed": 3879,
     "error:fetch": 1,
     "extra-not-requested": 1438,
     "no-extractor": 12,
@@ -10887,9 +10887,9 @@
    },
    "db": {
     "pinning": {
-     "floating": 1661,
-     "locked": 2059,
-     "pinned": 1776
+     "floating": 1643,
+     "locked": 2077,
+     "pinned": 1755
     },
     "ecosystems": {
      "": 1,
@@ -10897,9 +10897,9 @@
      "deb": 6,
      "generic": 61,
      "github": 3,
-     "npm": 8965,
+     "npm": 8880,
      "oci": 6,
-     "pypi": 2784
+     "pypi": 2782
     },
     "build_files": {
      "dockerfile": 12,
@@ -18554,9 +18554,9 @@
    "age_days": 183,
    "stars_per_day": 266.74863387978144,
    "summary": {
-    "total": 8766,
-    "resolved": 4124,
-    "declared": 4432,
+    "total": 8820,
+    "resolved": 4162,
+    "declared": 4448,
     "inferred": 13,
     "opaque": 197
    },
@@ -18567,11 +18567,11 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 4087,
-   "package_nodes": 4098,
-   "auditable": 0.9973157637872133,
+   "checked": 4124,
+   "package_nodes": 4136,
+   "auditable": 0.9970986460348162,
    "grade": "B",
-   "score": 30,
+   "score": 29,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -18579,29 +18579,29 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 7.710824488289801,
-     "detail": "0 critical, 12 high, 6 moderate in 4087 packages"
+     "points": 6.039567470039789,
+     "detail": "0 critical, 7 high, 5 moderate in 4124 packages"
     },
     "hygiene": {
-     "points": 5.441644237827257,
-     "detail": "27% floating (1112 of 4087 versions unheld by any exact constraint)"
+     "points": 5.572259941804074,
+     "detail": "28% floating (1149 of 4124 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 8.88888888888889,
      "detail": "4 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.217518962564228,
-     "detail": "1278 unmaintained, 46 dangerous-workflow, 777 unreviewed"
+     "points": 8.165615906886519,
+     "detail": "1281 unmaintained, 46 dangerous-workflow, 780 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 20,
+   "advisories": 13,
    "sev": {
-    "HIGH": 12,
-    "MODERATE": 6,
-    "LOW": 2
+    "HIGH": 7,
+    "MODERATE": 5,
+    "LOW": 1
    },
    "exposure": {
     "manifest": {
@@ -18618,15 +18618,15 @@
      "reach": "direct",
      "surface": "dockerfile",
      "checked": 5,
-     "affected": 1,
+     "affected": 0,
      "malicious": 0,
      "critical": 0,
-     "high": 5,
-     "other": 2
+     "high": 0,
+     "other": 0
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3937,
+     "checked": 3974,
      "affected": 6,
      "malicious": 0,
      "critical": 0,
@@ -18634,85 +18634,7 @@
      "other": 6
     }
    },
-   "direct_findings": [
-    {
-     "severity": "HIGH",
-     "id": "GHSA-4328-8hgf-7wjr",
-     "cve": "CVE-2019-16777",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm Vulnerable to Global node_modules Binary Overwrite",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-m5h6-hr3q-22h5",
-     "cve": "CVE-2016-3956",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm Token Leak in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-m6cx-g6qm-p2cx",
-     "cve": "CVE-2019-16775",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "Arbitrary File Write in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-ph34-pc88-72gc",
-     "cve": "CVE-2018-7408",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "Incorrect Permission Assignment for Critical Resource in NPM",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-x8qc-rrcw-4r46",
-     "cve": "CVE-2019-16776",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm symlink reference outside of node_modules",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "MODERATE",
-     "id": "GHSA-93f3-23rq-pjfp",
-     "cve": "CVE-2020-15095",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm CLI exposing sensitive information through logs",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "LOW",
-     "id": "GHSA-v3jv-wrf4-5845",
-     "cve": "CVE-2013-4116",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "Local Privilege Escalation in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    }
-   ],
+   "direct_findings": [],
    "actions_checked": 35,
    "action_advisories": [
     {
@@ -18788,24 +18710,24 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 28,
-    "unlisted": 10,
-    "unmaintained": 1278,
+    "unlisted": 9,
+    "unmaintained": 1281,
     "dangerous-workflow": 46,
-    "unreviewed-code": 777,
-    "no-branch-protection": 1374,
-    "overprivileged-ci": 1930,
+    "unreviewed-code": 780,
+    "no-branch-protection": 1380,
+    "overprivileged-ci": 1958,
     "no-source-repo": 81,
-    "no-license": 26
+    "no-license": 27
    },
    "coverage": {
-    "dev-not-installed": 4386,
+    "dev-not-installed": 4402,
     "no-extractor": 16,
     "offline": 1,
     "unpinned-ref": 29
    },
    "db": {
     "pinning": {
-     "floating": 1112,
+     "floating": 1149,
      "locked": 1766,
      "pinned": 1209
     },
@@ -18814,7 +18736,7 @@
      "deb": 11,
      "generic": 241,
      "github": 35,
-     "npm": 8473,
+     "npm": 8527,
      "oci": 5
     },
     "build_files": {
@@ -27026,26 +26948,25 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 4512,
-    "resolved": 1876,
-    "declared": 2438,
-    "inferred": 39,
+    "total": 5059,
+    "resolved": 2236,
+    "declared": 2627,
+    "inferred": 37,
     "opaque": 159
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
     "offline",
     "unpinned-ref"
    ],
-   "checked": 1787,
-   "package_nodes": 1964,
-   "auditable": 0.909877800407332,
+   "checked": 2143,
+   "package_nodes": 2179,
+   "auditable": 0.9834786599357503,
    "grade": "D",
-   "score": 63,
+   "score": 59,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -27053,30 +26974,30 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 25.510222354184155,
-     "detail": "8 critical, 33 high, 22 moderate in 1787 packages"
+     "points": 20.653608931513002,
+     "detail": "5 critical, 29 high, 21 moderate in 2143 packages"
     },
     "hygiene": {
-     "points": 12.949076664801343,
-     "detail": "65% floating (1157 of 1787 versions unheld by any exact constraint)"
+     "points": 13.793747083527766,
+     "detail": "69% floating (1478 of 2143 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 15.555555555555555,
      "detail": "7 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.384443200895356,
-     "detail": "644 unmaintained, 28 dangerous-workflow, 362 unreviewed"
+     "points": 9.30237984134391,
+     "detail": "764 unmaintained, 30 dangerous-workflow, 445 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 68,
+   "advisories": 59,
    "sev": {
-    "CRITICAL": 8,
-    "HIGH": 33,
-    "MODERATE": 22,
-    "LOW": 5
+    "CRITICAL": 5,
+    "HIGH": 29,
+    "MODERATE": 21,
+    "LOW": 4
    },
    "exposure": {
     "manifest": {
@@ -27092,57 +27013,24 @@
     "dockerfile": {
      "reach": "direct",
      "surface": "dockerfile",
-     "checked": 6,
-     "affected": 4,
+     "checked": 4,
+     "affected": 0,
      "malicious": 0,
-     "critical": 3,
-     "high": 5,
-     "other": 2
+     "critical": 0,
+     "high": 0,
+     "other": 0
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 1597,
-     "affected": 9,
+     "checked": 1955,
+     "affected": 10,
      "malicious": 0,
      "critical": 2,
-     "high": 4,
+     "high": 5,
      "other": 5
     }
    },
    "direct_findings": [
-    {
-     "severity": "CRITICAL",
-     "id": "GHSA-wpqr-6v78-jr5g",
-     "cve": "CVE-2026-12537",
-     "package": "npm/@google/gemini-cli@latest",
-     "application": ".gcp/Dockerfile.development",
-     "summary": "Gemini CLI: Remote Code Execution via workspace trust and tool allowl\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "CRITICAL",
-     "id": "GHSA-wpqr-6v78-jr5g",
-     "cve": "CVE-2026-12537",
-     "package": "npm/@google/gemini-cli@nightly",
-     "application": ".gcp/Dockerfile.development",
-     "summary": "Gemini CLI: Remote Code Execution via workspace trust and tool allowl\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "CRITICAL",
-     "id": "GHSA-wpqr-6v78-jr5g",
-     "cve": "CVE-2026-12537",
-     "package": "npm/@google/gemini-cli@preview",
-     "application": ".gcp/Dockerfile.development",
-     "summary": "Gemini CLI: Remote Code Execution via workspace trust and tool allowl\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
     {
      "severity": "CRITICAL",
      "id": "GHSA-w7jw-789q-3m8p",
@@ -27239,61 +27127,6 @@
      "summary": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x)\u2026",
      "surfaces": [
       "manifest"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-4328-8hgf-7wjr",
-     "cve": "CVE-2019-16777",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "npm Vulnerable to Global node_modules Binary Overwrite",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-m5h6-hr3q-22h5",
-     "cve": "CVE-2016-3956",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "npm Token Leak in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-m6cx-g6qm-p2cx",
-     "cve": "CVE-2019-16775",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "Arbitrary File Write in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-ph34-pc88-72gc",
-     "cve": "CVE-2018-7408",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "Incorrect Permission Assignment for Critical Resource in NPM",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-x8qc-rrcw-4r46",
-     "cve": "CVE-2019-16776",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "npm symlink reference outside of node_modules",
-     "surfaces": [
-      "dockerfile"
      ]
     },
     {
@@ -27529,17 +27362,6 @@
     },
     {
      "severity": "MODERATE",
-     "id": "GHSA-93f3-23rq-pjfp",
-     "cve": "CVE-2020-15095",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "npm CLI exposing sensitive information through logs",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "MODERATE",
      "id": "GHSA-gvwx-54wh-qm9j",
      "cve": "CVE-2026-59875",
      "package": "npm/tar@7.5.8",
@@ -27705,17 +27527,6 @@
     },
     {
      "severity": "LOW",
-     "id": "GHSA-v3jv-wrf4-5845",
-     "cve": "CVE-2013-4116",
-     "package": "npm/npm@latest",
-     "application": ".gcp/Dockerfile.gemini-code-builder",
-     "summary": "Local Privilege Escalation in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "LOW",
      "id": "GHSA-35p6-xmwp-9g52",
      "cve": "CVE-2026-6733",
      "package": "npm/undici@7.10.0",
@@ -27798,18 +27609,16 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 23,
-    "unlisted": 4,
-    "unmaintained": 644,
-    "dangerous-workflow": 28,
-    "unreviewed-code": 362,
-    "no-branch-protection": 612,
-    "overprivileged-ci": 982,
-    "no-source-repo": 19,
-    "no-license": 6
+    "unmaintained": 764,
+    "dangerous-workflow": 30,
+    "unreviewed-code": 445,
+    "no-branch-protection": 756,
+    "overprivileged-ci": 1206,
+    "no-source-repo": 22,
+    "no-license": 7
    },
    "coverage": {
-    "dev-not-installed": 2161,
-    "error:fetch": 143,
+    "dev-not-installed": 2493,
     "extra-not-requested": 100,
     "no-extractor": 17,
     "offline": 1,
@@ -27817,16 +27626,16 @@
    },
    "db": {
     "pinning": {
-     "floating": 1157,
+     "floating": 1478,
      "locked": 190,
-     "pinned": 440
+     "pinned": 475
     },
     "ecosystems": {
      "": 1,
      "deb": 33,
      "generic": 232,
      "github": 49,
-     "npm": 4025,
+     "npm": 4572,
      "oci": 5,
      "pypi": 167
     },
@@ -29281,9 +29090,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7469,
-    "resolved": 3655,
-    "declared": 3671,
+    "total": 7475,
+    "resolved": 3656,
+    "declared": 3676,
     "inferred": 24,
     "opaque": 119
    },
@@ -29299,8 +29108,8 @@
     "unpinned-ref"
    ],
    "checked": 3586,
-   "package_nodes": 3611,
-   "auditable": 0.993076710052617,
+   "package_nodes": 3612,
+   "auditable": 0.9928017718715393,
    "grade": "C",
    "score": 46,
    "suppressed": false,
@@ -29581,17 +29390,17 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 48,
-    "unlisted": 2,
+    "unlisted": 1,
     "unmaintained": 1203,
     "dangerous-workflow": 35,
     "unreviewed-code": 827,
     "no-branch-protection": 1325,
-    "overprivileged-ci": 1721,
+    "overprivileged-ci": 1722,
     "no-source-repo": 46,
     "no-license": 40
    },
    "coverage": {
-    "dev-not-installed": 3376,
+    "dev-not-installed": 3381,
     "error:404": 2,
     "error:badrange": 1,
     "extra-not-requested": 228,
@@ -29610,7 +29419,7 @@
      "deb": 23,
      "generic": 204,
      "github": 38,
-     "npm": 6826,
+     "npm": 6832,
      "oci": 11,
      "pypi": 366
     },
@@ -54107,9 +53916,9 @@
    "age_days": 265,
    "stars_per_day": 1458.2264150943397,
    "summary": {
-    "total": 8489,
-    "resolved": 3857,
-    "declared": 3806,
+    "total": 8587,
+    "resolved": 3924,
+    "declared": 3837,
     "inferred": 28,
     "opaque": 798
    },
@@ -54121,11 +53930,11 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3715,
-   "package_nodes": 3752,
-   "auditable": 0.9901385927505331,
+   "checked": 3781,
+   "package_nodes": 3819,
+   "auditable": 0.9900497512437811,
    "grade": "C",
-   "score": 42,
+   "score": 41,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -54133,30 +53942,30 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 17.6487552483181,
-     "detail": "3 critical, 42 high, 44 moderate in 3715 packages"
+     "points": 16.7796950739195,
+     "detail": "3 critical, 37 high, 43 moderate in 3781 packages"
     },
     "hygiene": {
-     "points": 6.239569313593539,
-     "detail": "31% floating (1159 of 3715 versions unheld by any exact constraint)"
+     "points": 6.479767257339328,
+     "detail": "32% floating (1225 of 3781 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 11.11111111111111,
      "detail": "5 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.118438761776582,
-     "detail": "993 unmaintained, 29 dangerous-workflow, 654 unreviewed"
+     "points": 7.101295953451468,
+     "detail": "1006 unmaintained, 30 dangerous-workflow, 664 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 97,
+   "advisories": 90,
    "sev": {
     "CRITICAL": 3,
-    "HIGH": 42,
-    "MODERATE": 44,
-    "LOW": 8
+    "HIGH": 37,
+    "MODERATE": 43,
+    "LOW": 7
    },
    "exposure": {
     "manifest": {
@@ -54173,15 +53982,15 @@
      "reach": "direct",
      "surface": "dockerfile",
      "checked": 2,
-     "affected": 1,
+     "affected": 0,
      "malicious": 0,
      "critical": 0,
-     "high": 5,
-     "other": 2
+     "high": 0,
+     "other": 0
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3499,
+     "checked": 3565,
      "affected": 26,
      "malicious": 0,
      "critical": 3,
@@ -54189,85 +53998,7 @@
      "other": 50
     }
    },
-   "direct_findings": [
-    {
-     "severity": "HIGH",
-     "id": "GHSA-4328-8hgf-7wjr",
-     "cve": "CVE-2019-16777",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm Vulnerable to Global node_modules Binary Overwrite",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-m5h6-hr3q-22h5",
-     "cve": "CVE-2016-3956",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm Token Leak in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-m6cx-g6qm-p2cx",
-     "cve": "CVE-2019-16775",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "Arbitrary File Write in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-ph34-pc88-72gc",
-     "cve": "CVE-2018-7408",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "Incorrect Permission Assignment for Critical Resource in NPM",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-x8qc-rrcw-4r46",
-     "cve": "CVE-2019-16776",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm symlink reference outside of node_modules",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "MODERATE",
-     "id": "GHSA-93f3-23rq-pjfp",
-     "cve": "CVE-2020-15095",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "npm CLI exposing sensitive information through logs",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "LOW",
-     "id": "GHSA-v3jv-wrf4-5845",
-     "cve": "CVE-2013-4116",
-     "package": "npm/npm@latest",
-     "application": "Dockerfile",
-     "summary": "Local Privilege Escalation in npm",
-     "surfaces": [
-      "dockerfile"
-     ]
-    }
-   ],
+   "direct_findings": [],
    "actions_checked": 65,
    "action_advisories": [
     {
@@ -54317,17 +54048,17 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 32,
-    "unlisted": 2,
-    "unmaintained": 993,
-    "dangerous-workflow": 29,
-    "unreviewed-code": 654,
-    "no-branch-protection": 1121,
-    "overprivileged-ci": 1536,
-    "no-source-repo": 80,
-    "no-license": 42
+    "unlisted": 1,
+    "unmaintained": 1006,
+    "dangerous-workflow": 30,
+    "unreviewed-code": 664,
+    "no-branch-protection": 1134,
+    "overprivileged-ci": 1590,
+    "no-source-repo": 81,
+    "no-license": 43
    },
    "coverage": {
-    "dev-not-installed": 3727,
+    "dev-not-installed": 3758,
     "error:404": 10,
     "no-extractor": 37,
     "offline": 4,
@@ -54335,7 +54066,7 @@
    },
    "db": {
     "pinning": {
-     "floating": 1159,
+     "floating": 1225,
      "locked": 986,
      "pinned": 1570
     },
@@ -54344,7 +54075,7 @@
      "deb": 27,
      "generic": 934,
      "github": 65,
-     "npm": 7452,
+     "npm": 7550,
      "oci": 10
     },
     "build_files": {
@@ -56038,10 +55769,10 @@
    "age_days": 166,
    "stars_per_day": 472.2289156626506,
    "summary": {
-    "total": 7085,
-    "resolved": 3388,
-    "declared": 3557,
-    "inferred": 30,
+    "total": 7190,
+    "resolved": 3464,
+    "declared": 3587,
+    "inferred": 29,
     "opaque": 110
    },
    "bounds_hit": [
@@ -56051,11 +55782,11 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3366,
-   "package_nodes": 3391,
-   "auditable": 0.9926275434974934,
+   "checked": 3437,
+   "package_nodes": 3466,
+   "auditable": 0.9916330063473745,
    "grade": "C",
-   "score": 48,
+   "score": 43,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -56063,29 +55794,29 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 19.839886209289492,
-     "detail": "4 critical, 54 high, 27 moderate in 3366 packages"
+     "points": 15.351568095885794,
+     "detail": "1 critical, 35 high, 25 moderate in 3437 packages"
     },
     "hygiene": {
-     "points": 6.642899584076055,
-     "detail": "33% floating (1118 of 3366 versions unheld by any exact constraint)"
+     "points": 6.715158568519057,
+     "detail": "34% floating (1154 of 3437 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.065953654188949,
-     "detail": "893 unmaintained, 39 dangerous-workflow, 761 unreviewed"
+     "points": 7.999709048588886,
+     "detail": "904 unmaintained, 39 dangerous-workflow, 773 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 96,
+   "advisories": 72,
    "sev": {
-    "CRITICAL": 4,
-    "HIGH": 54,
-    "MODERATE": 27,
+    "CRITICAL": 1,
+    "HIGH": 35,
+    "MODERATE": 25,
     "LOW": 11
    },
    "exposure": {
@@ -56102,16 +55833,16 @@
     "dockerfile": {
      "reach": "direct",
      "surface": "dockerfile",
-     "checked": 6,
-     "affected": 4,
+     "checked": 5,
+     "affected": 1,
      "malicious": 0,
-     "critical": 3,
-     "high": 20,
-     "other": 4
+     "critical": 0,
+     "high": 1,
+     "other": 2
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3254,
+     "checked": 3326,
      "affected": 24,
      "malicious": 0,
      "critical": 1,
@@ -56121,297 +55852,34 @@
    },
    "direct_findings": [
     {
-     "severity": "CRITICAL",
-     "id": "GHSA-wpqr-6v78-jr5g",
-     "cve": "CVE-2026-12537",
-     "package": "npm/@google/gemini-cli@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.gemini",
-     "summary": "Gemini CLI: Remote Code Execution via workspace trust and tool allowl\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "CRITICAL",
-     "id": "GHSA-xrxf-jgv3-qmrm",
-     "cve": "CVE-2025-61260",
-     "package": "npm/@openai/codex@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.codex,docker/untrusted-review/Dockerfile",
-     "summary": "OpenAI Codex CLI enables code execution through malicious MCP (Model \u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "CRITICAL",
-     "id": "GHSA-c83v-7274-4vgp",
-     "cve": "CVE-2026-22813",
-     "package": "npm/opencode-ai@latest",
-     "application": "docker/agent-runtime/Dockerfile.opencode",
-     "summary": "Malicious website can execute commands on the local system through XS\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
      "severity": "HIGH",
-     "id": "GHSA-2jjv-qf24-vfm4",
-     "cve": "CVE-2025-59828",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Vulnerable to Arbitrary Code Execution via Plugin Autoloa\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-4fgq-fpq9-mr3g",
-     "cve": "CVE-2025-59536",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code can execute commands prior to the startup trust dialog ",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-5hhx-v7f6-x7gv",
-     "cve": "CVE-2025-65099",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code vulnerable to command execution prior to startup trust di\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-66q4-vfjg-2qhh",
-     "cve": "CVE-2026-25722",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Vulnerable to Command Injection via Directory Change Bypa\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-7mv8-j34q-vp7q",
-     "cve": "CVE-2025-64755",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "@anthropic-ai/claude-code has Sed Command Validation Bypass that Allo\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-ff64-7w26-62rf",
-     "cve": "CVE-2026-25725",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code has Sandbox Escape via Persistent Configuration Injection\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-j4h9-wv2m-wrf7",
-     "cve": "CVE-2025-59041",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code vulnerable to arbitrary code execution caused by maliciou\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-mhg7-666j-cqg4",
-     "cve": "CVE-2026-25723",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Vulnerable to Command Injection via Piped sed Command Byp\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-mmgp-wc2j-qcv7",
-     "cve": "CVE-2026-33068",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code has a Workspace Trust Dialog Bypass via Repo-Controlled S\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-ph6w-f82w-28w6",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Vulnerable to Arbitrary Code Execution Due to Insufficien\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-pmw4-pwvc-3hx2",
-     "cve": "CVE-2025-54794",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Research Preview has a Path Restriction Bypass which coul\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-q728-gf8j-w49r",
-     "cve": "CVE-2026-24053",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code has a Path Restriction Bypass via ZSH Clobber which Allow\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-qgqw-h4xq-7w8w",
-     "cve": "CVE-2026-24887",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code has a Command Injection in find Command Bypasses User App\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-qxfv-fcpc-w36x",
-     "cve": "CVE-2025-58764",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code rg vulnerability does not protect against approval prompt\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-vhw5-3g5m-8ggf",
-     "cve": "CVE-2026-24052",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code has a Domain Validation Bypass which Allows Automatic Req\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-vp62-r36r-9xqp",
-     "cve": "CVE-2026-39861",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code: Sandbox Escape via Symlink Following Allows Arbitrary Fi\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-x56v-x2h6-7j34",
-     "cve": "CVE-2025-54795",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code echo command allowed bypass of user approval prompt for c\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-x5gv-jw7f-j6xj",
-     "cve": "CVE-2025-55284",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code's Permissive Default Allowlist Enables Unauthorized File \u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-xq4m-mc3c-vvg3",
-     "cve": "CVE-2025-66032",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Command Validation Bypass Allows Arbitrary Code Execution",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-vxw4-wv6m-9hhh",
-     "cve": "CVE-2026-22812",
-     "package": "npm/opencode-ai@latest",
-     "application": "docker/agent-runtime/Dockerfile.opencode",
-     "summary": "OpenCode's Unauthenticated HTTP Server Allows Arbitrary Command Execu\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "MODERATE",
-     "id": "GHSA-5cwg-9f6j-9jvx",
-     "cve": "CVE-2026-35603",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code: Insecure System-Wide Configuration Loading Enables Local\u2026",
-     "surfaces": [
-      "dockerfile"
-     ]
-    },
-    {
-     "severity": "MODERATE",
-     "id": "GHSA-jh7p-qr78-84p7",
-     "cve": "CVE-2026-21852",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code Leaks Data via Malicious Environment Configuration Before\u2026",
+     "id": "GHSA-jfgx-wxx8-mp94",
+     "cve": "CVE-2026-54328",
+     "package": "npm/@mariozechner/pi-coding-agent@0.73.1",
+     "application": "docker/agent-runtime/Dockerfile.pi",
+     "summary": "Pi Agent: Predictable temporary extension install paths allow local p\u2026",
      "surfaces": [
       "dockerfile"
      ]
     },
     {
      "severity": "LOW",
-     "id": "GHSA-4q92-rfm6-2cqx",
-     "cve": "CVE-2026-25724",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code has Permission Deny Bypass Through Symbolic Links",
+     "id": "GHSA-7v5m-pr3q-6453",
+     "cve": "CVE-2026-54326",
+     "package": "npm/@mariozechner/pi-coding-agent@0.73.1",
+     "application": "docker/agent-runtime/Dockerfile.pi",
+     "summary": "Pi Agent: Potential XSS in HTML session exports via Markdown URL sani\u2026",
      "surfaces": [
       "dockerfile"
      ]
     },
     {
      "severity": "LOW",
-     "id": "GHSA-66m2-gx93-v996",
-     "cve": "CVE-2025-59829",
-     "package": "npm/@anthropic-ai/claude-code@latest",
-     "application": "Dockerfile,docker/agent-runtime/Dockerfile.claude,docker/untrusted-review/Dockerfile",
-     "summary": "Claude Code permission deny bypass through symlink",
+     "id": "GHSA-r95r-rj6r-c39x",
+     "cve": "CVE-2026-54327",
+     "package": "npm/@mariozechner/pi-coding-agent@0.73.1",
+     "application": "docker/agent-runtime/Dockerfile.pi",
+     "summary": "Pi Agent: Race condition in Pi auth.json writes could expose stored c\u2026",
      "surfaces": [
       "dockerfile"
      ]
@@ -56441,34 +55909,34 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "deprecated": 32,
-    "unlisted": 5,
-    "unmaintained": 893,
+    "deprecated": 36,
+    "unlisted": 1,
+    "unmaintained": 904,
     "dangerous-workflow": 39,
-    "unreviewed-code": 761,
-    "no-branch-protection": 991,
-    "overprivileged-ci": 1551,
-    "no-source-repo": 70,
+    "unreviewed-code": 773,
+    "no-branch-protection": 998,
+    "overprivileged-ci": 1576,
+    "no-source-repo": 78,
     "no-license": 47
    },
    "coverage": {
-    "dev-not-installed": 3526,
+    "dev-not-installed": 3556,
     "no-extractor": 9,
     "offline": 1,
     "unpinned-ref": 21
    },
    "db": {
     "pinning": {
-     "floating": 1118,
+     "floating": 1154,
      "locked": 1025,
-     "pinned": 1223
+     "pinned": 1258
     },
     "ecosystems": {
      "": 1,
      "deb": 24,
      "generic": 142,
      "github": 17,
-     "npm": 6893,
+     "npm": 6998,
      "oci": 8
     },
     "build_files": {
@@ -74127,10 +73595,10 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7433,
+    "total": 7432,
     "resolved": 3787,
     "declared": 3271,
-    "inferred": 40,
+    "inferred": 39,
     "opaque": 335
    },
    "bounds_hit": [
@@ -74142,9 +73610,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3749,
-   "package_nodes": 3807,
-   "auditable": 0.9847649067507224,
+   "checked": 3746,
+   "package_nodes": 3806,
+   "auditable": 0.9842354177614293,
    "grade": "D",
    "score": 63,
    "suppressed": false,
@@ -74154,28 +73622,28 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 32.323256289450896,
-     "detail": "8 critical, 145 high, 162 moderate in 3749 packages"
+     "points": 32.26447132894829,
+     "detail": "8 critical, 144 high, 162 moderate in 3746 packages"
     },
     "hygiene": {
-     "points": 7.719391837823419,
-     "detail": "39% floating (1447 of 3749 versions unheld by any exact constraint)"
+     "points": 7.709556860651361,
+     "detail": "39% floating (1444 of 3746 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.40250733528941,
+     "points": 9.410037373198078,
      "detail": "1042 unmaintained, 139 dangerous-workflow, 752 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 336,
+   "advisories": 335,
    "sev": {
     "CRITICAL": 8,
-    "HIGH": 145,
+    "HIGH": 144,
     "MODERATE": 162,
     "LOW": 21
    },
@@ -74193,11 +73661,11 @@
     "dockerfile": {
      "reach": "direct",
      "surface": "dockerfile",
-     "checked": 13,
-     "affected": 1,
+     "checked": 12,
+     "affected": 0,
      "malicious": 0,
      "critical": 0,
-     "high": 1,
+     "high": 0,
      "other": 0
     },
     "indirect": {
@@ -74275,17 +73743,6 @@
      "summary": "Agentic-Flow: OS Command Injection in agentic-flow MCP server tools v\u2026",
      "surfaces": [
       "manifest"
-     ]
-    },
-    {
-     "severity": "HIGH",
-     "id": "GHSA-vcv2-r9jh-99m5",
-     "cve": "CVE-2026-58195",
-     "package": "npm/agentic-flow@alpha",
-     "application": "ruflo/src/mcp-bridge/Dockerfile,ruflo/src/ruvocal/mcp-bridge/Dockerfile",
-     "summary": "Agentic-Flow: OS Command Injection in agentic-flow MCP server tools v\u2026",
-     "surfaces": [
-      "dockerfile"
      ]
     },
     {
@@ -74445,7 +73902,7 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 47,
-    "unlisted": 7,
+    "unlisted": 4,
     "unmaintained": 1042,
     "dangerous-workflow": 139,
     "unreviewed-code": 752,
@@ -74464,7 +73921,7 @@
    },
    "db": {
     "pinning": {
-     "floating": 1447,
+     "floating": 1444,
      "locked": 1342,
      "pinned": 960
     },
@@ -74474,7 +73931,7 @@
      "deb": 19,
      "generic": 410,
      "github": 14,
-     "npm": 6971,
+     "npm": 6970,
      "oci": 10
     },
     "build_files": {

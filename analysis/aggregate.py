@@ -11,7 +11,7 @@ import glob, json, os, sqlite3, sys
 from collections import Counter, defaultdict
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-OUT = f"{ROOT}/out"
+OUT = f"{ROOT}/.out"
 
 
 def load_lists():

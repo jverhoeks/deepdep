@@ -18,7 +18,7 @@
 # project with no dependency manifest we can read gets reported as such in the
 # funnel rather than quietly dropped.
 set -euo pipefail
-OUT="$(cd "$(dirname "$0")/.." && pwd)/analysis/out/lists"
+OUT="$(cd "$(dirname "$0")/.." && pwd)/analysis/.out/lists"
 mkdir -p "$OUT"; cd "$OUT"
 
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)

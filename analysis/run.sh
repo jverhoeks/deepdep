@@ -8,7 +8,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/analysis/out"
+OUT="$ROOT/analysis/.out"
 BIN="$ROOT/deepdep"
 
 repo="$1"
