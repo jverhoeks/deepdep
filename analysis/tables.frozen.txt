@@ -48,6 +48,53 @@ inherited (transitive)      214442      2771   240  3733   4496    1.3%        1
 ALL DIRECT                   15420       682   103  1337   5251    4.4%
 
 ==============================================================================
+T3a REACH ON REPOSITORIES WHERE DECLARED == SHIPPED
+==============================================================================
+  The reach split says "this repository's own files name it", which is true and
+  is not the same as "this repository ships it". next.js has 693 package.json
+  files, 389 of them under examples/ or tests/, and a fixture pinning an old
+  Next for a regression test reads as the project declaring a vulnerable Next.
+  Manifest edges go straight to the root, so the graph cannot yet say WHICH
+  manifest — Dockerfiles and workflows can, because they hang findings off a
+  file node. Restricting to repositories that carry no example or fixture
+  manifest at all removes the ambiguity entirely.
+
+                                          n         direct              inherited         ratio d.crit  i.crit
+all with resolved packages              136    682/15420     4.4%   2771/214442    1.3%    3.4x    103     240
+no example/fixture manifests             70    240/4236      5.7%   1009/73901     1.4%    4.1x     28      57
+carries example/fixture manifests        66    442/11184     4.0%   1762/140541    1.3%    3.2x     75     183
+
+==============================================================================
+T4a DIRECTLY AT RISK — only repositories with no example or fixture manifests
+==============================================================================
+repo                                    mfsts  declared  affected    rate  crit  high  mal  grade
+Shubhamsaboo/awesome-llm-apps             188       617        76   12.3%    15   232    0      F
+ollama/ollama                               2        68        10   14.7%     3     5    0      D
+open-webui/open-webui                       4       261        21    8.0%     2    30    0      D
+ruvnet/ruflo                               62       259         9    3.5%     2     7    0      D
+deepfakes/faceswap                         15        24         7   29.2%     1     2    0      D
+Egonex-AI/Understand-Anything               8        51         3    5.9%     1     1    0      D
+farion1231/cc-switch                        2        67         3    4.5%     1     2    0      D
+rasbt/LLMs-from-scratch                    13        26         1    3.8%     1     0    0      D
+f/prompts.chat                              3        96         2    2.1%     1     1    0      D
+langchain-ai/langchain                     21        98         1    1.0%     1     0    0      B
+public-apis/public-apis                     1         5         4   80.0%     0     6    0      F
+jackfrued/Python-100-Days                   1        37        10   27.0%     0    14    0      D
+garrytan/gstack                             2        18         3   16.7%     0     0    0      D
+TheAlgorithms/Python                        1        25         4   16.0%     0    25    0      F
+zhayujie/CowAgent                           5        37         5   13.5%     0    13    0      F
+666ghj/MiroFish                             4        23         3   13.0%     0     0    0      F
+browser-use/browser-use                     1        48         6   12.5%     0    23    0      F
+Panniantong/Agent-Reach                     1        25         3   12.0%     0     0    0      D
+microsoft/markitdown                        4        11         1    9.1%     0     5    0      F
+Mintplex-Labs/anything-llm                  7       177        16    9.0%     0    15    0      F
+Chalarangelo/30-seconds-of-code             1        24         2    8.3%     0     1    0      D
+Snailclimb/JavaGuide                        1        14         1    7.1%     0     0    0      D
+twbs/bootstrap                              2        75         5    6.7%     0     5    0      C
+microsoft/TypeScript                        1        42         2    4.8%     0     0    0      C
+BigPizzaV3/CodexPlusPlus                    7        23         1    4.3%     0     1    0      D
+
+==============================================================================
 T3b LEVERAGE — how many packages one declared line brings with it
 ==============================================================================
   repositories with any resolved package      136

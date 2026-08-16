@@ -14,10 +14,11 @@ Offline, from a git checkout. No daemon, no image pull, and it **never executes
 the code it analyses**.
 
 📄 **[Who can actually fix it](docs/2026-08-16-who-can-fix-it.md)** — 163 of
-GitHub's most-used repositories, with risk sorted by whose job it is. Directly
-declared packages are 3.4× likelier to carry an advisory than inherited ones;
-90% of container base images float on a movable tag; and the
-`tj-actions/changed-files` advisory is in OSV but unreachable by any PURL query.
+GitHub's most-used repositories, with risk sorted by whose job it is, and what
+to do about it. Declared packages are **4.1× likelier** to carry an advisory
+than inherited ones; **90% of container base images** float on a movable tag;
+and the `tj-actions/changed-files` advisory sits in OSV where **no PURL query
+can reach it**.
 
 ---
 

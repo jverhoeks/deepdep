@@ -66,6 +66,11 @@ def db_facts(path):
 
 def main():
     meta, member = load_lists()
+    # Sample-vs-product manifest counts, if measured. They decide whether
+    # "declared" and "shipped" mean the same thing for a repository.
+    mf = {}
+    if os.path.exists(f"{OUT}/manifests.json"):
+        mf = json.load(open(f"{OUT}/manifests.json"))
     rows, missing = [], []
     for repo in sorted(meta):
         s = repo.replace("/", "__")
@@ -122,6 +127,8 @@ def main():
             "controls_assessable": rep.get("controls_assessable", False),
             "repo_signals": {c["name"]: c["versions"] for c in (rep.get("repo_signals") or [])},
             "coverage": rep.get("coverage_frontier") or {},
+            "manifests": mf.get(repo, {}).get("manifests", 0),
+            "sample_manifests": mf.get(repo, {}).get("sample_manifests", 0),
             "db": db_facts(f"{OUT}/db/{s}.db"),
         })
 

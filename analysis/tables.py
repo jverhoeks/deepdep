@@ -104,6 +104,48 @@ d = {f: sum(tot[k][f] for k in SURFACES) for f in
 print(f"{'ALL DIRECT':24} {d['checked']:>9} {d['affected']:>9} {d['critical']:>5} "
       f"{d['high']:>5} {d['other']:>6} {rate(d['affected'], d['checked']):>7}")
 
+# -------------------------------------------------- reach, without fixtures
+h("T3a REACH ON REPOSITORIES WHERE DECLARED == SHIPPED")
+print("""  The reach split says "this repository's own files name it", which is true and
+  is not the same as "this repository ships it". next.js has 693 package.json
+  files, 389 of them under examples/ or tests/, and a fixture pinning an old
+  Next for a regression test reads as the project declaring a vulnerable Next.
+  Manifest edges go straight to the root, so the graph cannot yet say WHICH
+  manifest — Dockerfiles and workflows can, because they hang findings off a
+  file node. Restricting to repositories that carry no example or fixture
+  manifest at all removes the ambiguity entirely.""")
+
+
+def reach(rows, label):
+    dc, da = sum(direct(r, "checked") for r in rows), sum(direct(r, "affected") for r in rows)
+    ic = sum(r["exposure"].get("indirect", {}).get("checked", 0) for r in rows)
+    ia = sum(r["exposure"].get("indirect", {}).get("affected", 0) for r in rows)
+    if not dc or not ic:
+        return
+    print(f"{label:38} {len(rows):>4} {da:>6}/{dc:<7}{rate(da,dc):>7} "
+          f"{ia:>6}/{ic:<8}{rate(ia,ic):>6} {(da/dc)/(ia/ic):>6.1f}x "
+          f"{sum(direct(r,'critical') for r in rows):>6} "
+          f"{sum(r['exposure'].get('indirect',{}).get('critical',0) for r in rows):>7}")
+
+
+res = [r for r in R if r["checked"] > 0]
+print(f"\n{'':38} {'n':>4} {'direct':>14}{'':>7} {'inherited':>15}{'':>6} {'ratio':>7} "
+      f"{'d.crit':>6} {'i.crit':>7}")
+reach(res, "all with resolved packages")
+reach([r for r in res if r.get("sample_manifests", 0) == 0], "no example/fixture manifests")
+reach([r for r in res if r.get("sample_manifests", 0) > 0], "carries example/fixture manifests")
+
+h("T4a DIRECTLY AT RISK — only repositories with no example or fixture manifests")
+rows = [(direct(r, "affected"), direct(r, "checked"), direct(r, "critical"),
+         direct(r, "high"), direct(r, "malicious"), r)
+        for r in res if r.get("sample_manifests", 0) == 0 and direct(r, "affected")]
+rows.sort(key=lambda x: (-x[4], -x[2], -(x[0] / x[1] if x[1] else 0)))
+print(f"{'repo':38} {'mfsts':>6} {'declared':>9} {'affected':>9} {'rate':>7} {'crit':>5} "
+      f"{'high':>5} {'mal':>4} {'grade':>6}")
+for da, dc, dcrit, dhigh, dmal, r in rows[:25]:
+    print(f"{r['repo']:38} {r.get('manifests',0):>6} {dc:>9} {da:>9} {rate(da,dc):>7} "
+          f"{dcrit:>5} {dhigh:>5} {dmal:>4} {(r['grade'] or '-'):>6}")
+
 # ---------------------------------------------------------------- leverage
 h("T3b LEVERAGE — how many packages one declared line brings with it")
 pairs = [(direct(r, "checked"), r["exposure"].get("indirect", {}).get("checked", 0), r)

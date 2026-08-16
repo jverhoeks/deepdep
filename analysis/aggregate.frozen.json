@@ -87,6 +87,8 @@
     "offline": 1,
     "unpinned-ref": 10
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -193,6 +195,8 @@
    "coverage": {
     "extra-not-requested": 9
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 5
@@ -363,6 +367,8 @@
     "no-extractor": 1,
     "unpinned-ref": 7
    },
+   "manifests": 4,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 962,
@@ -500,6 +506,8 @@
     "dev-not-installed": 638,
     "unpinned-ref": 3
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 7,
@@ -689,6 +697,8 @@
     "offline": 1,
     "unpinned-ref": 9
    },
+   "manifests": 19,
+   "sample_manifests": 9,
    "db": {
     "pinning": {
      "floating": 837,
@@ -851,6 +861,8 @@
     "no-extractor": 7,
     "unpinned-ref": 6
    },
+   "manifests": 7,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 81,
@@ -1033,6 +1045,8 @@
     "no-extractor": 1,
     "unpinned-ref": 5
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1242,
@@ -1164,6 +1178,8 @@
     "offline": 1,
     "unpinned-ref": 17
    },
+   "manifests": 3,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 88,
@@ -1290,6 +1306,8 @@
     "dev-not-installed": 265,
     "unpinned-ref": 3
    },
+   "manifests": 3,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 94,
@@ -1384,6 +1402,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -1498,6 +1518,8 @@
     "offline": 1,
     "unpinned-ref": 13
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -1710,6 +1732,8 @@
     "no-extractor": 6,
     "unpinned-ref": 6
    },
+   "manifests": 8,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1240,
@@ -1818,6 +1842,8 @@
     "no-extractor": 2,
     "unpinned-ref": 4
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -2043,6 +2069,8 @@
     "no-extractor": 5,
     "unpinned-ref": 8
    },
+   "manifests": 3,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 9,
@@ -2190,6 +2218,8 @@
     "no-extractor": 76,
     "unpinned-ref": 9
    },
+   "manifests": 7,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 65,
@@ -2290,6 +2320,8 @@
    "coverage": {
     "unpinned-ref": 1
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -2385,6 +2417,8 @@
    "coverage": {
     "no-extractor": 28
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -2532,6 +2566,8 @@
     "extra-not-requested": 22,
     "no-extractor": 6
    },
+   "manifests": 27,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1557,
@@ -2683,6 +2719,8 @@
     "registry-redirect": 1,
     "unpinned-ref": 13
    },
+   "manifests": 5,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1640,
@@ -2782,6 +2820,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -2935,6 +2975,8 @@
     "no-extractor": 9,
     "unpinned-ref": 14
    },
+   "manifests": 2,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 431,
@@ -3610,6 +3652,8 @@
     "unpinned-ref": 15,
     "unresolved-arg": 1
    },
+   "manifests": 7,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 2690,
@@ -3797,6 +3841,8 @@
     "offline": 1,
     "unpinned-ref": 21
    },
+   "manifests": 15,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1217,
@@ -3958,6 +4004,8 @@
     "unpinned-ref": 15,
     "unresolved-arg": 1
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1057,
@@ -4791,6 +4839,8 @@
     "unpinned-ref": 29,
     "unresolved-arg": 1
    },
+   "manifests": 24,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 869,
@@ -4960,6 +5010,8 @@
     "extra-not-requested": 130,
     "unpinned-ref": 2
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 61,
@@ -10885,6 +10937,8 @@
     "no-extractor": 12,
     "unpinned-ref": 9
    },
+   "manifests": 188,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1643,
@@ -11127,6 +11181,8 @@
     "no-extractor": 19,
     "unpinned-ref": 38
    },
+   "manifests": 4,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1194,
@@ -11324,6 +11380,8 @@
     "no-extractor": 2,
     "unpinned-ref": 2
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1615,
@@ -11454,6 +11512,8 @@
     "no-extractor": 2,
     "unpinned-ref": 3
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 126,
@@ -11988,6 +12048,8 @@
     "no-extractor": 5,
     "unpinned-ref": 8
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 10,
@@ -12085,6 +12147,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -12246,6 +12310,8 @@
     "extra-not-requested": 144,
     "no-extractor": 1
    },
+   "manifests": 6,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 445,
@@ -13121,6 +13187,8 @@
     "no-extractor": 2,
     "unpinned-ref": 19
    },
+   "manifests": 5,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 907,
@@ -13336,6 +13404,8 @@
     "offline": 1,
     "unpinned-ref": 19
    },
+   "manifests": 31,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 523,
@@ -13439,6 +13509,8 @@
    "coverage": {
     "unpinned-ref": 2
    },
+   "manifests": 2,
+   "sample_manifests": 2,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -13576,6 +13648,8 @@
     "extra-not-requested": 59,
     "no-extractor": 12
    },
+   "manifests": 6,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 124,
@@ -14257,6 +14331,8 @@
     "offline": 1,
     "unpinned-ref": 1
    },
+   "manifests": 70,
+   "sample_manifests": 13,
    "db": {
     "pinning": {
      "floating": 294,
@@ -14940,6 +15016,8 @@
     "unpinned-ref": 8,
     "unresolved-arg": 1
    },
+   "manifests": 40,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 3016,
@@ -15052,6 +15130,8 @@
     "no-extractor": 12,
     "unpinned-ref": 5
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -15177,6 +15257,8 @@
    "coverage": {
     "extra-not-requested": 90
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 38,
@@ -15402,6 +15484,8 @@
     "unpinned-ref": 50,
     "unresolved-arg": 4
    },
+   "manifests": 169,
+   "sample_manifests": 5,
    "db": {
     "pinning": {
      "floating": 606,
@@ -15507,6 +15591,8 @@
     "error:parse": 4,
     "no-extractor": 2
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -15597,6 +15683,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -15733,6 +15821,8 @@
     "error:badrange": 1,
     "no-extractor": 7
    },
+   "manifests": 7,
+   "sample_manifests": 6,
    "db": {
     "pinning": {
      "floating": 1332,
@@ -15828,6 +15918,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -16320,6 +16412,8 @@
     "no-extractor": 3,
     "unpinned-ref": 18
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 162,
@@ -16523,6 +16617,8 @@
     "offline": 1,
     "unpinned-ref": 14
    },
+   "manifests": 6,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 1147,
@@ -16665,6 +16761,8 @@
     "no-extractor": 7,
     "unpinned-ref": 2
    },
+   "manifests": 7,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 78,
@@ -16813,6 +16911,8 @@
     "no-extractor": 18,
     "unpinned-ref": 19
    },
+   "manifests": 10,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 690,
@@ -17053,6 +17153,8 @@
     "offline": 1,
     "unpinned-ref": 14
    },
+   "manifests": 63,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 1968,
@@ -17255,6 +17357,8 @@
     "no-extractor": 4,
     "unpinned-ref": 8
    },
+   "manifests": 13,
+   "sample_manifests": 8,
    "db": {
     "pinning": {
      "floating": 1754,
@@ -17434,6 +17538,8 @@
     "extra-not-requested": 1153,
     "no-extractor": 4
    },
+   "manifests": 12,
+   "sample_manifests": 5,
    "db": {
     "pinning": {
      "floating": 18,
@@ -18244,6 +18350,8 @@
     "registry-redirect": 12,
     "unpinned-ref": 4
    },
+   "manifests": 15,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 124,
@@ -18515,6 +18623,8 @@
     "offline": 1,
     "unpinned-ref": 17
    },
+   "manifests": 241,
+   "sample_manifests": 15,
    "db": {
     "pinning": {
      "floating": 843,
@@ -18725,6 +18835,8 @@
     "offline": 1,
     "unpinned-ref": 29
    },
+   "manifests": 8,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1149,
@@ -18885,6 +18997,8 @@
     "offline": 2,
     "unpinned-ref": 26
    },
+   "manifests": 61,
+   "sample_manifests": 54,
    "db": {
     "pinning": {
      "floating": 1772,
@@ -19044,6 +19158,8 @@
     "offline": 1,
     "unpinned-ref": 21
    },
+   "manifests": 13,
+   "sample_manifests": 3,
    "db": {
     "pinning": {
      "floating": 1352,
@@ -19771,6 +19887,8 @@
     "no-extractor": 7,
     "unpinned-ref": 2
    },
+   "manifests": 12,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 2539,
@@ -19951,6 +20069,8 @@
     "no-extractor": 1,
     "unpinned-ref": 8
    },
+   "manifests": 3,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1792,
@@ -20172,6 +20292,8 @@
     "no-extractor": 6,
     "unpinned-ref": 10
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 600,
@@ -20311,6 +20433,8 @@
     "extra-not-requested": 262,
     "no-extractor": 3
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 3,
@@ -20447,6 +20571,8 @@
     "no-extractor": 6,
     "unpinned-ref": 10
    },
+   "manifests": 5,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 787,
@@ -20593,6 +20719,8 @@
     "no-extractor": 6,
     "unpinned-ref": 12
    },
+   "manifests": 10,
+   "sample_manifests": 3,
    "db": {
     "pinning": {
      "floating": 133,
@@ -20792,6 +20920,8 @@
     "no-extractor": 37,
     "unpinned-ref": 28
    },
+   "manifests": 37,
+   "sample_manifests": 18,
    "db": {
     "pinning": {
      "floating": 1076,
@@ -20901,6 +21031,8 @@
     "offline": 1,
     "unpinned-ref": 3
    },
+   "manifests": 82,
+   "sample_manifests": 72,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -21920,6 +22052,8 @@
     "offline": 1,
     "unpinned-ref": 3
    },
+   "manifests": 16,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 632,
@@ -22199,6 +22333,8 @@
     "no-extractor": 6,
     "unpinned-ref": 12
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 904,
@@ -26418,6 +26554,8 @@
     "registry-redirect": 1,
     "unpinned-ref": 42
    },
+   "manifests": 30,
+   "sample_manifests": 10,
    "db": {
     "pinning": {
      "floating": 893,
@@ -26518,6 +26656,8 @@
    "controls_assessable": true,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -26660,6 +26800,8 @@
     "extra-not-requested": 42,
     "no-extractor": 4
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 23
@@ -26812,6 +26954,8 @@
     "offline": 1,
     "unpinned-ref": 28
    },
+   "manifests": 8,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 10,
@@ -26914,6 +27058,8 @@
     "no-extractor": 39,
     "unpinned-ref": 2
    },
+   "manifests": 22,
+   "sample_manifests": 3,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -27624,6 +27770,8 @@
     "offline": 1,
     "unpinned-ref": 16
    },
+   "manifests": 15,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1478,
@@ -27821,6 +27969,8 @@
     "no-extractor": 2,
     "unpinned-ref": 11
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 9,
@@ -27997,6 +28147,8 @@
     "offline": 1,
     "unpinned-ref": 42
    },
+   "manifests": 13,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1856,
@@ -28879,6 +29031,8 @@
     "registry-redirect": 1,
     "unpinned-ref": 22
    },
+   "manifests": 2,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 333,
@@ -29051,6 +29205,8 @@
     "offline": 1,
     "unpinned-ref": 33
    },
+   "manifests": 21,
+   "sample_manifests": 19,
    "db": {
     "pinning": {
      "floating": 227,
@@ -29408,6 +29564,8 @@
     "offline": 1,
     "unpinned-ref": 7
    },
+   "manifests": 17,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 471,
@@ -32089,6 +32247,8 @@
     "no-extractor": 10,
     "unpinned-ref": 10
    },
+   "manifests": 14,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 767,
@@ -32229,6 +32389,8 @@
     "dev-not-installed": 979,
     "unpinned-ref": 5
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 56,
@@ -32754,6 +32916,8 @@
    "coverage": {
     "extra-not-requested": 112
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 28,
@@ -33426,6 +33590,8 @@
     "offline": 1,
     "unpinned-ref": 18
    },
+   "manifests": 27,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 2985,
@@ -33557,6 +33723,8 @@
     "no-extractor": 2,
     "unpinned-ref": 3
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 305,
@@ -35118,6 +35286,8 @@
     "no-extractor": 35,
     "unpinned-ref": 4
    },
+   "manifests": 31,
+   "sample_manifests": 1,
    "db": {}
   },
   {
@@ -35193,6 +35363,8 @@
    "coverage": {
     "no-extractor": 1
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -35341,6 +35513,8 @@
     "registry-redirect": 4,
     "unpinned-ref": 1
    },
+   "manifests": 8,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 196,
@@ -35946,6 +36120,8 @@
     "no-extractor": 12,
     "unpinned-ref": 1
    },
+   "manifests": 14,
+   "sample_manifests": 0,
    "db": {}
   },
   {
@@ -36062,6 +36238,8 @@
     "no-extractor": 29,
     "unpinned-ref": 14
    },
+   "manifests": 14,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 7
@@ -36415,6 +36593,8 @@
     "unpinned-ref": 10,
     "unresolved-arg": 4
    },
+   "manifests": 39,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 3
@@ -36594,6 +36774,8 @@
     "offline": 2,
     "unpinned-ref": 9
    },
+   "manifests": 21,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 86,
@@ -40124,6 +40306,8 @@
     "unpinned-ref": 58,
     "unresolved-arg": 1
    },
+   "manifests": 32,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 2226,
@@ -40332,6 +40516,8 @@
     "offline": 1,
     "unpinned-ref": 16
    },
+   "manifests": 54,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 572,
@@ -40467,6 +40653,8 @@
     "dev-not-installed": 233,
     "unpinned-ref": 3
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 4,
@@ -40664,6 +40852,8 @@
     "offline": 1,
     "unpinned-ref": 34
    },
+   "manifests": 20,
+   "sample_manifests": 5,
    "db": {
     "pinning": {
      "floating": 1701,
@@ -40816,6 +41006,8 @@
     "no-extractor": 227,
     "unpinned-ref": 1
    },
+   "manifests": 3,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 223,
@@ -40998,6 +41190,8 @@
     "no-extractor": 2,
     "unpinned-ref": 1
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 8,
@@ -41149,6 +41343,8 @@
     "no-extractor": 7,
     "unpinned-ref": 11
    },
+   "manifests": 16,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 218,
@@ -41340,6 +41536,8 @@
     "no-extractor": 3,
     "unpinned-ref": 3
    },
+   "manifests": 4,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 89,
@@ -47044,6 +47242,8 @@
     "no-extractor": 7,
     "unpinned-ref": 8
    },
+   "manifests": 38,
+   "sample_manifests": 28,
    "db": {
     "pinning": {
      "floating": 348,
@@ -47154,6 +47354,8 @@
     "no-extractor": 13,
     "unpinned-ref": 1
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -47356,6 +47558,8 @@
     "offline": 1,
     "unpinned-ref": 9
    },
+   "manifests": 154,
+   "sample_manifests": 29,
    "db": {
     "pinning": {
      "floating": 2776,
@@ -47636,6 +47840,8 @@
     "registry-redirect": 2,
     "unpinned-ref": 34
    },
+   "manifests": 16,
+   "sample_manifests": 10,
    "db": {
     "pinning": {
      "floating": 143,
@@ -47787,6 +47993,8 @@
     "dev-not-installed": 770,
     "no-extractor": 1
    },
+   "manifests": 2,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 54,
@@ -47889,6 +48097,8 @@
     "no-extractor": 2,
     "unpinned-ref": 1
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -49626,6 +49836,8 @@
     "registry-redirect": 13,
     "unpinned-ref": 56
    },
+   "manifests": 270,
+   "sample_manifests": 5,
    "db": {
     "pinning": {
      "floating": 1683,
@@ -49775,6 +49987,8 @@
     "no-extractor": 3,
     "unpinned-ref": 1
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 6,
@@ -49898,6 +50112,8 @@
     "offline": 1,
     "unpinned-ref": 14
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -50058,6 +50274,8 @@
     "no-extractor": 63,
     "unpinned-ref": 41
    },
+   "manifests": 53,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 26,
@@ -50427,6 +50645,8 @@
     "no-extractor": 2,
     "unpinned-ref": 6
    },
+   "manifests": 7,
+   "sample_manifests": 2,
    "db": {
     "pinning": {
      "floating": 48,
@@ -50918,6 +51138,8 @@
     "offline": 1,
     "unpinned-ref": 39
    },
+   "manifests": 27,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 956,
@@ -51049,6 +51271,8 @@
     "no-extractor": 2,
     "unpinned-ref": 6
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "locked": 29,
@@ -51414,6 +51638,8 @@
     "offline": 2,
     "unpinned-ref": 7
    },
+   "manifests": 80,
+   "sample_manifests": 61,
    "db": {
     "pinning": {
      "floating": 2314,
@@ -51545,6 +51771,8 @@
     "dev-not-installed": 17,
     "no-extractor": 2
    },
+   "manifests": 2,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 3,
@@ -51720,6 +51948,8 @@
     "no-extractor": 4,
     "unpinned-ref": 1
    },
+   "manifests": 5,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 131,
@@ -51887,6 +52117,8 @@
     "extra-not-requested": 9,
     "no-extractor": 5
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1,
@@ -52293,6 +52525,8 @@
     "unpinned-ref": 20,
     "unresolved-arg": 2
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 755,
@@ -53483,6 +53717,8 @@
     "no-extractor": 6,
     "unpinned-ref": 16
    },
+   "manifests": 4,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 548,
@@ -53746,6 +53982,8 @@
     "offline": 1,
     "unpinned-ref": 27
    },
+   "manifests": 150,
+   "sample_manifests": 5,
    "db": {
     "pinning": {
      "floating": 49,
@@ -53879,6 +54117,8 @@
     "extra-not-requested": 204,
     "no-extractor": 3
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 48,
@@ -54064,6 +54304,8 @@
     "offline": 4,
     "unpinned-ref": 28
    },
+   "manifests": 186,
+   "sample_manifests": 3,
    "db": {
     "pinning": {
      "floating": 1225,
@@ -55729,6 +55971,8 @@
     "no-extractor": 9,
     "unpinned-ref": 19
    },
+   "manifests": 9,
+   "sample_manifests": 3,
    "db": {
     "pinning": {
      "floating": 253,
@@ -55925,6 +56169,8 @@
     "offline": 1,
     "unpinned-ref": 21
    },
+   "manifests": 42,
+   "sample_manifests": 5,
    "db": {
     "pinning": {
      "floating": 1154,
@@ -56106,6 +56352,8 @@
     "no-extractor": 11,
     "unpinned-ref": 3
    },
+   "manifests": 3,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1082,
@@ -56204,6 +56452,8 @@
    "controls_assessable": true,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -56514,6 +56764,8 @@
     "extra-not-requested": 16,
     "unpinned-ref": 2
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 6,
@@ -57383,6 +57635,8 @@
     "unpinned-ref": 121,
     "unresolved-arg": 1
    },
+   "manifests": 20,
+   "sample_manifests": 4,
    "db": {
     "pinning": {
      "floating": 234,
@@ -57723,6 +57977,8 @@
     "no-extractor": 3,
     "unpinned-ref": 4
    },
+   "manifests": 13,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 229,
@@ -58954,6 +59210,8 @@
     "no-extractor": 67,
     "unpinned-ref": 15
    },
+   "manifests": 129,
+   "sample_manifests": 52,
    "db": {
     "pinning": {
      "floating": 2897,
@@ -59103,6 +59361,8 @@
     "offline": 1,
     "unpinned-ref": 45
    },
+   "manifests": 61,
+   "sample_manifests": 7,
    "db": {
     "pinning": {
      "floating": 1186,
@@ -59198,6 +59458,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -59350,6 +59612,8 @@
     "offline": 1,
     "unpinned-ref": 8
    },
+   "manifests": 7,
+   "sample_manifests": 6,
    "db": {
     "pinning": {
      "floating": 220,
@@ -59483,6 +59747,8 @@
     "no-extractor": 2,
     "unpinned-ref": 5
    },
+   "manifests": 14,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 182,
@@ -59592,6 +59858,8 @@
     "offline": 1,
     "unpinned-ref": 8
    },
+   "manifests": 6,
+   "sample_manifests": 4,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -62537,6 +62805,8 @@
     "no-extractor": 621,
     "unpinned-ref": 13
    },
+   "manifests": 750,
+   "sample_manifests": 7,
    "db": {
     "pinning": {
      "floating": 295,
@@ -73430,6 +73700,8 @@
     "no-extractor": 451,
     "unpinned-ref": 12
    },
+   "manifests": 383,
+   "sample_manifests": 118,
    "db": {
     "pinning": {
      "floating": 98,
@@ -73557,6 +73829,8 @@
     "offline": 1,
     "unpinned-ref": 5
    },
+   "manifests": 12,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1
@@ -73919,6 +74193,8 @@
     "offline": 1,
     "unpinned-ref": 23
    },
+   "manifests": 62,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1444,
@@ -74084,6 +74360,8 @@
     "no-extractor": 8,
     "unpinned-ref": 12
    },
+   "manifests": 4,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 17,
@@ -74252,6 +74530,8 @@
     "registry-redirect": 1,
     "unpinned-ref": 20
    },
+   "manifests": 3,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 49,
@@ -75677,6 +75957,8 @@
     "no-extractor": 48,
     "unpinned-ref": 18
    },
+   "manifests": 78,
+   "sample_manifests": 73,
    "db": {
     "pinning": {
      "floating": 1491,
@@ -75831,6 +76113,8 @@
     "offline": 1,
     "unpinned-ref": 21
    },
+   "manifests": 5,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 657,
@@ -76018,6 +76302,8 @@
     "offline": 1,
     "unpinned-ref": 12
    },
+   "manifests": 18,
+   "sample_manifests": 6,
    "db": {
     "pinning": {
      "floating": 2414,
@@ -78406,6 +78692,8 @@
     "offline": 1,
     "unpinned-ref": 5
    },
+   "manifests": 79,
+   "sample_manifests": 56,
    "db": {
     "pinning": {
      "floating": 1112,
@@ -78564,6 +78852,8 @@
     "no-extractor": 43,
     "unpinned-ref": 33
    },
+   "manifests": 54,
+   "sample_manifests": 22,
    "db": {
     "pinning": {
      "floating": 1329,
@@ -78817,6 +79107,8 @@
     "unpinned-ref": 20,
     "unresolved-arg": 1
    },
+   "manifests": 21,
+   "sample_manifests": 8,
    "db": {
     "pinning": {
      "floating": 121,
@@ -78936,6 +79228,8 @@
     "no-extractor": 2,
     "unpinned-ref": 9
    },
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -79067,6 +79361,8 @@
     "no-extractor": 3,
     "unpinned-ref": 3
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 46,
@@ -79372,6 +79668,8 @@
     "dev-not-installed": 2896,
     "no-extractor": 3
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 786,
@@ -79707,6 +80005,8 @@
     "no-extractor": 3,
     "unpinned-ref": 19
    },
+   "manifests": 7,
+   "sample_manifests": 6,
    "db": {
     "pinning": {
      "floating": 293,
@@ -79983,6 +80283,8 @@
     "no-extractor": 1,
     "unpinned-ref": 9
    },
+   "manifests": 2,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 152,
@@ -80088,6 +80390,8 @@
     "no-extractor": 17,
     "unpinned-ref": 9
    },
+   "manifests": 12,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -80360,6 +80664,8 @@
     "offline": 1,
     "unpinned-ref": 3
    },
+   "manifests": 8,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1843,
@@ -80543,6 +80849,8 @@
     "no-extractor": 3,
     "unpinned-ref": 11
    },
+   "manifests": 6,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 674,
@@ -87055,6 +87363,8 @@
     "offline": 1,
     "unpinned-ref": 18
    },
+   "manifests": 693,
+   "sample_manifests": 389,
    "db": {
     "pinning": {
      "floating": 1151,
@@ -87188,6 +87498,8 @@
     "no-extractor": 1,
     "unpinned-ref": 6
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 3,
@@ -92206,6 +92518,8 @@
     "unpinned-ref": 13,
     "unresolved-arg": 1
    },
+   "manifests": 19,
+   "sample_manifests": 4,
    "db": {
     "pinning": {
      "floating": 330,
@@ -92305,6 +92619,8 @@
    "controls_assessable": false,
    "repo_signals": {},
    "coverage": {},
+   "manifests": 0,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -92412,6 +92728,8 @@
     "dev-not-installed": 17,
     "no-extractor": 92
    },
+   "manifests": 101,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1,
@@ -93015,6 +93333,8 @@
     "no-extractor": 3,
     "unpinned-ref": 2
    },
+   "manifests": 5,
+   "sample_manifests": 1,
    "db": {
     "pinning": {
      "floating": 1054,
@@ -93172,6 +93492,8 @@
     "offline": 1,
     "unpinned-ref": 4
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 1,
@@ -93273,6 +93595,8 @@
    "coverage": {
     "no-extractor": 1
    },
+   "manifests": 1,
+   "sample_manifests": 0,
    "db": {
     "pinning": {},
     "ecosystems": {
@@ -94256,6 +94580,8 @@
     "no-extractor": 1,
     "unpinned-ref": 15
    },
+   "manifests": 5,
+   "sample_manifests": 0,
    "db": {
     "pinning": {
      "floating": 151,
