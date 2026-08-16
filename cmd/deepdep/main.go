@@ -402,12 +402,27 @@ func scan(args []string) ([]byte, error) {
 		return nil, fmt.Errorf("--known-at: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	src, err := source.Open(ctx, target, *cacheDir, *at)
+	// --timeout bounds EXPANSION. The usage text promises that when it fires the
+	// partial closure is still emitted with its frontier marked bound:timeout,
+	// and a single context spanning the whole run broke that promise in the
+	// worst possible place: the walker correctly stopped and marked its
+	// frontier, then WriteRun inherited the expired deadline and threw the
+	// entire result away. freeCodeCamp, angular and deno reported as total
+	// failures while holding a perfectly good partial answer.
+	//
+	// Each phase therefore gets its own budget. Acquiring the source is not
+	// expanding — cloning a large monorepo can legitimately take longer than the
+	// expansion budget — and persisting a result that already exists must not be
+	// bounded by a clock that has already run out.
+	cloneCtx, cancelClone := context.WithTimeout(context.Background(), *timeout)
+	defer cancelClone()
+	src, err := source.Open(cloneCtx, target, *cacheDir, *at)
 	if err != nil {
 		return nil, err
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
 
 	// An explicitly-typed --as-of is a promise we must keep or refuse; one
 	// derived from --at is a convenience we may decline.
@@ -515,7 +530,13 @@ func scan(args []string) ([]byte, error) {
 	}
 
 	if db != nil {
-		if _, err := db.WriteRun(ctx, m, g, inst, res); err != nil {
+		// Deliberately not ctx: see the note on the phase budgets above. A
+		// timed-out expansion still produced a graph, and the whole point of
+		// naming a bound instead of failing is that the partial answer survives
+		// to be written down.
+		persistCtx, cancelPersist := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancelPersist()
+		if _, err := db.WriteRun(persistCtx, m, g, inst, res); err != nil {
 			return nil, err
 		}
 		// Mutable refs are the one observation that can never be recovered later.

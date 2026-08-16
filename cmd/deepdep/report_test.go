@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -44,5 +47,43 @@ func TestCoverageIgnoresDeliberatelyUninstalledFrontiers(t *testing.T) {
 	// Still listed: they explain the will/can gap and must not vanish.
 	if r.Coverage[walk.ReasonDevNotInstalled] != 1 || r.Coverage[graph.ReasonBoundDepth] != 1 {
 		t.Errorf("coverage frontier lost a reason: %v", r.Coverage)
+	}
+}
+
+// The usage text promises that when --timeout fires "the partial closure is
+// still emitted, with the frontier marked bound:timeout". One context for the
+// whole run broke that in the worst place: the walker stopped correctly and
+// marked its frontier, then the store write inherited the expired deadline and
+// discarded everything. The largest repositories — precisely the ones where the
+// bound fires — reported as total failures while holding a good partial answer.
+func TestTimedOutScanStillPersistsItsPartialClosure(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"),
+		[]byte(`{"name":"fx","dependencies":{"is-string":"^1.0.0"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db := filepath.Join(t.TempDir(), "d.db")
+
+	// A deadline so short that expansion cannot finish. Offline so the test
+	// makes no network call; the point is that the run still lands.
+	out, err := run([]string{"scan", "--offline", "--timeout", "1ns",
+		"--db", db, "--format", "json", dir})
+	if err != nil {
+		t.Fatalf("a fired bound must not be an error: %v", err)
+	}
+	if len(out) == 0 {
+		t.Fatal("no document emitted")
+	}
+	s, err := store.Open(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	runs, err := s.Runs(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 {
+		t.Fatal("the partial closure was not persisted")
 	}
 }
