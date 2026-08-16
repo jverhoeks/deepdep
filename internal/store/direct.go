@@ -91,6 +91,31 @@ func (s *Store) Surfaces(ctx context.Context, runID string) (map[graph.NodeID][]
 	return out, nil
 }
 
+// ActionTargets lists the CI actions a run invoked.
+//
+// They are not in version_rollup and never will be: an action is not a package
+// version, and treating it as one is what inflated every "checked N packages"
+// claim before graph.IsPackage existed. But they ARE the most direct dependency
+// a repository has, and OSV holds advisories for them, so they need their own
+// way out of the store.
+func (s *Store) ActionTargets(ctx context.Context, runID string) ([]graph.NodeID, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id FROM nodes WHERE run_id=? AND id LIKE 'pkg:github/%' ORDER BY id`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []graph.NodeID
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, graph.NodeID(id))
+	}
+	return out, rows.Err()
+}
+
 // surfaceOf reads the surface back off the id of whatever named the node.
 //
 // Build-file nodes carry their kind in the PURL name component, which is why

@@ -155,9 +155,31 @@ const batchLimit = 1000
 
 type batchQuery struct {
 	Package struct {
-		PURL string `json:"purl"`
+		PURL      string `json:"purl,omitempty"`
+		Name      string `json:"name,omitempty"`
+		Ecosystem string `json:"ecosystem,omitempty"`
 	} `json:"package"`
 }
+
+// ActionsEcosystem is OSV's name for GitHub Actions advisories.
+//
+// They are reachable ONLY by ecosystem+name, and only without a version.
+// Verified against OSV in August 2026, for GHSA-mrrh-fwg8-r2c3 — the
+// tj-actions/changed-files compromise, the single most cited CI supply-chain
+// incident:
+//
+//	{"purl":"pkg:github/tj-actions/changed-files@45.0.7"}       -> {}
+//	{"purl":"pkg:githubactions/tj-actions/changed-files@45.0.7"} -> {}
+//	{"name":"tj-actions/changed-files","ecosystem":"GitHub Actions",
+//	 "version":"45.0.7"}                                         -> {}
+//	{"name":"tj-actions/changed-files","ecosystem":"GitHub Actions"}
+//	                        -> GHSA-mcph-m25j-8j63, GHSA-mrrh-fwg8-r2c3
+//
+// The records carry a null purl and their ranges are stated in a versioning the
+// tags do not follow (a ref is `v45`, or a SHA). So the advisory for the most
+// cited CI supply-chain compromise is IN the database and every PURL-keyed
+// scanner reports the repository using it as clean.
+const ActionsEcosystem = "GitHub Actions"
 
 type batchResponse struct {
 	Results []struct {
@@ -166,6 +188,110 @@ type batchResponse struct {
 			Modified string `json:"modified"`
 		} `json:"vulns"`
 	} `json:"results"`
+}
+
+// ActionAdvisory is deliberately not a Finding.
+//
+// A Finding says "this exact version is affected", because OSV matched a version
+// against the advisory's ranges. For a CI action nothing matched a version:
+// OSV answers only the version-less question, so the claim is "this action has a
+// published advisory and your ref may or may not be inside it". Those are
+// different claims, and a shared type would let the weaker one be counted,
+// scored and reported as the stronger one.
+//
+// It is still worth reporting, loudly. It is the difference between a scanner
+// that told you nothing about tj-actions/changed-files and one that told you to
+// go and look.
+type ActionAdvisory struct {
+	NodeID   graph.NodeID `json:"node_id"`
+	Action   string       `json:"action"`
+	Ref      string       `json:"ref"` // the ref actually in use, unverified against the advisory
+	Advisory Advisory     `json:"advisory"`
+}
+
+// CheckActions asks OSV about CI actions, which no PURL query reaches.
+//
+// It runs the same batch, fetch and bitemporal filter as Check — an advisory
+// published after the knowledge instant is still not something you could have
+// known — and then rewraps into the weaker claim.
+func (c *Client) CheckActions(ctx context.Context, ids []graph.NodeID, knownAt time.Time) ([]ActionAdvisory, error) {
+	var actions []graph.NodeID
+	for _, id := range ids {
+		if _, ok := ActionName(id); ok {
+			actions = append(actions, id)
+		}
+	}
+	if len(actions) == 0 {
+		return nil, nil
+	}
+	found, err := c.Check(ctx, actions, knownAt)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ActionAdvisory, 0, len(found))
+	for _, f := range found {
+		name, _ := ActionName(f.NodeID)
+		out = append(out, ActionAdvisory{
+			NodeID: f.NodeID, Action: name, Ref: refOf(f.NodeID), Advisory: f.Advisory,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Action != out[j].Action {
+			return out[i].Action < out[j].Action
+		}
+		return out[i].Advisory.ID < out[j].Advisory.ID
+	})
+	return out, nil
+}
+
+func refOf(id graph.NodeID) string {
+	s := string(id)
+	i := strings.LastIndex(s, "@")
+	if i < 0 {
+		return ""
+	}
+	s = s[i+1:]
+	if j := strings.IndexAny(s, "#?"); j >= 0 {
+		s = s[:j]
+	}
+	return s
+}
+
+// queryFor turns a node id into the one query shape OSV will answer for it.
+//
+// PURL is right for every registry ecosystem and wrong for GitHub Actions, for
+// the reasons on ActionsEcosystem. An action is asked about by name, without a
+// version — which means the answer is "this action has an advisory", not "your
+// ref is affected". Callers must carry that weaker claim through instead of
+// upgrading it, which is why ActionAdvisory exists as its own type rather than
+// as another Finding.
+func queryFor(id graph.NodeID) batchQuery {
+	var q batchQuery
+	if name, ok := ActionName(id); ok {
+		q.Package.Name = name
+		q.Package.Ecosystem = ActionsEcosystem
+		return q
+	}
+	q.Package.PURL = string(id)
+	return q
+}
+
+// ActionName recovers `owner/repo` from a GitHub Actions node id, which is what
+// OSV keys its records on. A reusable workflow carries its path as a PURL
+// subpath; the advisory is about the repository, so the subpath is dropped.
+func ActionName(id graph.NodeID) (string, bool) {
+	s := string(id)
+	if !strings.HasPrefix(s, "pkg:github/") {
+		return "", false
+	}
+	s = strings.TrimPrefix(s, "pkg:github/")
+	if i := strings.IndexAny(s, "@#?"); i >= 0 {
+		s = s[:i]
+	}
+	if s == "" || !strings.Contains(s, "/") {
+		return "", false
+	}
+	return s, true
 }
 
 // Check maps each PURL to the advisories affecting it.
@@ -187,9 +313,7 @@ func (c *Client) Check(ctx context.Context, purls []graph.NodeID, knownAt time.T
 			Queries []batchQuery `json:"queries"`
 		}
 		for _, p := range chunk {
-			var q batchQuery
-			q.Package.PURL = string(p)
-			body.Queries = append(body.Queries, q)
+			body.Queries = append(body.Queries, queryFor(p))
 		}
 		buf, err := json.Marshal(body)
 		if err != nil {

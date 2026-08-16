@@ -138,7 +138,27 @@ func reportCmd(args []string) ([]byte, error) {
 		return nil, err
 	}
 
+	// CI actions get their own query because OSV will not answer a PURL for
+	// them. Their findings stay in their own field for the same reason: the
+	// answer is version-less and must not be counted as if a version matched.
+	actionTargets, err := db.ActionTargets(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+	var actionFindings []advisory.ActionAdvisory
+	if len(actionTargets) > 0 {
+		actionFindings, err = advisory.New(*osvBase, nil).CheckActions(ctx, actionTargets, knownAt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners, allNodes, surfaces)
+	r.ActionsChecked = len(actionTargets)
+	r.ActionAdvisories = actionFindings
+	if r.ActionAdvisories == nil {
+		r.ActionAdvisories = []advisory.ActionAdvisory{}
+	}
 	r.Controls = controls.Detect(allNodes)
 	r.MissingControls = controls.Missing(r.Controls)
 	r.ControlsAssessable = controls.Assessable(allNodes)
@@ -178,16 +198,21 @@ type reportDoc struct {
 	// Exposure splits every finding by whether THIS repository names the
 	// affected artifact. Severity says how bad it is; reach says who can fix it,
 	// and the second question is the one a maintainer acts on first.
-	Exposure           []exposureRow      `json:"exposure"`
-	Score              score.Result       `json:"score"`
-	PackageNodes       int                `json:"package_nodes"`
-	Auditable          float64            `json:"auditable_share"`
-	Controls           []controls.Control `json:"controls"`
-	ControlsAssessable bool               `json:"controls_assessable"`
-	MissingControls    []controls.Kind    `json:"controls_missing"`
-	Coverage           map[string]int     `json:"coverage_frontier"`
-	Notes              map[string]string  `json:"notes"`
-	Sources            map[string]string  `json:"sources"`
+	Exposure []exposureRow `json:"exposure"`
+	// ActionAdvisories are a weaker claim than Advisory and are kept apart for
+	// that reason alone — see advisory.ActionAdvisory. They are excluded from
+	// the score deliberately: an unverified ref must not move a grade.
+	ActionsChecked     int                       `json:"actions_checked"`
+	ActionAdvisories   []advisory.ActionAdvisory `json:"action_advisories"`
+	Score              score.Result              `json:"score"`
+	PackageNodes       int                       `json:"package_nodes"`
+	Auditable          float64                   `json:"auditable_share"`
+	Controls           []controls.Control        `json:"controls"`
+	ControlsAssessable bool                      `json:"controls_assessable"`
+	MissingControls    []controls.Kind           `json:"controls_missing"`
+	Coverage           map[string]int            `json:"coverage_frontier"`
+	Notes              map[string]string         `json:"notes"`
+	Sources            map[string]string         `json:"sources"`
 }
 
 type finding struct {
@@ -603,6 +628,25 @@ func renderReport(r reportDoc) []byte {
 		}
 		fmt.Fprintf(&b, "   rate = share of that surface's packages carrying at least one advisory.\n")
 		fmt.Fprintf(&b, "   A package named by two surfaces is counted in both: two lines to edit.\n")
+	}
+
+	fmt.Fprintf(&b, "\n2c. CI ACTIONS WITH PUBLISHED ADVISORIES  (%d of %d invoked)\n",
+		len(r.ActionAdvisories), r.ActionsChecked)
+	if r.ActionsChecked == 0 {
+		fmt.Fprintf(&b, "   no CI actions in this closure.\n")
+	} else if len(r.ActionAdvisories) == 0 {
+		fmt.Fprintf(&b, "   none known at %s.\n", r.KnownAt.Format("2006-01-02"))
+	} else {
+		for _, a := range r.ActionAdvisories {
+			fmt.Fprintf(&b, "   %-9s %-18s %-30s ref %-12s %s\n",
+				a.Advisory.SeverityLabel(), orDash(a.Advisory.CVE()), a.Action,
+				orDash(a.Ref), truncate(a.Advisory.Summary, 46))
+		}
+		fmt.Fprintf(&b, "\n   NOT version-matched. OSV answers for CI actions only WITHOUT a\n")
+		fmt.Fprintf(&b, "   version — its records carry no purl and state ranges in a versioning\n")
+		fmt.Fprintf(&b, "   that refs do not follow — so this says the action has an advisory, not\n")
+		fmt.Fprintf(&b, "   that your ref is inside it. Go and look. It is excluded from the score\n")
+		fmt.Fprintf(&b, "   for the same reason: an unverified ref must not move a grade.\n")
 	}
 
 	fmt.Fprintf(&b, "\n3. POSTURE\n")
