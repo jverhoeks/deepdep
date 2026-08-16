@@ -90,21 +90,22 @@ researchers actually audit. The 214,442 inherited packages are mostly small leaf
 libraries nobody has ever filed against. A low rate down there means less
 attention, not less risk.
 
-What survives the caveat is the shape of the work:
+What survives the caveat is the shape of the work — and it holds on both cuts:
 
 ```
-median declared packages per repository       53
-median inherited packages per repository    1132
-declared share of all packages              6.7%
-share of all criticals that are declared     30%
+                                 clean subset (70)   whole fleet (136)
+median declared packages                     26                  53
+median inherited packages                   336                1132
+declared share of all packages             5.4%                6.7%
+share of criticals that are declared        33%                 30%
 ```
 
-**The surface you control is 7% of your packages and holds 30% of your known
-criticals.** It is also the only part you can act on this week.
+**The surface you control is around 6% of your packages and holds about a third
+of your known criticals.** It is also the only part you can act on this week.
 
 And the leverage is brutal. `Snailclimb/JavaGuide` declares 14 packages and
 inherits 2,818 — **201×**. `tauri-apps/tauri`: 30 declared, 2,327 inherited.
-Fourteen times at the median.
+Thirteen times at the median on the clean subset, twenty-one across the fleet.
 
 ### Directly at risk — repositories where declared means shipped
 
@@ -291,8 +292,8 @@ you something about who adopts it.
 
 ### 3. Audit your declared dependencies first — it is a one-afternoon list
 
-The median repository declares **53 packages**. That is a list you can read in a
-sitting, and it holds 30% of your criticals.
+The median repository declares **53 packages** — 26 on the clean subset. That is
+a list you can read in a sitting, and it holds about a third of your criticals.
 
 ```bash
 deepdep scan . && deepdep report | sed -n '/2b. REACH/,/^3\./p'
@@ -325,8 +326,8 @@ friction gap.
 
 You cannot bump what you did not declare. What you *can* do:
 
-- **Measure leverage before adding a dependency.** 14× at the median, 201× at the
-  worst. "It's only one package" is almost never true — check what it drags in
+- **Measure leverage before adding a dependency.** 13–21× at the median, 201× at
+  the worst. "It's only one package" is almost never true — check what it drags in
   before you merge it.
 - **Prefer fewer, larger, better-maintained dependencies.** `langchain` declares
   98 and grades B; `llama_index` declares 719. Same problem space.
@@ -391,7 +392,7 @@ all, rather than asserting anything about `next.js`.
 ## What I'd take away
 
 **Sort by who can fix it before you sort by severity.** The declared surface is
-7% of your packages and 30% of your criticals, and it is the only part you can
+under 7% of your packages and about a third of your criticals, and it is the only part you can
 act on this week. Every scanner I know buries it in one list with the 214,442
 packages you inherited.
 
