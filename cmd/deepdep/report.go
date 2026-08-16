@@ -129,7 +129,15 @@ func reportCmd(args []string) ([]byte, error) {
 		return nil, err
 	}
 
-	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners, allNodes)
+	// Which of this repository's own files name each package. Severity ranks
+	// findings; this is what says whether the fix is a line in package.json or a
+	// wait on somebody else's release.
+	surfaces, err := db.Surfaces(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+
+	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners, allNodes, surfaces)
 	r.Controls = controls.Detect(allNodes)
 	r.MissingControls = controls.Missing(r.Controls)
 	r.ControlsAssessable = controls.Assessable(allNodes)
@@ -163,9 +171,13 @@ type reportDoc struct {
 	// Baseline are the ones nearly every open-source dependency carries; keeping
 	// them apart is what stops the biggest number from reading as the biggest
 	// problem.
-	RepoSignals        []count            `json:"repo_signals"`
-	Baseline           []count            `json:"ecosystem_baseline"`
-	ByOwner            []ownerRow         `json:"by_application"`
+	RepoSignals []count    `json:"repo_signals"`
+	Baseline    []count    `json:"ecosystem_baseline"`
+	ByOwner     []ownerRow `json:"by_application"`
+	// Exposure splits every finding by whether THIS repository names the
+	// affected artifact. Severity says how bad it is; reach says who can fix it,
+	// and the second question is the one a maintainer acts on first.
+	Exposure           []exposureRow      `json:"exposure"`
 	Score              score.Result       `json:"score"`
 	PackageNodes       int                `json:"package_nodes"`
 	Auditable          float64            `json:"auditable_share"`
@@ -184,6 +196,29 @@ type finding struct {
 	Package  string `json:"package"`
 	Owner    string `json:"application,omitempty"`
 	Summary  string `json:"summary,omitempty"`
+	// Surfaces are the repository's own files that name this package. Empty
+	// means transitive: nothing here asked for it, and the fix belongs to
+	// whoever did.
+	Surfaces []string `json:"surfaces,omitempty"`
+}
+
+// exposureRow is one reach bucket. Direct rows are per surface, because
+// "upgrade a line in package.json", "bump a base image" and "pin a CI action"
+// are three different pieces of work owned by three different habits.
+//
+// Checked is the denominator on purpose. A repository with 12 direct and 3,400
+// transitive packages that reports 4 direct and 40 transitive findings is not
+// ten times safer on its own dependencies — it is three times worse, and only
+// the rate says so.
+type exposureRow struct {
+	Reach     string `json:"reach"` // direct | indirect
+	Surface   string `json:"surface,omitempty"`
+	Checked   int    `json:"checked"`
+	Affected  int    `json:"affected"`
+	Malicious int    `json:"malicious"`
+	Critical  int    `json:"critical"`
+	High      int    `json:"high"`
+	Other     int    `json:"other"`
 }
 
 type count struct {
@@ -218,7 +253,7 @@ var baselineSignals = map[string]bool{
 func buildReport(meta store.Run, state string, knownAt time.Time,
 	targets []graph.NodeID, findings []advisory.Finding,
 	assessments []supply.Assessment, owners map[graph.NodeID][]string,
-	nodes []graph.Node) reportDoc {
+	nodes []graph.Node, surfaces map[graph.NodeID][]string) reportDoc {
 
 	r := reportDoc{
 		RunID: meta.RunID, Ref: meta.Ref, Mode: meta.Mode, State: state,
@@ -277,7 +312,8 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 		row := finding{
 			Severity: sevLabel, ID: f.Advisory.ID, CVE: f.Advisory.CVE(),
 			Package: label(f.NodeID), Owner: owned(f.NodeID),
-			Summary: truncate(f.Advisory.Summary, 70),
+			Summary:  truncate(f.Advisory.Summary, 70),
+			Surfaces: surfaces[f.NodeID],
 		}
 		if sevLabel == "MALICIOUS" {
 			r.Malicious = append(r.Malicious, row)
@@ -287,6 +323,7 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 	}
 	sortFindings(r.Malicious)
 	sortFindings(r.Advisory)
+	r.Exposure = computeExposure(targets, findings, surfaces)
 
 	for _, s := range []string{"CRITICAL", "HIGH", "MODERATE", "LOW", "UNKNOWN"} {
 		if sev[s] > 0 {
@@ -375,6 +412,84 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 	return r
 }
 
+// computeExposure buckets the audited packages, and the findings against them,
+// by who can fix them.
+//
+// A package named by two surfaces is counted in both, and deliberately: a
+// version pinned in requirements.txt AND installed again by a Dockerfile RUN
+// line is two lines to edit, in two files, that can drift apart. Reporting it
+// once would understate the work and hide the drift. The rows therefore do not
+// sum to the audited total, which is why each carries its own denominator.
+func computeExposure(targets []graph.NodeID, findings []advisory.Finding,
+	surfaces map[graph.NodeID][]string) []exposureRow {
+
+	const indirect = "" // the surface of a package nobody here named
+
+	rows := map[string]*exposureRow{}
+	row := func(surface string) *exposureRow {
+		r, ok := rows[surface]
+		if !ok {
+			reach := "direct"
+			if surface == indirect {
+				reach = "indirect"
+			}
+			r = &exposureRow{Reach: reach, Surface: surface}
+			rows[surface] = r
+		}
+		return r
+	}
+	// bucketsOf is the same lookup for the denominator and for the findings, so
+	// the two can never disagree about where a package belongs.
+	bucketsOf := func(id graph.NodeID) []string {
+		if s := surfaces[id]; len(s) > 0 {
+			return s
+		}
+		return []string{indirect}
+	}
+
+	for _, id := range targets {
+		for _, s := range bucketsOf(id) {
+			row(s).Checked++
+		}
+	}
+
+	affected := map[string]map[graph.NodeID]bool{}
+	for _, f := range findings {
+		for _, s := range bucketsOf(f.NodeID) {
+			r := row(s)
+			switch f.Advisory.SeverityLabel() {
+			case "MALICIOUS":
+				r.Malicious++
+			case "CRITICAL":
+				r.Critical++
+			case "HIGH":
+				r.High++
+			default:
+				r.Other++
+			}
+			if affected[s] == nil {
+				affected[s] = map[graph.NodeID]bool{}
+			}
+			affected[s][f.NodeID] = true
+		}
+	}
+	for s, set := range affected {
+		row(s).Affected = len(set)
+	}
+
+	// Ordered by what a reader should look at first: the surfaces they own,
+	// hardest-to-notice last, then everything they inherited.
+	out := []exposureRow{}
+	for _, s := range []string{
+		store.SurfaceManifest, store.SurfaceCI, store.SurfaceDockerfile, indirect,
+	} {
+		if r, ok := rows[s]; ok {
+			out = append(out, *r)
+		}
+	}
+	return out
+}
+
 func ownersOf(owners map[graph.NodeID][]string, id graph.NodeID) []string {
 	if o := owners[id]; len(o) > 0 {
 		return o
@@ -446,9 +561,37 @@ func renderReport(r reportDoc) []byte {
 				fmt.Fprintf(&b, "   ... %d more (--format json for all)\n", len(r.Advisory)-20)
 				break
 			}
-			fmt.Fprintf(&b, "   %-9s %-18s %-42s %-14s %s\n",
-				f.Severity, orDash(f.CVE), f.Package, f.Owner, f.Summary)
+			// The leading mark is the whole point of the reach split: a reader
+			// scanning this list needs to see, without a second query, which
+			// rows they can fix themselves this morning.
+			mark := " "
+			if len(f.Surfaces) > 0 {
+				mark = "*"
+			}
+			fmt.Fprintf(&b, " %s %-9s %-18s %-42s %-14s %s\n",
+				mark, f.Severity, orDash(f.CVE), f.Package, f.Owner, f.Summary)
 		}
+		fmt.Fprintf(&b, "   * = named in this repository's own files\n")
+	}
+
+	if len(r.Exposure) > 0 {
+		fmt.Fprintf(&b, "\n2b. REACH  (who can fix it)\n")
+		fmt.Fprintf(&b, "   %-22s %8s %9s %5s %5s %6s %7s\n",
+			"", "checked", "malicious", "crit", "high", "other", "rate")
+		for _, e := range r.Exposure {
+			name := "inherited (transitive)"
+			if e.Reach == "direct" {
+				name = "direct — " + e.Surface
+			}
+			rate := "-"
+			if e.Checked > 0 {
+				rate = fmt.Sprintf("%.1f%%", float64(e.Affected)/float64(e.Checked)*100)
+			}
+			fmt.Fprintf(&b, "   %-22s %8d %9d %5d %5d %6d %7s\n",
+				name, e.Checked, e.Malicious, e.Critical, e.High, e.Other, rate)
+		}
+		fmt.Fprintf(&b, "   rate = share of that surface's packages carrying at least one advisory.\n")
+		fmt.Fprintf(&b, "   A package named by two surfaces is counted in both: two lines to edit.\n")
 	}
 
 	fmt.Fprintf(&b, "\n3. POSTURE\n")
