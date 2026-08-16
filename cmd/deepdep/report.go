@@ -12,6 +12,7 @@ import (
 
 	"github.com/jverhoeks/deepdep/internal/advisory"
 	"github.com/jverhoeks/deepdep/internal/controls"
+	"github.com/jverhoeks/deepdep/internal/emit"
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/rollup"
 	"github.com/jverhoeks/deepdep/internal/score"
@@ -163,7 +164,8 @@ func reportCmd(args []string) ([]byte, error) {
 	r.MissingControls = controls.Missing(r.Controls)
 	r.ControlsAssessable = controls.Assessable(allNodes)
 	r.Score = computeScore(r, pins)
-	if *format == "json" {
+	switch *format {
+	case "json":
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)
 		enc.SetIndent("", " ")
@@ -171,8 +173,94 @@ func reportCmd(args []string) ([]byte, error) {
 			return nil, err
 		}
 		return buf.Bytes(), nil
+	case "mermaid":
+		surfaceFiles, err := db.SurfaceFiles(ctx, meta.RunID)
+		if err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := emit.Mermaid(&buf,
+			mermaidInput(r, meta, surfaceFiles, findings, actionFindings, allNodes)); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	}
 	return renderReport(r), nil
+}
+
+// mermaidInput turns the report into the diagram's flat input.
+//
+// It reads the findings the report already computed rather than re-querying, so
+// the picture cannot disagree with the text underneath it — a diagram that
+// showed a different set of criticals than the table above it would be worse
+// than no diagram.
+func mermaidInput(r reportDoc, meta store.Run, files []store.SurfaceFile,
+	findings []advisory.Finding, actions []advisory.ActionAdvisory,
+	nodes []graph.Node) emit.MermaidInput {
+
+	// Severity and count per affected node, worst severity winning.
+	type agg struct {
+		sev   string
+		count int
+		note  string
+	}
+	hit := map[graph.NodeID]*agg{}
+	bump := func(id graph.NodeID, sev, note string) {
+		a := hit[id]
+		if a == nil {
+			a = &agg{}
+			hit[id] = a
+		}
+		a.count++
+		if severityRank(sev) > severityRank(a.sev) {
+			a.sev = sev
+		}
+		if note != "" {
+			a.note = note
+		}
+	}
+	for _, f := range findings {
+		bump(f.NodeID, f.Advisory.SeverityLabel(), "")
+	}
+	for _, a := range actions {
+		// The weaker claim keeps its qualifier all the way into the picture.
+		bump(a.NodeID, a.Advisory.SeverityLabel(), "not version-matched")
+	}
+
+	moving := map[graph.NodeID]bool{}
+	for _, n := range nodes {
+		if n.Reason == graph.ReasonUnpinnedRef {
+			moving[n.ID] = true
+		}
+	}
+
+	out := emit.MermaidInput{
+		Repo: meta.Target, Ref: meta.Ref, Grade: r.Score.Grade,
+	}
+	if r.Score.Suppressed {
+		out.Grade = "not graded"
+	}
+	for _, f := range files {
+		mf := emit.MermaidFile{Kind: f.Kind, Path: f.Path, Names: len(f.Names), Moving: f.Moving}
+		for _, id := range f.Names {
+			a, ok := hit[id]
+			if !ok {
+				continue // clean, and counted in Names rather than drawn
+			}
+			mf.Hits = append(mf.Hits, emit.MermaidHit{
+				Label: label(id), Severity: a.sev, Count: a.count,
+				Moving: moving[id], Note: a.note,
+			})
+		}
+		sort.SliceStable(mf.Hits, func(i, j int) bool {
+			if severityRank(mf.Hits[i].Severity) != severityRank(mf.Hits[j].Severity) {
+				return severityRank(mf.Hits[i].Severity) > severityRank(mf.Hits[j].Severity)
+			}
+			return mf.Hits[i].Label < mf.Hits[j].Label
+		})
+		out.Files = append(out.Files, mf)
+	}
+	return out
 }
 
 // ---- model ---------------------------------------------------------------

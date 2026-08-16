@@ -231,6 +231,67 @@ MALICIOUS  MAL-2025-47141  npm/@ctrl/tinycolor@4.1.1  Malicious code in @ctrl/ti
 Found through a `RUN npm install` line in a Dockerfile, with no lockfile
 involved — which is why `report` queries every state by default.
 
+### One diagram, generated
+
+`deepdep report --format mermaid` draws the surfaces and where risk enters. A
+scan produces thousands of nodes and Mermaid stops being legible around a
+hundred, so it draws the SHAPE rather than the graph: the repository, each build
+file that names something, and — under each — only what carries a finding. A
+clean repository renders as a few boxes with counts, which is the correct
+picture of a clean repository.
+
+```mermaid
+graph LR
+  root["https://github.com/open-webui/open-webui.git<br/><small>risk D</small>"]
+  root --> F0["all manifests<br/><small>266 named</small>"]
+  class F0 manifest
+  F0 --> F0_0["npm/vitest@1.6.1<br/><small>1 critical advisory</small>"]
+  class F0_0 crit
+  F0 --> F0_1["pypi/chromadb@1.5.9<br/><small>1 critical advisory</small>"]
+  class F0_1 crit
+  F0 --> F0_2["npm/postcss@8.5.14<br/><small>2 high advisories</small>"]
+  class F0_2 high
+  F0 --> F0_3["npm/undici@7.28.0<br/><small>5 high advisories</small>"]
+  class F0_3 high
+  F0 --> F0_4["npm/vite@5.4.21<br/><small>3 high advisories</small>"]
+  class F0_4 high
+  F0 --> F0_5["npm/xlsx@0.18.5<br/><small>2 high advisories</small>"]
+  class F0_5 high
+  F0 --> F0_more["… 15 more"]
+  class F0_more muted
+  root --> F1[".github/workflows/docker.yaml<br/><small>21 named · 10 moving</small>"]
+  class F1 ci
+  F1 --> F1_0["github/actions/download-artifact@v5<br/><small>1 high advisory · moving ref · not version-matched</small>"]
+  class F1_0 high
+  root --> F2[".github/workflows/release-pypi.yml<br/><small>6 named · 4 moving</small>"]
+  class F2 ci
+  F2 --> F2_0["github/pypa/gh-action-pypi-publish@release/v1<br/><small>1 low advisory · moving ref · not version-matched</small>"]
+  class F2_0 low
+  root --> F3[".github/workflows/release.yml<br/><small>7 named · 3 moving</small>"]
+  class F3 ci
+  root --> F4[".github/workflows/backend.yaml<br/><small>5 named · 2 moving</small>"]
+  class F4 ci
+  root --> F5[".github/workflows/frontend.yaml<br/><small>9 named · 2 moving</small>"]
+  class F5 ci
+  root --> F6["Dockerfile<br/><small>30 named · 2 moving</small>"]
+  class F6 docker
+  root --> F7[".github/workflows/issue-label.yaml<br/><small>1 named · 1 moving</small>"]
+  class F7 ci
+
+  classDef mal      fill:#450a0a,stroke:#f87171,color:#fecaca,stroke-width:2px
+  classDef crit     fill:#7f1d1d,stroke:#ef4444,color:#fee2e2
+  classDef high     fill:#9a3412,stroke:#f97316,color:#ffedd5
+  classDef low      fill:#78350f,stroke:#f59e0b,color:#fef3c7
+  classDef moving   fill:#1e3a5f,stroke:#60a5fa,color:#dbeafe
+  classDef muted    fill:#334155,stroke:#94a3b8,color:#e2e8f0
+  classDef docker   fill:#164e63,stroke:#22d3ee,color:#cffafe
+  classDef ci       fill:#312e81,stroke:#818cf8,color:#e0e7ff
+  classDef manifest fill:#14532d,stroke:#4ade80,color:#dcfce7
+```
+
+Green is a manifest, indigo a workflow, cyan a Dockerfile. Every bound that
+fires says so (`… 15 more`) rather than silently drawing less.
+
 ### Controls already in place
 
 The closure already holds the evidence — a CI action is a node, a shell step is

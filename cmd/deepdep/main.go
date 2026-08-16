@@ -57,7 +57,9 @@ deepdep tools                         supply-chain surfaces this build recognise
                          clones shallowly; a SHA or date needs full history
   --as-of TIME           resolution time (RFC3339); errors if publish times are unavailable
   --known-at TIME        knowledge time; recorded now, consumed by advisory enrichment
-  --format text|json|cyclonedx
+  --format text|json|cyclonedx     scan
+  --format text|json|mermaid       report; mermaid draws the surfaces
+                         and where risk enters, bounded to stay readable
   --max-depth N          closure depth bound (default 32)
   --max-versions N       per-range expansion bound in can mode (default 25)
   --concurrency N        registry fetch workers (default 32)

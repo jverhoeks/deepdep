@@ -135,6 +135,57 @@ Real, checkable examples:
 Notice the pattern in the last two: **one stale pin, several advisories.** That
 is the cheapest fix in this entire article.
 
+`ollama/ollama` drawn by `deepdep report --format mermaid` — the same run, the
+same findings, as a picture:
+
+```mermaid
+graph LR
+  root["276e14089acad247<br/><small>risk D</small>"]
+  root --> F0["all manifests<br/><small>60 named</small>"]
+  class F0 manifest
+  F0 --> F0_0["npm/@vitest/browser@3.2.4<br/><small>2 critical advisories</small>"]
+  class F0_0 crit
+  F0 --> F0_1["npm/vitest@3.2.4<br/><small>1 critical advisory</small>"]
+  class F0_1 crit
+  F0 --> F0_2["npm/playwright@1.53.2<br/><small>1 high advisory</small>"]
+  class F0_2 high
+  F0 --> F0_3["npm/storybook@9.0.14<br/><small>2 high advisories</small>"]
+  class F0_3 high
+  F0 --> F0_4["npm/vite@6.3.5<br/><small>7 high advisories</small>"]
+  class F0_4 high
+  root --> F1[".github/workflows/release.yaml<br/><small>50 named · 14 moving</small>"]
+  class F1 ci
+  F1 --> F1_0["github/actions/download-artifact@v4<br/><small>1 high advisory · moving ref · not version-matched</small>"]
+  class F1_0 high
+  root --> F2[".github/workflows/test-llamacpp-update.yaml<br/><small>37 named · 10 moving</small>"]
+  class F2 ci
+  F2 --> F2_0["github/actions/download-artifact@v4<br/><small>1 high advisory · moving ref · not version-matched</small>"]
+  class F2_0 high
+  root --> F3["Dockerfile<br/><small>55 named · 6 moving</small>"]
+  class F3 docker
+  root --> F4[".github/workflows/latest.yaml<br/><small>3 named · 2 moving</small>"]
+  class F4 ci
+  root --> F5[".github/workflows/test-install.yaml<br/><small>3 named · 1 moving</small>"]
+  class F5 ci
+
+  classDef mal      fill:#450a0a,stroke:#f87171,color:#fecaca,stroke-width:2px
+  classDef crit     fill:#7f1d1d,stroke:#ef4444,color:#fee2e2
+  classDef high     fill:#9a3412,stroke:#f97316,color:#ffedd5
+  classDef low      fill:#78350f,stroke:#f59e0b,color:#fef3c7
+  classDef moving   fill:#1e3a5f,stroke:#60a5fa,color:#dbeafe
+  classDef muted    fill:#334155,stroke:#94a3b8,color:#e2e8f0
+  classDef docker   fill:#164e63,stroke:#22d3ee,color:#cffafe
+  classDef ci       fill:#312e81,stroke:#818cf8,color:#e0e7ff
+  classDef manifest fill:#14532d,stroke:#4ade80,color:#dcfce7
+```
+
+Three surfaces, three different kinds of work. The manifest criticals are a
+version bump. The `download-artifact@v4` advisory is a pin, and the ref is
+moving so it can change under you regardless. The Dockerfile names 55 things
+with no advisory against any of them — 6 of them on a tag that can be
+repointed, which is a risk no CVE count will ever show.
+
+
 And `langchain-ai/langchain` shows it is achievable — 98 declared packages, one
 affected, **grade B**, the best result of any large AI project in the fleet.
 
