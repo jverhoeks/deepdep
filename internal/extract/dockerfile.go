@@ -418,7 +418,21 @@ func runPackages(cmd, baseImage string) []graph.Node {
 				// LastIndex, and strictly > 0: a scoped name's leading @ is at
 				// index 0 and is part of the NAME, not a version separator.
 				if i := strings.LastIndex(tok, ins.pinSep); i > 0 {
-					name, ver = tok[:i], tok[i+len(ins.pinSep):]
+					cand := tok[i+len(ins.pinSep):]
+					// rpm pins with a bare hyphen — `curl-7.88.1` — and rpm
+					// package names are full of hyphens too. Splitting on the
+					// last one turned `lapack-devel` into lapack@devel,
+					// `yum-utils` into yum@utils and `gcc-toolset-13-gcc-c++`
+					// into a package versioned "c++": wrong PURLs that OSV then
+					// answered anyway, so the Dockerfile surface reported
+					// findings against packages that were never installed.
+					//
+					// A version starts with a digit. Requiring that costs an
+					// unpinned `curl` nothing — it was version-less already —
+					// and a genuine `curl-7.88.1` still splits.
+					if ins.pinSep != "-" || startsWithDigit(cand) {
+						name, ver = tok[:i], cand
+					}
 				}
 				// `npm install -g pkg@latest` pins nothing. A dist-tag is a
 				// MOVING reference — the same vocabulary as an unpinned image

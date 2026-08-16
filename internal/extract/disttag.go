@@ -18,3 +18,10 @@ var distTags = map[string]bool{
 
 // isDistTag reports whether a parsed version token is really a moving tag.
 func isDistTag(v string) bool { return distTags[v] }
+
+// startsWithDigit reports whether a token looks like the beginning of a version.
+// It is the cheap discriminator between an rpm pin (`curl-7.88.1`) and an rpm
+// package name that merely contains a hyphen (`lapack-devel`).
+func startsWithDigit(s string) bool {
+	return s != "" && s[0] >= '0' && s[0] <= '9'
+}
