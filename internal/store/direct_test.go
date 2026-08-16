@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/jverhoeks/deepdep/internal/effective"
 	"github.com/jverhoeks/deepdep/internal/extract"
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/rollup"
@@ -62,6 +63,47 @@ func TestSurfacesReachThroughBuildFiles(t *testing.T) {
 	}
 	if s, ok := got["pkg:npm/transitive@1.0.0"]; ok {
 		t.Errorf("a package only an upstream package asked for is inherited, got surfaces %v", s)
+	}
+}
+
+// npm hoists nearly every transitive package to the top of node_modules, and
+// effective.Merge attaches top-level copies to the root because that is where
+// they genuinely live. They are placements, not declarations — axios read as
+// 122 direct dependencies against ~60 declared — and a hoisted
+// sub-sub-dependency's CVE must not be reported as the maintainer's own line to
+// fix.
+//
+// This drives the real Merge rather than hand-built edges, so it fails if Merge
+// ever starts putting a spec on a placement.
+func TestHoistedLockfileInstancesAreNotDeclarations(t *testing.T) {
+	g := graph.New()
+	g.Add(graph.Node{ID: "root", Completeness: graph.Resolved})
+	g.Add(graph.Node{ID: "pkg:npm/declared@1.0.0", Ecosystem: "npm", Name: "declared",
+		Version: "1.0.0", Completeness: graph.Resolved})
+	// The one line the repository actually wrote.
+	g.Link(graph.Edge{From: "root", To: "pkg:npm/declared@1.0.0",
+		Kind: graph.DependsOn, Spec: "^1.0.0", Scope: graph.Prod})
+
+	effective.Merge(g, []effective.Instance{
+		{Locator: "node_modules/declared", NodeID: "pkg:npm/declared@1.0.0", DerivedFrom: "lockfile"},
+		{Locator: "node_modules/hoisted", NodeID: "pkg:npm/hoisted@2.0.0", DerivedFrom: "lockfile"},
+	}, "root")
+
+	s := open(t)
+	runID, err := s.WriteRun(context.Background(), sampleMeta(), g, nil, rollup.Compute(g, nil, "root"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Surfaces(context.Background(), runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got["pkg:npm/declared@1.0.0"], []string{store.SurfaceManifest}) {
+		t.Errorf("declared dependency = %v, want [%s]", got["pkg:npm/declared@1.0.0"], store.SurfaceManifest)
+	}
+	if s, ok := got["pkg:npm/hoisted@2.0.0"]; ok {
+		t.Errorf("hoisted placement reported as first-party (%v); npm chose that path, "+
+			"the repository did not ask for it", s)
 	}
 }
 

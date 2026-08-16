@@ -19,6 +19,14 @@ import (
 // The nesting in locators carries real dependency structure: a copy at
 // node_modules/b/node_modules/lodash exists because b needed it. Top-level
 // copies are attached to root.
+//
+// A root attachment here is PLACEMENT, not declaration. npm hoists nearly every
+// transitive package to the top level, so most of these edges say "this ended up
+// at node_modules/x", not "this repository asked for x". They carry no Spec, and
+// that absence is load-bearing: a declared dependency always arrives from an
+// extractor with the raw range on the edge, so an empty Spec on a root edge is
+// the mark of a hoisted placement. store.Surfaces relies on it to keep axios'
+// 60 declared dependencies from reading as 122.
 func ecosystemOf(id graph.NodeID) string {
 	s := string(id)
 	if !strings.HasPrefix(s, "pkg:") {

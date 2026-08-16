@@ -40,7 +40,7 @@ const (
 // transitive: nothing in this repository asked for them by name.
 func (s *Store) Surfaces(ctx context.Context, runID string) (map[graph.NodeID][]string, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT from_id, to_id FROM edges WHERE run_id = ?`, runID)
+		`SELECT from_id, to_id, spec FROM edges WHERE run_id = ?`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,26 @@ func (s *Store) Surfaces(ctx context.Context, runID string) (map[graph.NodeID][]
 
 	seen := map[graph.NodeID]map[string]bool{}
 	for rows.Next() {
-		var from, to string
-		if err := rows.Scan(&from, &to); err != nil {
+		var from, to, spec string
+		if err := rows.Scan(&from, &to, &spec); err != nil {
 			return nil, err
 		}
 		if graph.IsPackage(graph.NodeID(from)) {
 			continue // an upstream package pulling in another: transitive
+		}
+		// Root edges are two different things wearing one shape. An extractor's
+		// edge carries the declared range; effective.Merge's carries nothing,
+		// because it records where npm PLACED a package rather than that anyone
+		// asked for it. npm hoists nearly every transitive package to the top
+		// level, so counting placements as declarations turned axios' 60
+		// declared dependencies into 122 — and would have reported a hoisted
+		// sub-sub-dependency's CVE as the maintainer's own line to fix.
+		//
+		// Build-file edges are exempt: a Dockerfile's FROM and a workflow's
+		// uses: are declarations that have no range to carry.
+		if !strings.HasPrefix(from, extract.BuildFilePrefix) && spec == "" &&
+			graph.IsPackage(graph.NodeID(to)) {
+			continue
 		}
 		id := graph.NodeID(to)
 		if seen[id] == nil {
