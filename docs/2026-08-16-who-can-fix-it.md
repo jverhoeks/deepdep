@@ -71,6 +71,12 @@ inherited (transitive)      214442      2771   240  3733   4496    1.3%
 ALL DIRECT                   15420       682   103  1337   5251    4.4%
 ```
 
+There is no `direct — ci` row, and that is not because CI is clean. No
+repository in the fleet installed an *auditable package* from a workflow `run:`
+step, and the things CI does pull in — actions, images — are not in OSV under
+any PURL. That surface is covered further down, where the metric is not a CVE
+count.
+
 Across the fleet, **4.4% of directly-declared packages carry at least one
 advisory, against 1.3% of inherited ones.**
 

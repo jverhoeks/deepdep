@@ -44,5 +44,5 @@ echo "wrote out/tables.txt ($(wc -l < "$OUT/tables.txt") lines)"
 # must not shift under a half-written write-up.
 cp "$OUT/aggregate.json" analysis/aggregate.frozen.json
 cp "$OUT/tables.txt" analysis/tables.frozen.txt
-cp "$OUT/lists/active.json" "$OUT/lists/growing.json" analysis/
+cp "$OUT"/lists/{active,growing,ai}.json analysis/
 echo "frozen into analysis/"
