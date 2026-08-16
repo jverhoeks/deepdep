@@ -420,6 +420,16 @@ func runPackages(cmd, baseImage string) []graph.Node {
 				if i := strings.LastIndex(tok, ins.pinSep); i > 0 {
 					name, ver = tok[:i], tok[i+len(ins.pinSep):]
 				}
+				// `npm install -g pkg@latest` pins nothing. A dist-tag is a
+				// MOVING reference — the same vocabulary as an unpinned image
+				// tag or a branch ref — and minting it as a version is not a
+				// cosmetic error: OSV was asked about `npm/npm@latest`, could
+				// not order it against any fixed range, and answered with every
+				// npm advisory back to 2013. Six CRITICAL and 36 HIGH findings
+				// across the fleet rested on a version that does not exist.
+				if isDistTag(ver) {
+					ver = ""
+				}
 				if name == "" || !plainName(name) {
 					continue
 				}
@@ -442,6 +452,12 @@ func runPackages(cmd, baseImage string) []graph.Node {
 				if err != nil {
 					continue
 				}
+				// Completeness stays Inferred whether or not a version was
+				// given: it records HOW we know the name — parsed out of a
+				// shell line — and pinning is a separate axis carried by the
+				// edge. A version-less node is a requirement the walker
+				// resolves, which for a dist-tag is exactly right, since
+				// `@latest` does mean "whatever is newest at build time".
 				out = append(out, graph.Node{
 					ID: id, Ecosystem: ins.typ, Name: name, Version: ver,
 					Completeness: graph.Inferred, Reason: reason,
