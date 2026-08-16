@@ -325,6 +325,22 @@ func (w *Walker) expandOne(ctx context.Context, g *graph.Graph, mu *sync.Mutex,
 	return kids, nil
 }
 
+// Reasons for a frontier the walker chose not to cross because nothing would
+// install what is on the other side. They are DECISIONS, not blind spots, and
+// consumers must be able to tell the two apart: counting them as unexplored
+// coverage suppressed the grade of every repository in a 131-repo fleet, which
+// said more about the metric than about the repositories.
+const (
+	ReasonDevNotInstalled   = "dev-not-installed"
+	ReasonExtraNotRequested = "extra-not-requested"
+)
+
+// NotInstalled reports whether a frontier reason means "deliberately out of the
+// install" rather than "we could not see past this".
+func NotInstalled(reason string) bool {
+	return reason == ReasonDevNotInstalled || reason == ReasonExtraNotRequested
+}
+
 // skipScope decides whether a transitive dependency of this kind actually gets
 // installed. The answer is ecosystem-specific and the two big ecosystems
 // disagree, so this cannot be one global rule.
@@ -334,7 +350,7 @@ func skipScope(eco string, s graph.Scope) (string, bool) {
 		// Dev dependencies are installed for the ROOT project only, and those
 		// arrive through the seed. A dev edge reached through a package is not
 		// installed by anyone.
-		return "dev-not-installed", true
+		return ReasonDevNotInstalled, true
 	case graph.Optional:
 		if eco == "pypi" {
 			// Python extras are opt-in: nothing installs pkg[extra] unless a
@@ -345,7 +361,7 @@ func skipScope(eco string, s graph.Scope) (string, bool) {
 			// LIMITATION: extras requested explicitly (pydantic[email]) are also
 			// skipped, because the requested extra is not yet carried along the
 			// edge. That under-reports; the frontier makes it visible.
-			return "extra-not-requested", true
+			return ReasonExtraNotRequested, true
 		}
 		// npm optionalDependencies ARE installed by default; failure to build is
 		// tolerated, but the package is fetched and its code is present.

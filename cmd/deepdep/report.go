@@ -17,6 +17,7 @@ import (
 	"github.com/jverhoeks/deepdep/internal/score"
 	"github.com/jverhoeks/deepdep/internal/store"
 	"github.com/jverhoeks/deepdep/internal/supply"
+	"github.com/jverhoeks/deepdep/internal/walk"
 )
 
 // reportCmd is the single deliverable: malicious packages, advisories and
@@ -379,9 +380,19 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 	var pkgNodes, resolved int
 	for _, n := range nodes {
 		if graph.IsPackage(n.ID) {
-			pkgNodes++
-			if n.Completeness == graph.Resolved {
-				resolved++
+			// A node we decided will not be installed is not a gap in our
+			// knowledge. A dependency's own devDependencies and a Python extra
+			// nobody asked for are frontiers because the walk correctly STOPPED
+			// there, and counting them as unread packages made coverage read as
+			// 44% for axios — where the closure is in fact complete for
+			// everything that installs. Across 131 repositories that suppressed
+			// every single grade, which said more about the metric than about
+			// any repository.
+			if !walk.NotInstalled(n.Reason) {
+				pkgNodes++
+				if n.Completeness == graph.Resolved {
+					resolved++
+				}
 			}
 		}
 		// Inferred is a SUCCESS: we named the package from a shell line. Only
@@ -627,9 +638,19 @@ func renderReport(r reportDoc) []byte {
 	}
 
 	if len(r.Coverage) > 0 {
-		fmt.Fprintf(&b, "\n4b. COVERAGE FRONTIER  (what could not be expanded)\n")
+		fmt.Fprintf(&b, "\n4b. COVERAGE FRONTIER  (where the walk stopped)\n")
+		var decided bool
 		for _, k := range sortedIntKeys(r.Coverage) {
-			fmt.Fprintf(&b, "   %-22s %d\n", k, r.Coverage[k])
+			// Two different things stop a walk, and only one of them is a gap.
+			note := ""
+			if walk.NotInstalled(k) {
+				note, decided = "  decided, not unread", true
+			}
+			fmt.Fprintf(&b, "   %-22s %d%s\n", k, r.Coverage[k], note)
+		}
+		if decided {
+			fmt.Fprintf(&b, "   marked rows are frontiers the walk stopped at ON PURPOSE — nothing\n")
+			fmt.Fprintf(&b, "   installs what is past them — so they do not count against coverage.\n")
 		}
 	}
 
