@@ -1,6 +1,7 @@
 package effective
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/jverhoeks/deepdep/internal/graph"
@@ -86,7 +87,21 @@ func splitID(i Instance) (name, version string) {
 	if idx := strings.IndexByte(s, '/'); idx > 0 {
 		name = s[idx+1:]
 	}
-	name = strings.ReplaceAll(name, "%40", "@")
+	// Both halves come out of a PURL, so both are percent-ENCODED. Decoding only
+	// "%40" in the name — which is all an npm scope needs — left every other
+	// escape in place, and a version carrying one produced a pin that could
+	// never match what a resolver reports. Cargo showed it: wasi's
+	// "0.11.1+wasi-snapshot-preview1" encodes the + as %2B, and PEP 440 local
+	// versions have the same shape.
+	//
+	// Decoding failures fall back to the raw text: a malformed id is better
+	// reported as an unmatched pin than dropped silently.
+	if d, err := url.PathUnescape(name); err == nil {
+		name = d
+	}
+	if d, err := url.PathUnescape(version); err == nil {
+		version = d
+	}
 	return name, version
 }
 
