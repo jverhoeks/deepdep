@@ -34,6 +34,7 @@ func TestCoverageIgnoresWhatWeAlreadyParseAndVendoredTrees(t *testing.T) {
 		".github/workflows/ci.yml", // real extractor exists
 		"go.mod",                   // real extractor exists (GoMod)
 		"Cargo.toml", "Cargo.lock", // real extractors exist (Cargo, CargoLock)
+		"poetry.lock",              // real extractor exists (PoetryLock)
 		"README.md", "src/main.go", // not supply chain
 		"node_modules/x/Dockerfile", // someone else's build
 		"vendor/y/Makefile",
@@ -136,7 +137,7 @@ func TestPythonEcosystemsCovered(t *testing.T) {
 	// frontier. What remains here is the Python tooling still unexpanded.
 	want := map[string]string{
 		"setup.py": "setuptools", "setup.cfg": "setuptools",
-		"poetry.lock": "poetry", "Pipfile.lock": "pipenv", "pdm.lock": "pdm",
+		"poetry.toml": "poetry", "Pipfile.lock": "pipenv", "pdm.lock": "pdm",
 		"requirements-dev.lock": "rye", "hatch.toml": "hatch",
 		"pixi.lock": "pixi", "environment.yml": "conda", "conda-lock.yml": "conda",
 		"tox.ini": "tox", "noxfile.py": "nox", ".python-version": "pyenv",

@@ -461,6 +461,7 @@ func scan(args []string) ([]byte, error) {
 	reg.Register(extract.Dockerfile{})
 	reg.Register(extract.GoMod{})
 	reg.Register(extract.Cargo{})
+	reg.Register(extract.Poetry{})
 	// Reports supply-chain files we saw but cannot expand yet. Without this a
 	// Dockerfile or ansible playbook is silently absent, which reads as "this
 	// repo has none" — a wrong answer rather than a partial one.
@@ -499,7 +500,7 @@ func scan(args []string) ([]byte, error) {
 	// A repository can carry several ecosystems at once, so every effective
 	// resolver runs and their instances are merged.
 	var inst []effective.Instance
-	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}} {
+	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}, effective.PoetryLock{}} {
 		got, err := er.Resolve(ctx, src)
 		if err != nil {
 			return nil, err
