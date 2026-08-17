@@ -42,8 +42,15 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 	// WAL lets a future `deepdep serve` read while a scan writes.
+	//
+	// busy_timeout matters as soon as an org scan runs several repositories into
+	// one database. WriteRun is a single large transaction; without a timeout a
+	// second writer gets SQLITE_BUSY immediately and the scan fails AFTER doing
+	// all of its network work. Thirty seconds is far longer than any single
+	// run's write and turns contention into a wait instead of a loss.
 	for _, p := range []string{
 		"PRAGMA journal_mode = WAL",
+		"PRAGMA busy_timeout = 30000",
 		"PRAGMA foreign_keys = ON",
 	} {
 		if _, err := db.Exec(p); err != nil {

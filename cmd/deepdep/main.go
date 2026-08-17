@@ -49,6 +49,7 @@ deepdep history [flags] <directory>   when each dependency changed, and to what
 deepdep audit   [flags] [run-id]      check stored packages against OSV advisories
 deepdep risk    [flags] [run-id]      supply-chain posture from deps.dev + OpenSSF Scorecard
 deepdep report  [flags] [run-id]      malicious + advisories + posture, layered
+deepdep org     [flags] <org|user>    scan every repository an org owns, and rank them
 deepdep tools                         supply-chain surfaces this build recognises
 
   --mode will|can        will: what installs today (lockfile pins, else max-satisfying)
@@ -95,6 +96,8 @@ func run(args []string) ([]byte, error) {
 		return riskCmd(args[1:])
 	case "report":
 		return reportCmd(args[1:])
+	case "org":
+		return orgCmd(args[1:])
 	case "-h", "--help", "help":
 		return []byte(usage), nil
 	default:

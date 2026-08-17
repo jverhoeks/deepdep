@@ -8,6 +8,8 @@ costs you.
 deepdep scan   .                     # build the closure
 deepdep report                       # risk grade, CVEs, posture, controls
 deepdep report --format json         # the same, for a pipeline
+deepdep report --format mermaid      # the surfaces, as a diagram
+deepdep org    <org|user>            # every repository an org owns, ranked
 ```
 
 Offline, from a git checkout. No daemon, no image pull, and it **never executes
@@ -235,6 +237,42 @@ MALICIOUS  MAL-2025-47141  npm/@ctrl/tinycolor@4.1.1  Malicious code in @ctrl/ti
 
 Found through a `RUN npm install` line in a Dockerfile, with no lockfile
 involved — which is why `report` queries every state by default.
+
+### A whole organisation
+
+```
+deepdep org acme                 # scan every repo, rank them worst-first
+deepdep org acme --format json   # the same, for a dashboard
+```
+
+It runs the same `scan` and the same `report` per repository and adds them up —
+never a second analysis path, so an org number can't disagree with the
+per-repository number underneath it. `deepdep report <run-id>` drills into any
+row.
+
+```
+ORG  expressjs
+6 repositories · 6 scanned · 0 failed
+
+GRADES  (median 58/100, higher is worse)
+  C     1  ██████
+  D     5  █████████████████████████████████
+
+REACH  (who can fix it)
+                          packages  affected  crit  high    rate
+  direct — manifest            108         0     0     0    0.0%
+  inherited (transitive)      4684        37     0    41    0.8%
+
+BEYOND THE MANIFEST
+  repos invoking a flagged action            6   100%
+  of those, running NO control               1   17%
+```
+
+Resumable — a repository already in the store is skipped unless `--refresh`, so
+the second run of a 50-repo org takes seconds rather than an hour. Forks and
+archived repos are excluded by default; failures are **counted and named**, never
+dropped, because a summary that silently omitted the repo whose clone timed out
+would read as a smaller, cleaner organisation than the one that exists.
 
 ### One diagram, generated
 
