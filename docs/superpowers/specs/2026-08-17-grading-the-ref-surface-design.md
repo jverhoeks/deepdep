@@ -135,6 +135,35 @@ discrimination the question asked for, and previously unreachable. The fixture's
 is 18 for controls plus 22 for the discounted HIGH: exactly half of the 45 that
 same finding would score version-matched.
 
+### Fleet delta: 184 repositories of the `schubergphilis` org
+
+Measured by re-reporting the SAME stored runs through both versions, so the
+scoring change is isolated from the walker change.
+
+| grade | before | after |
+|---|---|---|
+| A | 8 | 12 |
+| B | 2 | 9 |
+| C | 12 | 23 |
+| D | 29 | 23 |
+| F | 38 | 30 |
+| **graded** | **89** | **97** |
+| **ungraded** | **95** | **71** |
+
+**24 newly graded, 0 losing a grade** — the coverage gate is monotone, as
+designed.
+
+Of the 71 that remain ungraded, **65 have nothing to grade at all** rather than
+too little read. The old fleet line reported all 95 as "too little of the closure
+was auditable", which was the wrong sentence for two thirds of them.
+
+Seven previously-graded repositories scored WORSE, and that is the change
+working. `transit` moved C(43) → D(65) on two CI advisories that had scored zero
+before: `CVE-2026-33634` — the Trivy supply-chain compromise — in
+`aquasecurity/setup-trivy`, and an arbitrary-file-write HIGH in
+`actions/download-artifact`. A repository with 3,734 audited packages was being
+graded as though a compromised CI action were not part of its supply chain.
+
 ## Known limitation: the density curve is steep on small surfaces
 
 The vulnerability term is a severity-weighted density saturating at 0.35, tuned
@@ -151,6 +180,12 @@ which is a different decision from this one.
 - **A Terraform provider resolver.** The exact-constraint path covers pins only;
   `~> 6.0` remains an unresolvable frontier in the denominator, so a repository
   with seven or more ranged providers and six actions would still suppress.
+- **Versionless inferred packages.** The same shape, and it is what still holds
+  `claude-docker` at 43%: twelve Debian packages named from `RUN apt-get install`
+  lines, each a real dependency, none carrying a version and so none auditable.
+  They sit in the denominator permanently. Counting them there is honest — we did
+  name them and we cannot check them — but it is a ceiling on the coverage of
+  every Dockerfile-led repository.
 - **Renaming the "actions" surface.** Pre-commit hooks share the
   `pkg:github/owner/repo@ref` identity and are counted with actions throughout —
   correctly, since they are the same kind of thing — but the report calls the
