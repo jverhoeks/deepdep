@@ -1,12 +1,13 @@
 package resolve
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,12 +18,20 @@ import (
 	"github.com/jverhoeks/deepdep/internal/version"
 )
 
-// CratesResolver reads crates from a crates.io-compatible index.
+// CratesResolver reads crates from the crates.io SPARSE INDEX.
 //
-// /api/v1/crates/<name> returns every version together with its creation time
-// in one request, so listing versions costs a single call — the same property
-// that makes npm range expansion affordable. Dependencies need a second call per
-// version, like PyPI.
+// Not from /api/v1. That was the obvious choice and it is the wrong one: the API
+// rate-limits hard, and a fleet scan earned 352 nodes marked error:ratelimit
+// across three repositories — a whole Rust closure degrading to Declared with no
+// failure line anywhere, so the numbers looked real and were not. Backoff alone
+// did not fix it, because a several-hundred-crate closure cannot be paced to the
+// API's tolerance without timing the scan out. That trades a wrong answer for no
+// answer.
+//
+// The sparse index is what Cargo itself uses. It is a static CDN with no rate
+// limit, and one request returns EVERY version of a crate together with that
+// version's dependencies, yanked flag and publish time — so it also halves the
+// request count against the API's two-call shape.
 type CratesResolver struct {
 	base   string
 	cache  cache.Cache
@@ -32,23 +41,10 @@ type CratesResolver struct {
 	obs    Observations
 
 	mu   sync.Mutex
-	docs map[string]*cratesDoc
-
-	// paceMu serialises the pacing decision. crates.io asks crawlers for about
-	// one request a second and enforces it with 429s; a fleet scan runs many
-	// workers at once and earns them immediately.
-	paceMu   sync.Mutex
-	nextSlot time.Time
-	interval time.Duration
+	docs map[string][]crateLine
 }
 
-// cratesInterval is the minimum gap between requests from one process. It is
-// deliberately close to crates.io's published crawler guidance rather than as
-// fast as the server will tolerate: being throttled costs a whole repository's
-// Rust closure, and the cache makes a re-scan free anyway.
-const cratesInterval = 250 * time.Millisecond
-
-// cratesMaxAttempts bounds retries so a server that is down fails the request
+// cratesMaxAttempts bounds retries so a CDN having a bad day fails the request
 // instead of hanging the scan.
 const cratesMaxAttempts = 4
 
@@ -62,8 +58,7 @@ func NewCratesResolver(base string, c cache.Cache, hc *http.Client, maxAge time.
 	return &CratesResolver{
 		base: strings.TrimRight(base, "/"), cache: c, client: hc,
 		maxAge: maxAge, now: now,
-		docs:     map[string]*cratesDoc{},
-		interval: cratesInterval,
+		docs: map[string][]crateLine{},
 	}
 }
 
@@ -74,24 +69,46 @@ func (r *CratesResolver) WithObservations(o Observations) *CratesResolver {
 
 func (r *CratesResolver) Ecosystem() string { return "cargo" }
 
-type cratesDoc struct {
-	Versions []struct {
-		Num       string    `json:"num"`
-		CreatedAt time.Time `json:"created_at"`
-		Yanked    bool      `json:"yanked"`
-	} `json:"versions"`
-}
-
-type cratesDeps struct {
-	Dependencies []struct {
-		CrateID  string `json:"crate_id"`
+// crateLine is one line of an index file: one published version.
+type crateLine struct {
+	Name    string `json:"name"`
+	Vers    string `json:"vers"`
+	Yanked  bool   `json:"yanked"`
+	PubTime string `json:"pubtime"`
+	Deps    []struct {
+		Name     string `json:"name"`
 		Req      string `json:"req"`
 		Kind     string `json:"kind"` // normal | dev | build
 		Optional bool   `json:"optional"`
-	} `json:"dependencies"`
+		Package  string `json:"package"`
+	} `json:"deps"`
 }
 
-func (r *CratesResolver) fetchCrate(ctx context.Context, name string) (*cratesDoc, error) {
+// indexPath is the index's directory layout, keyed by name length. Getting it
+// wrong 404s every crate whose name is shorter than four characters — cc, log,
+// rand — which are among the most depended-upon crates there are.
+//
+//	1 char:  1/a
+//	2 chars: 2/cc
+//	3 chars: 3/l/log
+//	4+:      se/rd/serde
+func indexPath(name string) string {
+	n := strings.ToLower(name)
+	switch len(n) {
+	case 0:
+		return ""
+	case 1:
+		return "1/" + n
+	case 2:
+		return "2/" + n
+	case 3:
+		return "3/" + n[:1] + "/" + n
+	default:
+		return n[:2] + "/" + n[2:4] + "/" + n
+	}
+}
+
+func (r *CratesResolver) fetch(ctx context.Context, name string) ([]crateLine, error) {
 	r.mu.Lock()
 	if d, ok := r.docs[name]; ok {
 		r.mu.Unlock()
@@ -99,132 +116,122 @@ func (r *CratesResolver) fetchCrate(ctx context.Context, name string) (*cratesDo
 	}
 	r.mu.Unlock()
 
-	body, err := r.get(ctx, "/api/v1/crates/"+url.PathEscape(name))
+	p := indexPath(name)
+	if p == "" {
+		return nil, fmt.Errorf("crates.io: empty crate name")
+	}
+	body, err := r.get(ctx, "/"+p)
 	if err != nil {
 		return nil, err
 	}
-	var d cratesDoc
-	if err := json.Unmarshal(body, &d); err != nil {
-		return nil, fmt.Errorf("crates.io %s: %w", name, err)
+
+	var lines []crateLine
+	sc := bufio.NewScanner(bytes.NewReader(body))
+	sc.Buffer(make([]byte, 0, 256*1024), 8*1024*1024) // a busy crate's line is large
+	for sc.Scan() {
+		b := bytes.TrimSpace(sc.Bytes())
+		if len(b) == 0 {
+			continue
+		}
+		var l crateLine
+		if err := json.Unmarshal(b, &l); err != nil {
+			continue // one malformed line must not lose the whole crate
+		}
+		lines = append(lines, l)
 	}
 
 	r.mu.Lock()
-	r.docs[name] = &d
+	r.docs[name] = lines
 	r.mu.Unlock()
-	return &d, nil
+	return lines, nil
 }
 
 // Versions lists published versions.
 //
-// Yanked versions are EXCLUDED. A yank means the version can no longer be
-// selected by a new resolution, so including it in can-mode would report a
-// reachable state that Cargo will not produce. A lockfile that already pins a
-// yanked version still resolves through the effective layer, which reads the
-// lockfile rather than asking here.
+// Yanked versions are EXCLUDED. A yank means no new resolution can select the
+// version, so offering it in can-mode would report a state Cargo will not
+// produce. A lockfile already pinning a yanked version still resolves, because
+// that goes through the effective layer rather than asking here.
 func (r *CratesResolver) Versions(ctx context.Context, name string, _ bool) ([]VersionInfo, error) {
-	d, err := r.fetchCrate(ctx, name)
+	lines, err := r.fetch(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	var out []VersionInfo
-	for _, v := range d.Versions {
-		if v.Yanked {
+	for _, l := range lines {
+		if l.Yanked {
 			continue
 		}
-		pv, err := version.Cargo.Parse(v.Num)
+		pv, err := version.Cargo.Parse(l.Vers)
 		if err != nil {
 			continue
 		}
-		out = append(out, VersionInfo{Version: pv, PublishedAt: v.CreatedAt})
+		info := VersionInfo{Version: pv}
+		// pubtime is what makes --as-of work for Cargo. It is a recent addition
+		// to the index and older lines omit it; a zero time means "unknown",
+		// which callers already treat as "cannot filter".
+		if l.PubTime != "" {
+			if t, err := time.Parse(time.RFC3339, l.PubTime); err == nil {
+				info.PublishedAt = t
+			}
+		}
+		out = append(out, info)
 	}
 	return out, nil
 }
 
-// Requirements reads one version's dependencies.
+// Requirements reads one version's dependencies out of the index line already
+// fetched for Versions — so it costs no request at all.
 //
 // Dev dependencies are excluded here and ONLY here. A crate's own dev
-// dependencies are used to test that crate and are never built by a consumer,
-// so walking them would add a large tree that nobody installs. This is not a
-// narrowing of the "everything reachable" decision: that decision governs the
-// scanned repository's own manifest, where dev dependencies really are built.
+// dependencies build its tests and are never built by a consumer, so walking
+// them adds a large tree nobody installs. That is not a narrowing of the
+// "everything reachable" decision, which governs the scanned repository's own
+// manifest, where dev dependencies really are built.
 func (r *CratesResolver) Requirements(ctx context.Context, name string, v version.Version) ([]Requirement, error) {
-	body, err := r.get(ctx, "/api/v1/crates/"+url.PathEscape(name)+"/"+url.PathEscape(v.String())+"/dependencies")
+	lines, err := r.fetch(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	var d cratesDeps
-	if err := json.Unmarshal(body, &d); err != nil {
-		return nil, fmt.Errorf("crates.io %s@%s: %w", name, v.String(), err)
-	}
-
-	var out []Requirement
-	for _, dep := range d.Dependencies {
-		if dep.Kind == "dev" {
+	for _, l := range lines {
+		if l.Vers != v.String() {
 			continue
 		}
-		scope := graph.Prod
-		if dep.Optional {
-			scope = graph.Optional
+		var out []Requirement
+		for _, d := range l.Deps {
+			if d.Kind == "dev" {
+				continue
+			}
+			// `package` carries the real crate when a dependency was renamed;
+			// that is what is fetched and what advisories attach to.
+			target := d.Name
+			if d.Package != "" {
+				target = d.Package
+			}
+			scope := graph.Prod
+			if d.Optional {
+				scope = graph.Optional
+			}
+			out = append(out, Requirement{Name: target, Constraint: d.Req, Scope: scope})
 		}
-		out = append(out, Requirement{
-			Name:       dep.CrateID,
-			Constraint: dep.Req,
-			Scope:      scope,
-		})
+		return out, nil
 	}
-	return out, nil
+	return nil, nil
 }
 
-// pace blocks until this process may make its next request.
+// get fetches an index path.
 //
-// The slot is claimed under the lock and the SLEEP happens outside it, so
-// concurrent callers queue up at one-per-interval instead of all waking
-// together and firing at once.
-func (r *CratesResolver) pace(ctx context.Context) error {
-	r.paceMu.Lock()
-	now := time.Now()
-	slot := r.nextSlot
-	if slot.Before(now) {
-		slot = now
-	}
-	r.nextSlot = slot.Add(r.interval)
-	r.paceMu.Unlock()
-
-	d := time.Until(slot)
-	if d <= 0 {
-		return nil
-	}
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-t.C:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-// delayRequests pushes every pending slot back, so one 429 slows the whole
-// process rather than only the request that happened to receive it.
-func (r *CratesResolver) delayRequests(d time.Duration) {
-	r.paceMu.Lock()
-	defer r.paceMu.Unlock()
-	if until := time.Now().Add(d); until.After(r.nextSlot) {
-		r.nextSlot = until
-	}
-}
-
+// Index files are MUTABLE — a new release appends a line — so they are not put
+// in the immutable content cache. The CDN's own caching plus the per-run memo
+// above is what keeps this cheap.
 func (r *CratesResolver) get(ctx context.Context, path string) ([]byte, error) {
 	var lastStatus string
 	for attempt := 0; attempt < cratesMaxAttempts; attempt++ {
-		if err := r.pace(ctx); err != nil {
-			return nil, err
-		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.base+path, nil)
 		if err != nil {
 			return nil, err
 		}
-		// crates.io requires a descriptive User-Agent and returns 403 without one.
+		// crates.io asks for a descriptive User-Agent and can refuse without one.
 		req.Header.Set("User-Agent", "deepdep (https://github.com/jverhoeks/deepdep)")
 		resp, err := r.client.Do(req)
 		if err != nil {
@@ -232,29 +239,29 @@ func (r *CratesResolver) get(ctx context.Context, path string) ([]byte, error) {
 		}
 
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
-			// Honour Retry-After when given; otherwise back off geometrically.
-			// A 429 surfaced as an error marks the node "error:ratelimit" and a
-			// whole Rust repository degrades to Declared with no failure line —
-			// numbers that look real and are not.
-			wait := retryAfter(resp.Header.Get("Retry-After"), r.interval<<attempt)
+			wait := retryAfter(resp.Header.Get("Retry-After"), time.Duration(1<<attempt)*250*time.Millisecond)
 			resp.Body.Close()
 			lastStatus = resp.Status
-			r.delayRequests(wait)
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
 			return nil, fmt.Errorf("crates.io %s: %s", path, resp.Status)
 		}
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 		resp.Body.Close()
 		return body, err
 	}
 	return nil, fmt.Errorf("crates.io %s: %s after %d attempts", path, lastStatus, cratesMaxAttempts)
 }
 
-// retryAfter reads the header, which crates.io sends as whole seconds. A missing
-// or unreadable value falls back to the caller's computed backoff.
+// retryAfter reads the header, which is sent as whole seconds. A missing or
+// unreadable value falls back to the caller's computed backoff.
 func retryAfter(h string, fallback time.Duration) time.Duration {
 	if h == "" {
 		return fallback

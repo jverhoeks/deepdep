@@ -28,7 +28,7 @@ func TestCargoBareVersionIsCaret(t *testing.T) {
 		want bool
 	}{
 		{"1.0.0", "1.0.0", true},
-		{"1.5.0", "1.0.0", true},  // a caret, so later minors match
+		{"1.5.0", "1.0.0", true}, // a caret, so later minors match
 		{"1.0.9", "1.0.0", true},
 		{"2.0.0", "1.0.0", false}, // but not the next major
 		{"0.9.0", "1.0.0", false},
@@ -99,11 +99,18 @@ func TestCargoComparatorsWildcardsAndConjunctions(t *testing.T) {
 		{"9.9.9", "*", true},
 		{"1.5.0", "1.*", true},
 		{"2.0.0", "1.*", false},
+		// Any number of components can be starred; "3.*.*" is real and a
+		// one-suffix trim left "3.*" behind, which failed to parse at all.
+		{"3.5.0", "3.*.*", true},
+		{"4.0.0", "3.*.*", false},
+		{"1.2.9", "1.2.*", true},
+		{"1.3.0", "1.2.*", false},
+		{"9.9.9", "*.*", true},
 		{"1.2.3", "=1.2.3", true},
 		{"1.2.4", "=1.2.3", false},
 		{"1.5.0", ">=1.2.3", true},
 		{"1.0.0", ">=1.2.3", false},
-		{"1.5.0", ">=1.2.3, <2.0.0", true},  // comma is AND
+		{"1.5.0", ">=1.2.3, <2.0.0", true}, // comma is AND
 		{"2.5.0", ">=1.2.3, <2.0.0", false},
 	}
 	for _, c := range cases {

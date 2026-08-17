@@ -212,10 +212,12 @@ func (s cargoScheme) parseOne(part string) (cargoBounds, error) {
 	case strings.HasPrefix(part, "^"):
 		return s.caret(strings.TrimSpace(part[1:]))
 
-	case strings.HasSuffix(part, ".*"), strings.HasSuffix(part, ".x"):
-		// 1.* and 1.2.* bound the last given component, exactly like tilde on a
-		// partial version.
-		return s.tilde(strings.TrimSuffix(strings.TrimSuffix(part, ".*"), ".x"))
+	case strings.ContainsAny(part, "*x"):
+		// A wildcard bounds whatever was written to its LEFT, exactly like tilde
+		// on a partial version. Any number of components can be starred —
+		// "3.*.*" appears in the wild — so truncate at the FIRST wildcard rather
+		// than trimming one suffix, which left "3.*" behind and failed to parse.
+		return s.wildcard(part)
 
 	default:
 		// A bare version is a caret. This is the default that makes Cargo
@@ -265,6 +267,23 @@ func (s cargoScheme) caret(str string) (cargoBounds, error) {
 	}
 	hi.raw = hi.canonical()
 	return cargoBounds{lo: &lo, loClosed: true, hi: &hi}, nil
+}
+
+// wildcard keeps the numeric components up to the first star and bounds by the
+// last of them. "3.*.*" and "3.*" both mean >=3.0.0, <4.0.0; a bare "*" means
+// anything.
+func (s cargoScheme) wildcard(part string) (cargoBounds, error) {
+	var kept []string
+	for _, c := range strings.Split(strings.TrimSpace(part), ".") {
+		if c == "*" || c == "x" || c == "X" || c == "" {
+			break
+		}
+		kept = append(kept, c)
+	}
+	if len(kept) == 0 {
+		return cargoBounds{}, nil // "*.*" is still just anything
+	}
+	return s.tilde(strings.Join(kept, "."))
 }
 
 // tilde pins every component to the LEFT of the last one written: ~1.2.3 and
