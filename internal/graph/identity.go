@@ -114,3 +114,24 @@ func IsPackage(id NodeID) bool {
 	}
 	return packageTypes[typ]
 }
+
+// IsAction reports whether an id denotes a dependency pinned by GIT REF rather
+// than by published version — a GitHub Action, and a pre-commit hook repository,
+// which share the pkg:github/owner/repo@ref shape because they are the same kind
+// of thing: someone else's repository, executed by this one at a ref it names.
+//
+// Deliberately NOT a package type. No registry publishes these and no PURL query
+// reaches them; OSV answers for them by name alone. But they ARE a graded
+// surface, and for the 17% of repositories that have no packages at all they are
+// the ONLY one — which is why they need a name of their own rather than being
+// counted as packages or left out of the arithmetic entirely.
+func IsAction(id NodeID) bool {
+	s := strings.TrimPrefix(string(id), "pkg:github/")
+	if s == string(id) {
+		return false
+	}
+	if i := strings.IndexAny(s, "@#?"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.Contains(s, "/")
+}

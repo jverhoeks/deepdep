@@ -297,19 +297,31 @@ type reportDoc struct {
 	// and the second question is the one a maintainer acts on first.
 	Exposure []exposureRow `json:"exposure"`
 	// ActionAdvisories are a weaker claim than Advisory and are kept apart for
-	// that reason alone — see advisory.ActionAdvisory. They are excluded from
-	// the score deliberately: an unverified ref must not move a grade.
-	ActionsChecked     int                       `json:"actions_checked"`
-	ActionAdvisories   []advisory.ActionAdvisory `json:"action_advisories"`
-	Score              score.Result              `json:"score"`
-	PackageNodes       int                       `json:"package_nodes"`
-	Auditable          float64                   `json:"auditable_share"`
-	Controls           []controls.Control        `json:"controls"`
-	ControlsAssessable bool                      `json:"controls_assessable"`
-	MissingControls    []controls.Kind           `json:"controls_missing"`
-	Coverage           map[string]int            `json:"coverage_frontier"`
-	Notes              map[string]string         `json:"notes"`
-	Sources            map[string]string         `json:"sources"`
+	// that reason alone — see advisory.ActionAdvisory.
+	//
+	// They now reach the score at score.ActionClaimWeight rather than being
+	// excluded from it. The old rule — an unverified ref must not move a grade —
+	// was right about the strength of the claim and wrong about the consequence:
+	// for the 17% of repositories with no packages at all, excluding refs meant
+	// there was nothing left to grade, so a repository with a HIGH advisory in a
+	// pinned action scored exactly like one with none. Discounted and visible
+	// beats absent.
+	ActionsChecked   int                       `json:"actions_checked"`
+	ActionAdvisories []advisory.ActionAdvisory `json:"action_advisories"`
+	// ActionNodes is the ref surface's size and ActionsMoving how many of those
+	// refs are a branch or tag rather than a SHA.
+	ActionNodes        int                `json:"action_nodes"`
+	ActionsMoving      int                `json:"actions_moving"`
+	Score              score.Result       `json:"score"`
+	PackageNodes       int                `json:"package_nodes"`
+	Surface            int                `json:"gradable_surface"`
+	Auditable          float64            `json:"auditable_share"`
+	Controls           []controls.Control `json:"controls"`
+	ControlsAssessable bool               `json:"controls_assessable"`
+	MissingControls    []controls.Kind    `json:"controls_missing"`
+	Coverage           map[string]int     `json:"coverage_frontier"`
+	Notes              map[string]string  `json:"notes"`
+	Sources            map[string]string  `json:"sources"`
 }
 
 type finding struct {
@@ -501,6 +513,26 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 	// zero findings would read as a clean bill.
 	var pkgNodes, resolved int
 	for _, n := range nodes {
+		// The ref surface — CI actions and pre-commit hooks — is counted in BOTH
+		// halves of coverage. Every one of them is auditable by construction: OSV
+		// answers for an action by name, so naming it is all that is required, and
+		// ActionTargets returns them all.
+		//
+		// It therefore only ever raises coverage, and no repository that is graded
+		// today can lose its grade to this. What it fixes is the opposite case: a
+		// repository whose entire supply chain is six pinned actions had a
+		// coverage of 0/0, was told it was too sparse to grade, and had in fact
+		// been read completely.
+		//
+		// No `continue`: an action pinned to a branch is still a coverage-frontier
+		// entry below, and dropping out of the loop here silently emptied the
+		// unpinned-ref bucket that the hygiene term now reads.
+		if graph.IsAction(n.ID) {
+			r.ActionNodes++
+			if n.Reason == graph.ReasonUnpinnedRef {
+				r.ActionsMoving++
+			}
+		}
 		if graph.IsPackage(n.ID) {
 			// A node we decided will not be installed is not a gap in our
 			// knowledge. A dependency's own devDependencies and a Python extra
@@ -525,8 +557,11 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 		}
 	}
 	r.PackageNodes = pkgNodes
-	if pkgNodes > 0 {
-		r.Auditable = float64(len(targets)) / float64(pkgNodes)
+	// The denominator is the whole gradable surface and the numerator is what was
+	// actually audited on it. Actions appear in both because all of them are.
+	r.Surface = pkgNodes + r.ActionNodes
+	if r.Surface > 0 {
+		r.Auditable = float64(len(targets)+r.ActionNodes) / float64(r.Surface)
 		if r.Auditable > 1 {
 			r.Auditable = 1
 		}
@@ -669,7 +704,8 @@ func renderReport(r reportDoc) []byte {
 		}
 		fmt.Fprintf(&b, "  %-17s %-52s %+5.0f / %d\n", t.Name, truncate(t.Detail, 52), t.Points, t.Max)
 	}
-	fmt.Fprintf(&b, "  %d%% of package nodes were auditable\n\n", int(r.Auditable*100+0.5))
+	fmt.Fprintf(&b, "  %d%% of %d dependencies were auditable (%d packages, %d refs)\n\n",
+		int(r.Auditable*100+0.5), r.Surface, r.PackageNodes, r.ActionNodes)
 
 	fmt.Fprintf(&b, "1. MALICIOUS PACKAGES  (%d)\n", len(r.Malicious))
 	if len(r.Malicious) == 0 {
@@ -856,13 +892,37 @@ func computeScore(r reportDoc, pins map[string]int) score.Result {
 	in := score.Input{
 		Checked:            r.Checked,
 		Malicious:          len(r.Malicious),
+		ActionsChecked:     r.ActionsChecked,
 		Floating:           pins["floating"],
 		Pinned:             pins["pinned"],
 		Locked:             pins["locked"],
+		ActionsFloating:    r.ActionsMoving,
+		ActionsPinned:      r.ActionNodes - r.ActionsMoving,
 		ControlsMissing:    len(r.MissingControls),
 		ControlsTotal:      len(controls.Kinds),
 		ControlsAssessable: r.ControlsAssessable,
 		Auditable:          r.Auditable,
+		Surface:            r.Surface,
+	}
+	// One action can carry several advisories; the severity counts are per REF,
+	// matching how the package counts are per version. Counting rows instead
+	// would let one much-discussed action outweigh a dozen quiet ones.
+	worst := map[graph.NodeID]string{}
+	for _, a := range r.ActionAdvisories {
+		sev := a.Advisory.SeverityLabel()
+		if severityRank(sev) > severityRank(worst[a.NodeID]) {
+			worst[a.NodeID] = sev
+		}
+	}
+	for _, sev := range worst {
+		switch sev {
+		case "CRITICAL":
+			in.ActionCritical++
+		case "HIGH":
+			in.ActionHigh++
+		case "MODERATE":
+			in.ActionModerate++
+		}
 	}
 	for _, c := range r.BySev {
 		switch c.Name {

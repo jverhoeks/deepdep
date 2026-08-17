@@ -74,7 +74,7 @@ func TestTerraformConstraints(t *testing.T) {
 		{"0.9.0", ">= 1.0", false},
 		{"1.5.0", ">= 1.0, < 2.0", true},
 		{"2.0.0", ">= 1.0, < 2.0", false},
-		{"5.31.0", "5.31.0", true},  // a bare version is EXACT in Terraform
+		{"5.31.0", "5.31.0", true}, // a bare version is EXACT in Terraform
 		{"5.31.1", "5.31.0", false},
 		{"5.31.0", "= 5.31.0", true},
 		{"5.31.0", "!= 5.31.0", false},
@@ -111,5 +111,34 @@ func TestTerraformVersionsHaveNoVPrefix(t *testing.T) {
 	}
 	if v.String() != "5.31.0" {
 		t.Errorf("String() = %q, want 5.31.0 with no v", v.String())
+	}
+}
+
+// An exact constraint is a complete answer without a registry: it says which
+// version, and that version can be sent to an advisory database. Terraform has
+// no resolver in this tool, so without this every declared provider sat in the
+// auditable denominator and could never reach the numerator.
+func TestTerraformExactNamesItsVersion(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"3.5.1", "3.5.1"},   // bare is exact in Terraform, unlike Cargo
+		{"= 3.5.1", "3.5.1"}, // the operator is not part of the version
+		{"=3.5.1", "3.5.1"},  // spacing is optional
+		{" 3.5.1 ", "3.5.1"}, //
+		{"v3.5.1", "3.5.1"},  // providers carry no v; strip it rather than mint a twin
+	} {
+		got, ok := version.Terraform.(version.ExactVersion).Exact(c.in)
+		if !ok || got != c.want {
+			t.Errorf("Exact(%q) = %q,%v; want %q,true", c.in, got, ok, c.want)
+		}
+	}
+}
+
+// Anything that admits more than one version must refuse, or the walker would
+// mint a node for a version nobody pinned.
+func TestTerraformExactRefusesRanges(t *testing.T) {
+	for _, in := range []string{"~> 3.5", ">= 3.5", "> 3.0, < 4.0", "!= 3.5.1", "", "3.*"} {
+		if got, ok := version.Terraform.(version.ExactVersion).Exact(in); ok {
+			t.Errorf("Exact(%q) = %q,true; a range names no single version", in, got)
+		}
 	}
 }

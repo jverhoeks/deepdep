@@ -186,8 +186,20 @@ func (w *Walker) expandOne(ctx context.Context, g *graph.Graph, mu *sync.Mutex,
 
 	res, ok := w.resolvers[r.eco]
 	if !ok {
+		// No resolver, but an EXACT constraint does not need one: it already names
+		// the version, and a named version is auditable even when nothing can list
+		// what else exists. Terraform is the case that forced this — its providers
+		// have no resolver, so every declared one sat in the auditable denominator
+		// and could never reach the numerator, suppressing the grade of every
+		// Terraform repository on the reading that we had failed to read them.
+		//
+		// The closure still stops here: knowing the version is not knowing its
+		// dependencies. That is a resolved LEAF, not a frontier, and the two are
+		// different claims.
 		mu.Lock()
-		w.markDeclared(g, r, graph.ReasonOffline)
+		if !w.markExactLeaf(g, r) {
+			w.markDeclared(g, r, graph.ReasonOffline)
+		}
 		mu.Unlock()
 		return nil, nil
 	}
@@ -423,6 +435,38 @@ func publishedOf(infos []resolve.VersionInfo, v version.Version) time.Time {
 }
 
 // markDeclared records an unexpanded requirement as a frontier node.
+// markExactLeaf records a requirement whose constraint names one version, for an
+// ecosystem with no resolver behind it. It reports whether it did.
+//
+// The version is read back out of the SCHEME rather than parsed here. "= 3.5.1",
+// "==3.5.1" and "3.5.1" are three ecosystems' ways of writing one pin, and the
+// walker knowing which is which is the same mistake as synthesising a constraint
+// string to apply a lockfile pin.
+func (w *Walker) markExactLeaf(g *graph.Graph, r req) bool {
+	scheme, ok := w.schemes[r.eco]
+	if !ok {
+		return false
+	}
+	ex, ok := scheme.(version.ExactVersion)
+	if !ok {
+		return false
+	}
+	v, ok := ex.Exact(r.spec)
+	if !ok {
+		return false
+	}
+	id, err := graph.NodeIDFor(r.eco, r.name, v)
+	if err != nil {
+		return false
+	}
+	// Resolved, with no PublishedAt: we know WHICH version without knowing when
+	// it shipped, and inventing a timestamp would corrupt --as-of filtering.
+	g.Add(graph.Node{ID: id, Ecosystem: r.eco, Name: r.name, Version: v,
+		Completeness: graph.Resolved})
+	g.Link(graph.Edge{From: r.from, To: id, Kind: graph.DependsOn, Spec: r.spec, Scope: r.scope})
+	return true
+}
+
 func (w *Walker) markDeclared(g *graph.Graph, r req, reason string) {
 	id, err := graph.NodeIDFor(r.eco, r.name, "")
 	if err != nil {

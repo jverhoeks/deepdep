@@ -95,6 +95,26 @@ func (terraformScheme) IsExact(constraint string) bool {
 	return err == nil
 }
 
+// Exact names the version an exact constraint denotes, implementing
+// ExactVersion.
+//
+// Terraform has no provider resolver in this tool, so a declared provider is
+// normally an unresolved frontier — it sits in the auditable DENOMINATOR and can
+// never reach the numerator, which suppressed the grade of every Terraform
+// repository. A bare or "=" constraint needs no registry to resolve: it already
+// says which version, and that version can be sent to an advisory database.
+func (terraformScheme) Exact(constraint string) (string, bool) {
+	if !Terraform.IsExact(constraint) {
+		return "", false
+	}
+	c := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(constraint), "="))
+	v, err := Terraform.Parse(c)
+	if err != nil {
+		return "", false
+	}
+	return v.String(), true
+}
+
 // terraformTerm is one comparator plus its version.
 type terraformTerm struct {
 	op string // "", "=", "!=", ">", ">=", "<", "<=", "~>"
