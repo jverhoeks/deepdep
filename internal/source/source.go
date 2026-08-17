@@ -34,20 +34,28 @@ type Source interface {
 	Repo() string
 }
 
+// Token is a forge credential used to clone repositories that are not public.
+//
+// It is a named type rather than a fifth bare string so that it cannot be passed
+// in the wrong position, and it is threaded in from the caller rather than read
+// from the environment here: knowing where credentials come from is the command
+// layer's job, and a package that walks files should not go looking for one.
+type Token string
+
 // Open resolves a target. An existing path on disk is walked directly;
 // anything else is treated as a remote URL and cloned.
 //
 // at is a git revision (tag, SHA or date). When set, the clone must carry full
 // history — a shallow clone cannot reach past commits — so it changes how the
 // remote is fetched, not just how it is read.
-func Open(ctx context.Context, target, cacheDir, at string) (Source, error) {
+func Open(ctx context.Context, target, cacheDir, at string, tok Token) (Source, error) {
 	if fi, err := os.Stat(target); err == nil && fi.IsDir() {
 		return openLocal(target, at)
 	}
 	if at != "" && target == "" {
 		return nil, fmt.Errorf("--at requires a target")
 	}
-	return openRemote(ctx, target, cacheDir, at)
+	return openRemote(ctx, target, cacheDir, at, tok)
 }
 
 // staticSource is an in-memory tree. Downstream packages (walk, effective,

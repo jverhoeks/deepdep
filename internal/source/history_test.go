@@ -48,7 +48,7 @@ func TestReadsHistoricalCommitWithoutCheckout(t *testing.T) {
 
 	read := func(at string) string {
 		t.Helper()
-		s, err := source.Open(context.Background(), dir, t.TempDir(), at)
+		s, err := source.Open(context.Background(), dir, t.TempDir(), at, "")
 		if err != nil {
 			t.Fatalf("Open(at=%q): %v", at, err)
 		}
@@ -100,7 +100,7 @@ func TestRefIsTheResolvedCommitSHA(t *testing.T) {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	s, err := source.Open(context.Background(), dir, t.TempDir(), "")
+	s, err := source.Open(context.Background(), dir, t.TempDir(), "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -38,6 +38,39 @@ const schemaVersion = 4
 
 type Store struct{ db *sql.DB }
 
+// dsn builds the connection string, carrying the pragmas as DSN parameters so
+// the driver applies them to EVERY connection it opens.
+//
+// They cannot be set with db.Exec after the fact. *sql.DB is a pool, so one Exec
+// configures whichever connection it borrowed and leaves the rest on the
+// defaults. That made busy_timeout a coin flip — an org scan writing several
+// repositories into one database died with SQLITE_BUSY after all its cloning and
+// registry traffic was already spent — and, more quietly, meant foreign keys
+// were enforced on some connections and not others.
+//
+//   - WAL lets a future `deepdep serve` read while a scan writes.
+//   - busy_timeout turns contention into a wait instead of a loss. Thirty
+//     seconds is far longer than any single run's write transaction.
+//   - foreign_keys is off by default in SQLite and has to be asked for.
+//
+// The path goes in as a file: URI because a --db path is user input: SQLite
+// splits a plain DSN at the first '?', which would silently open a DIFFERENT
+// database than the one asked for.
+func dsn(path string) string {
+	return "file:" + uriPath(path) +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=busy_timeout(30000)" +
+		"&_pragma=foreign_keys(1)"
+}
+
+// uriPath percent-encodes the three characters that would otherwise end the path
+// early or be read as a parameter. '%' goes first or it would corrupt the
+// escapes written after it.
+func uriPath(p string) string {
+	r := strings.NewReplacer("%", "%25", "?", "%3f", "#", "%23")
+	return r.Replace(p)
+}
+
 func Open(path string) (*Store, error) {
 	// Open already creates the database file and its schema, so it owns creating
 	// the directory they live in too. Leaving that to the caller meant only the
@@ -47,29 +80,17 @@ func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
-	// WAL lets a future `deepdep serve` read while a scan writes.
-	//
-	// busy_timeout matters as soon as an org scan runs several repositories into
-	// one database. WriteRun is a single large transaction; without a timeout a
-	// second writer gets SQLITE_BUSY immediately and the scan fails AFTER doing
-	// all of its network work. Thirty seconds is far longer than any single
-	// run's write and turns contention into a wait instead of a loss.
-	for _, p := range []string{
-		"PRAGMA journal_mode = WAL",
-		"PRAGMA busy_timeout = 30000",
-		"PRAGMA foreign_keys = ON",
-	} {
-		// sql.Open is lazy, so this is where the file is really opened and where a
-		// bad path first shows itself. Name the path: "unable to open database
-		// file (14)" on its own says nothing about which file it could not open.
-		if _, err := db.Exec(p); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("open %s: %w", path, err)
-		}
+	// sql.Open is lazy, so nothing has touched the file yet. Ping here so a bad
+	// path fails as "open <path>: ..." rather than surfacing later from whichever
+	// query happened to run first. "unable to open database file (14)" on its own
+	// does not say which file it meant.
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {

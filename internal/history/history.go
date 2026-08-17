@@ -202,7 +202,9 @@ func Changes(ctx context.Context, dir, cacheDir string) ([]Change, error) {
 }
 
 func snapshotAt(ctx context.Context, dir, cacheDir, sha string) (*snapshot, error) {
-	src, err := source.Open(ctx, dir, cacheDir, sha)
+	// dir is a directory already on disk — history walks a clone it was handed,
+	// so there is nothing to authenticate against.
+	src, err := source.Open(ctx, dir, cacheDir, sha, "")
 	if err != nil {
 		return nil, err
 	}

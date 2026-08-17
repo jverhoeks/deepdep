@@ -23,6 +23,7 @@ import (
 	"github.com/jverhoeks/deepdep/internal/effective"
 	"github.com/jverhoeks/deepdep/internal/emit"
 	"github.com/jverhoeks/deepdep/internal/extract"
+	"github.com/jverhoeks/deepdep/internal/forge"
 	"github.com/jverhoeks/deepdep/internal/graph"
 	"github.com/jverhoeks/deepdep/internal/history"
 	"github.com/jverhoeks/deepdep/internal/resolve"
@@ -421,7 +422,9 @@ func scan(args []string) ([]byte, error) {
 	// bounded by a clock that has already run out.
 	cloneCtx, cancelClone := context.WithTimeout(context.Background(), *timeout)
 	defer cancelClone()
-	src, err := source.Open(cloneCtx, target, *cacheDir, *at)
+	// The same credential that lists an organisation's private repositories is
+	// what clones them; without it `org` fails every private repo at clone time.
+	src, err := source.Open(cloneCtx, target, *cacheDir, *at, source.Token(forge.Token()))
 	if err != nil {
 		return nil, err
 	}

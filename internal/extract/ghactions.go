@@ -86,7 +86,7 @@ func (GHActions) Extract(_ context.Context, f source.File) ([]graph.Edge, []grap
 	for _, name := range sortedJobs(wf) {
 		job := wf.Jobs[name]
 
-		if job.Uses != "" {
+		if job.Uses != "" && !isLocalUses(job.Uses) {
 			n, err := usesNode(job.Uses)
 			if err != nil {
 				return nil, nil, err
@@ -103,6 +103,9 @@ func (GHActions) Extract(_ context.Context, f source.File) ([]graph.Edge, []grap
 		for _, s := range job.Steps {
 			switch {
 			case s.Uses != "":
+				if isLocalUses(s.Uses) {
+					continue
+				}
 				if strings.HasPrefix(s.Uses, "docker://") {
 					n, err := imageNode(strings.TrimPrefix(s.Uses, "docker://"))
 					if err != nil {
@@ -137,6 +140,18 @@ func sortedJobs(wf workflow) []string {
 	return out
 }
 
+// isLocalUses reports a `uses:` that points inside the repository being scanned
+// rather than at anyone else's code — `./`, `./.github/actions/setup`, `../x`.
+//
+// It is not a dependency and must not become a node. Left alone it was split as
+// `org/repo`, giving org "." and an EMPTY repo name; the nameless purl that
+// produced failed to parse and took the whole repository's scan with it. What
+// the local action itself depends on is extracted from its own action.yml, so
+// nothing is lost by skipping the reference.
+func isLocalUses(uses string) bool {
+	return strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../")
+}
+
 // usesNode parses `org/repo@ref` and `org/repo/path/to/workflow.yml@ref`.
 //
 // The path becomes a PURL subpath rather than being discarded: two reusable
@@ -149,6 +164,12 @@ func usesNode(uses string) (graph.Node, error) {
 		return graph.Node{}, fmt.Errorf("unrecognised uses: %q", uses)
 	}
 	org, repo := parts[0], parts[1]
+	// A purl with no name is unparseable, and the failure surfaces far from here
+	// as "purl is missing name" with nothing to say which workflow caused it.
+	// Refuse at the source, where the offending string is still in hand.
+	if org == "" || repo == "" {
+		return graph.Node{}, fmt.Errorf("unrecognised uses: %q", uses)
+	}
 	subpath := strings.Join(parts[2:], "/")
 
 	p := packageurl.NewPackageURL(packageurl.TypeGithub, org, repo, ref, nil, subpath)
