@@ -272,8 +272,98 @@ func queryFor(id graph.NodeID) batchQuery {
 		q.Package.Ecosystem = ActionsEcosystem
 		return q
 	}
+	// A Terraform provider is distributed as a plugin binary but developed as a
+	// Go repository, and that is the only name OSV files its advisories under.
+	// The node keeps its own honest identity; only the QUERY is translated.
+	if purl, ok := TerraformProviderPURL(id); ok {
+		q.Package.PURL = purl
+		return q
+	}
+	if purl, ok := TerraformCLIPURL(id); ok {
+		q.Package.PURL = purl
+		return q
+	}
 	q.Package.PURL = string(id)
 	return q
+}
+
+// TerraformCLIPURL maps the Terraform binary's node id to the Go module its
+// advisories are filed against.
+//
+// The node is pkg:terraform-cli rather than pkg:golang on purpose. Identifying
+// it as a Go module made the walker expand Terraform's own 2,000-module build
+// tree — dependencies this repository neither chose nor can change. Only the
+// query is translated.
+func TerraformCLIPURL(id graph.NodeID) (string, bool) {
+	s := string(id)
+	const prefix = "pkg:terraform-cli/"
+	if !strings.HasPrefix(s, prefix) {
+		return "", false
+	}
+	version := ""
+	if i := strings.Index(s, "@"); i >= 0 {
+		version = s[i+1:]
+	}
+	if i := strings.IndexAny(version, "?#"); i >= 0 {
+		version = version[:i]
+	}
+	out := "pkg:golang/github.com/hashicorp/terraform"
+	if version != "" {
+		if !strings.HasPrefix(version, "v") {
+			version = "v" + version
+		}
+		out += "@" + version
+	}
+	return out, true
+}
+
+// TerraformProviderPURL maps a Terraform provider node id to the Go module PURL
+// its advisories are filed against.
+//
+// A provider named hashicorp/aws is developed as
+// github.com/hashicorp/terraform-provider-aws. Coverage is real but thin — aws
+// and vault have advisories, google and kubernetes have none — so this widens
+// what can be found without ever pretending the node was a Go module: identity
+// stays pkg:terraform, because that is what the configuration declares, what the
+// registry serves and what the lockfile pins.
+//
+// Terraform's own version needs no mapping: it is already identified as
+// github.com/hashicorp/terraform, which IS what OSV knows.
+func TerraformProviderPURL(id graph.NodeID) (string, bool) {
+	s := string(id)
+	const prefix = "pkg:terraform/"
+	if !strings.HasPrefix(s, prefix) {
+		return "", false
+	}
+	s = strings.TrimPrefix(s, prefix)
+
+	version := ""
+	if i := strings.Index(s, "@"); i >= 0 {
+		version, s = s[i+1:], s[:i]
+	}
+	if i := strings.IndexAny(version, "?#"); i >= 0 {
+		version = version[:i]
+	}
+	if i := strings.IndexAny(s, "?#"); i >= 0 {
+		s = s[:i]
+	}
+
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", false
+	}
+	module := "github.com/" + parts[0] + "/terraform-provider-" + parts[1]
+
+	// Go module tags carry a leading v; Terraform versions never do. Querying
+	// without it finds nothing for a version-specific lookup.
+	if version != "" && !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	out := "pkg:golang/" + module
+	if version != "" {
+		out += "@" + version
+	}
+	return out, true
 }
 
 // ActionName recovers `owner/repo` from a GitHub Actions node id, which is what

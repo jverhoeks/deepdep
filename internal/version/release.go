@@ -95,3 +95,22 @@ func (r Release) TildeUpper() Release {
 	}
 	return Release{Major: r.Major, Minor: r.Minor + 1, Given: 3}
 }
+
+// PessimisticUpper returns the exclusive upper bound of Terraform's and Ruby's
+// "~>" operator, which allows only the RIGHT-MOST written component to
+// increment. The bound therefore bumps the component to its left:
+//
+//	~> 1.2.0 -> <1.3.0      ~> 1.2 -> <2.0.0      ~> 1 -> <2.0.0
+//
+// This is NOT TildeUpper, though the operators look alike. Cargo and Poetry read
+// ~1.2 as <1.3.0 where Terraform reads ~> 1.2 as <2.0.0, so sharing one method
+// would hand one ecosystem the other's ranges — a whole major series wide, and
+// silent.
+func (r Release) PessimisticUpper() Release {
+	switch r.Given {
+	case 1, 2:
+		return Release{Major: r.Major + 1, Given: 3}
+	default:
+		return Release{Major: r.Major, Minor: r.Minor + 1, Given: 3}
+	}
+}

@@ -85,6 +85,18 @@ var packageTypes = map[string]bool{
 	"cargo": true, "maven": true, "golang": true, "nuget": true,
 	"gem": true, "composer": true, "hex": true, "pub": true, "conan": true,
 	"cocoapods": true, "swift": true, "cran": true, "hackage": true,
+
+	// Terraform providers and the CLI are published by a registry AND matchable
+	// by an advisory database — through the Go module each is developed as, which
+	// is what advisory.TerraformProviderPURL and TerraformCLIPURL translate to.
+	//
+	// "terraform-module" is deliberately ABSENT. The registry publishes modules,
+	// but no advisory database files against them, so counting them as packages
+	// would enlarge the auditable denominator with things that can never be
+	// audited — suppressing the grade of every Terraform repository in the name
+	// of covering it. They remain nodes, and inventory, just not package
+	// versions.
+	"terraform": true, "terraform-cli": true,
 }
 
 // IsPackage reports whether an id denotes a software package.

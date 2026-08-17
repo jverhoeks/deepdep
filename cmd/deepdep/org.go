@@ -133,11 +133,30 @@ func (r orgRepo) status() string {
 	case r.Report == nil:
 		return "no report"
 	case r.Report.Score.Suppressed:
-		return fmt.Sprintf("not graded  (%d packages)", r.Report.Checked)
+		return "not graded  (" + r.found() + ")"
 	default:
-		return fmt.Sprintf("%s  %d/100  (%d packages)",
-			r.Report.Score.Grade, r.Report.Score.Score, r.Report.Checked)
+		return fmt.Sprintf("%s  %d/100  (%s)",
+			r.Report.Score.Grade, r.Report.Score.Score, r.found())
 	}
+}
+
+// found describes what the scan actually saw.
+//
+// Reporting only a package count read as "nothing here" for whole classes of
+// repository that have plenty: a Terraform module or a GitHub Action has no
+// registry packages at all, so `(0 packages)` was the line printed for a repo
+// with a dozen pinned actions and a provider lockfile. Counting only the thing
+// this tool happens to grade on, and calling that the whole finding, is the
+// same mistake as calling an ungraded repository a clean one.
+func (r orgRepo) found() string {
+	parts := []string{fmt.Sprintf("%d packages", r.Report.Checked)}
+	if r.Report.ActionsChecked > 0 {
+		parts = append(parts, fmt.Sprintf("%d actions", r.Report.ActionsChecked))
+	}
+	if r.Report.Checked == 0 && r.Report.ActionsChecked == 0 {
+		return "nothing expandable found"
+	}
+	return strings.Join(parts, ", ")
 }
 
 // scanAndReport drives the two existing commands rather than reimplementing
