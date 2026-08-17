@@ -333,6 +333,15 @@ type reportDoc struct {
 	Plan        []reach.Introducer `json:"upgrade_plan,omitempty"`
 	PlanClears  int                `json:"upgrade_plan_clears"`
 	PlanOf      int                `json:"upgrade_plan_of"`
+	// Unattributed are inherited findings under NO direct dependency, which no
+	// bump clears; PlanCapped says the plan stopped at its limit instead. The
+	// two produce the same shortfall and want opposite responses.
+	Unattributed int  `json:"unattributed"`
+	PlanCapped   bool `json:"upgrade_plan_capped"`
+	// DirectIssues and IndirectIssues count FINDINGS, so a package named by two
+	// surfaces is one issue rather than two.
+	DirectIssues   int `json:"direct_issues"`
+	IndirectIssues int `json:"indirect_issues"`
 	// ActionNodes is the ref surface's size and ActionsMoving how many of those
 	// refs are a branch or tag rather than a SHA.
 	ActionNodes        int                `json:"action_nodes"`
@@ -412,13 +421,23 @@ func computeReach(r *reportDoc, findings []advisory.Finding,
 			count{Name: "floating-version", Versions: floating})
 	}
 
-	// --- blast radius ------------------------------------------------------
+	// --- direct vs inherited ------------------------------------------------
+	//
+	// Counted per FINDING, not by summing the exposure rows. A package named in
+	// both package.json and a Dockerfile appears in two rows on purpose — they
+	// are two lines to edit — but it is still one advisory, and adding the rows
+	// up reported it twice.
 	affected := map[graph.NodeID]bool{}
 	for _, f := range findings {
-		if !isDirect(f.NodeID) {
+		if isDirect(f.NodeID) {
+			r.DirectIssues++
+		} else {
+			r.IndirectIssues++
 			affected[f.NodeID] = true
 		}
 	}
+
+	// --- blast radius ------------------------------------------------------
 	var direct []graph.NodeID
 	for id := range surfaces {
 		if graph.IsPackage(id) {
@@ -427,9 +446,13 @@ func computeReach(r *reportDoc, findings []advisory.Finding,
 	}
 	sort.Slice(direct, func(i, j int) bool { return direct[i] < direct[j] })
 
-	r.Introducers = reach.Introducers(direct, affected, edges)
-	r.Plan, r.PlanClears = reach.Cover(direct, affected, edges, planDepth)
-	r.PlanOf = len(affected)
+	a := reach.Analyse(direct, affected, edges, planDepth)
+	r.Introducers = a.Introducers
+	r.Plan = a.Plan
+	r.PlanClears = a.Clears
+	r.PlanOf = a.Affected
+	r.Unattributed = a.Unattributed()
+	r.PlanCapped = a.Capped
 }
 
 // exposureRow is one reach bucket. Direct rows are per surface, because
@@ -860,15 +883,10 @@ func renderReport(r reportDoc) []byte {
 		// The split stated as a sentence, not left to be read out of the table.
 		// "every one of these is inherited" and "half are yours to edit" are
 		// different mornings, and the numbers alone do not say which this is.
-		var dIssues, iIssues int
-		for _, e := range r.Exposure {
-			n := e.Malicious + e.Critical + e.High + e.Other
-			if e.Reach == "direct" {
-				dIssues += n
-			} else {
-				iIssues += n
-			}
-		}
+		//
+		// Read off the per-finding counts rather than by adding the rows above:
+		// the table counts a package named by two surfaces twice, on purpose.
+		dIssues, iIssues := r.DirectIssues, r.IndirectIssues
 		switch {
 		case dIssues == 0 && iIssues > 0:
 			fmt.Fprintf(&b, "   ALL %d are inherited: none is a line in a file here.\n", iIssues)
@@ -932,6 +950,15 @@ func renderReport(r reportDoc) []byte {
 				r.PlanClears, r.PlanOf)
 			for _, in := range r.Plan {
 				fmt.Fprintf(&b, "     %-46s +%d\n", truncate(label(in.Direct), 46), in.New)
+			}
+			// Naming WHY the plan falls short. Capped means keep going;
+			// unattributed means no bump reaches them and something else must.
+			if r.PlanCapped {
+				fmt.Fprintf(&b, "   Capped at %d. More bumps would clear the rest.\n", planDepth)
+			}
+			if r.Unattributed > 0 {
+				fmt.Fprintf(&b, "   %d reach no direct dependency: no bump here clears %s.\n",
+					r.Unattributed, plural2(r.Unattributed, "it", "them"))
 			}
 		}
 	}
@@ -1113,4 +1140,13 @@ func sortedIntKeys(m map[string]int) []string {
 		return out[i] < out[j]
 	})
 	return out
+}
+
+// plural2 picks between two irregular forms, where plural's "add an s" does not
+// apply.
+func plural2(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }

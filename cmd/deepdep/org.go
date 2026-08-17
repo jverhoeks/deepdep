@@ -224,6 +224,11 @@ type orgDoc struct {
 	// upstream in one repository is a note, the same one across nine is a
 	// decision.
 	IndirectRisk []count `json:"indirect_risk"`
+	// DirectIssues and IndirectIssues count FINDINGS across the fleet, summed
+	// from the per-repository counts so a package named by two surfaces stays
+	// one advisory.
+	DirectIssues   int `json:"direct_issues"`
+	IndirectIssues int `json:"indirect_issues"`
 	// Introducers rank the direct dependencies accounting for the most INHERITED
 	// findings org-wide, aggregated by name because the version differs per
 	// repository. This is the org's shortest route: one bump, repeated.
@@ -352,6 +357,8 @@ func buildOrgReport(org string, results []orgRepo) orgDoc {
 			}
 		}
 		row.Moving = rep.Coverage["unpinned-ref"]
+		doc.DirectIssues += rep.DirectIssues
+		doc.IndirectIssues += rep.IndirectIssues
 		for _, c := range rep.IndirectRisk {
 			riskCount[c.Name] += c.Versions
 		}
@@ -501,18 +508,13 @@ func renderOrg(d orgDoc, detail int) []byte {
 			fmt.Fprintf(&b, "  %-22s %9d %9d %5d %5d %7s\n",
 				name, e.Checked, e.Affected, e.Critical, e.High, rate)
 		}
-		var dIssues, iIssues int
-		for _, e := range d.Exposure {
-			n := e.Malicious + e.Critical + e.High + e.Other
-			if e.Reach == "direct" {
-				dIssues += n
-			} else {
-				iIssues += n
-			}
-		}
-		if dIssues+iIssues > 0 {
+		// Summed from the per-repository counts, which are per FINDING. Adding up
+		// the rows above instead would count a package named by both a manifest
+		// and a Dockerfile twice — the table does that deliberately, because they
+		// are two lines to edit, but they are still one advisory.
+		if d.DirectIssues+d.IndirectIssues > 0 {
 			fmt.Fprintf(&b, "  %d direct (a line in a file someone here owns), %d inherited.\n",
-				dIssues, iIssues)
+				d.DirectIssues, d.IndirectIssues)
 		}
 	}
 
