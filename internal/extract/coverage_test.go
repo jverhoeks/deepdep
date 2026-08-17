@@ -18,7 +18,7 @@ func TestCoverageRecognisesRemoteInstallingTools(t *testing.T) {
 		"infra/main.tf", ".terraform.lock.hcl", "Chart.yaml", "flake.nix",
 		"Brewfile", ".gitmodules", "Makefile", "justfile",
 		"go.sum",
-		"pom.xml", "Gemfile", "composer.json", "pnpm-lock.yaml", "bun.lockb",
+		"pom.xml", "Gemfile", "composer.json", "bun.lockb",
 		".npmrc", "Jenkinsfile", ".circleci/config.yml",
 		"renovate.json", "install.sh", ".github/actions/build/action.yml",
 	} {
@@ -35,6 +35,8 @@ func TestCoverageIgnoresWhatWeAlreadyParseAndVendoredTrees(t *testing.T) {
 		"go.mod",                   // real extractor exists (GoMod)
 		"Cargo.toml", "Cargo.lock", // real extractors exist (Cargo, CargoLock)
 		"poetry.lock",              // real extractor exists (PoetryLock)
+		"pnpm-lock.yaml",           // real reader exists (PnpmLock)
+		"yarn.lock", "bun.lock",    // real readers exist (YarnLock, BunLock)
 		"README.md", "src/main.go", // not supply chain
 		"node_modules/x/Dockerfile", // someone else's build
 		"vendor/y/Makefile",
@@ -149,8 +151,8 @@ func TestPythonEcosystemsCovered(t *testing.T) {
 // The JS side has four package managers plus registries and monorepo runners.
 func TestJavaScriptEcosystemsCovered(t *testing.T) {
 	want := map[string]string{
-		"npm-shrinkwrap.json": "npm", "pnpm-lock.yaml": "pnpm", "pnpm-workspace.yaml": "pnpm",
-		"yarn.lock": "yarn", "bun.lockb": "bun", "bun.lock": "bun", "bunfig.toml": "bun",
+		"npm-shrinkwrap.json": "npm", "pnpm-workspace.yaml": "pnpm",
+		"bun.lockb": "bun", "bunfig.toml": "bun",
 		"deno.json": "deno", "deno.lock": "deno", "import_map.json": "deno", "jsr.json": "jsr",
 		"turbo.json": "js-monorepo", "nx.json": "js-monorepo", "lerna.json": "js-monorepo",
 		".nvmrc": "node-version", ".volta.json": "volta",

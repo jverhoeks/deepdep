@@ -66,15 +66,20 @@ var catalogue = []entry{
 
 	// ---- JavaScript / TypeScript -------------------------------------------
 	{"npm", Lockfile, exact("npm-shrinkwrap.json")},
-	{"pnpm", Lockfile, exact("pnpm-lock.yaml")},
+	// pnpm-lock.yaml, yarn.lock and bun.lock have real readers and are
+	// deliberately absent. pnpm-lock.yaml was listed here while PnpmLock was
+	// already reading it, so the same file was reported as both expanded and
+	// unexpanded — exactly the contradiction the Fallback interface exists to
+	// prevent, and it inflated the measured coverage gap.
 	{"pnpm", Manifest, exact("pnpm-workspace.yaml")},
-	{"yarn", Lockfile, exact("yarn.lock")},
 	// A vendored yarn binary and its plugins are executable code committed to the
 	// repository that no manifest declares.
 	{"yarn-berry", Hook, func(d, _ string) bool {
 		return strings.HasPrefix(d, ".yarn/releases") || strings.HasPrefix(d, ".yarn/plugins")
 	}},
-	{"bun", Lockfile, exact("bun.lockb", "bun.lock")},
+	// bun.lockb only: the BINARY format has no published specification, so it is
+	// genuinely unexpanded. bun.lock (text) has a reader.
+	{"bun", Lockfile, exact("bun.lockb")},
 	{"bun", Manifest, exact("bunfig.toml")},
 	{"deno", Manifest, exact("deno.json", "deno.jsonc")},
 	{"deno", Lockfile, exact("deno.lock")},
