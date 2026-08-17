@@ -336,3 +336,56 @@ func TestDeclaredFrontierIsDeterministicUnderConcurrency(t *testing.T) {
 		}
 	}
 }
+
+// A resolver-less ecosystem with an EXACT constraint is not a gap in what we
+// read: the constraint already names the version, and a named version can be
+// sent to an advisory database. Terraform is the case — its providers have no
+// resolver, so every declared one sat in the auditable denominator and could
+// never reach the numerator, suppressing the grade of every Terraform repo.
+func TestExactConstraintResolvesWithoutAResolver(t *testing.T) {
+	reg := extract.NewRegistry()
+	reg.Register(extract.Terraform{})
+	src := source.Static([]source.File{{Path: "versions.tf", Data: []byte(`
+terraform {
+  required_providers {
+    random = {
+      source  = "hashicorp/random"
+      version = "3.5.1"
+    }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">= 4.0"
+    }
+  }
+}`)}})
+	// Deliberately NO resolver for terraform: that is the whole point.
+	w := walk.New(walk.Bounds{MaxDepth: 8, MaxNodes: 1000, Concurrency: 4,
+		Version: version.BoundPolicy{Mode: version.ModeLatest}},
+		map[string]resolve.Resolver{}, reg,
+		map[string]version.VersionScheme{"terraform": version.Terraform})
+	g, err := w.Walk(context.Background(), src, rootID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var exact, ranged *graph.Node
+	for i, n := range g.Nodes() {
+		switch n.Name {
+		case "hashicorp/random":
+			exact = &g.Nodes()[i]
+		case "hashicorp/azurerm":
+			ranged = &g.Nodes()[i]
+		}
+	}
+	if exact == nil {
+		t.Fatal("the exactly-pinned provider produced no node at all")
+	}
+	if exact.Completeness != graph.Resolved || exact.Version != "3.5.1" {
+		t.Errorf("exact provider = %s/%s, want resolved 3.5.1 — the constraint named it",
+			exact.Completeness, exact.Version)
+	}
+	// The range still cannot be resolved, and must not pretend otherwise.
+	if ranged == nil || ranged.Completeness != graph.Declared {
+		t.Error(">= 4.0 names no single version; it must stay a declared frontier")
+	}
+}

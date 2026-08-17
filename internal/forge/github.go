@@ -5,6 +5,7 @@ package forge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -77,24 +78,39 @@ func Token() string {
 	return strings.TrimSpace(string(out))
 }
 
+// ErrNoSuchOwner is returned when GitHub has no such organisation or user. It is
+// the ONLY condition that justifies trying the other endpoint.
+var ErrNoSuchOwner = errors.New("no such organisation or user")
+
 // Org lists an organisation's repositories, newest activity first.
 //
 // It falls back to the user endpoint when the name is a user rather than an
 // organisation, because people type `deepdep org torvalds` and being told "not
 // an org" helps nobody.
+//
+// The fallback fires ONLY on 404. It used to fire on any error, which made a
+// rate limit indistinguishable from a wrong name: a listing that died on page
+// three came back as whatever the user endpoint happened to return, and the
+// fleet report printed that as the organisation's size. One scan of
+// schubergphilis reported 186 repositories and the next 144, with nothing said
+// about the 42 — every fleet total silently measuring a different fleet.
+//
+// A partial list is worse here than no list. Every number downstream is a sum
+// over the repositories in it.
 func (c *Client) Org(ctx context.Context, name string, o Options) ([]Repo, error) {
 	repos, err := c.list(ctx, fmt.Sprintf("/orgs/%s/repos", name), o)
-	if err == nil && len(repos) > 0 {
-		return repos, nil
+	if err == nil {
+		if len(repos) > 0 {
+			return repos, nil
+		}
+	} else if !errors.Is(err, ErrNoSuchOwner) {
+		return nil, err
 	}
 	userRepos, userErr := c.list(ctx, fmt.Sprintf("/users/%s/repos", name), o)
 	if userErr == nil && len(userRepos) > 0 {
 		return userRepos, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	if userErr != nil {
+	if userErr != nil && !errors.Is(userErr, ErrNoSuchOwner) {
 		return nil, userErr
 	}
 	return nil, fmt.Errorf("no repositories found for %q", name)
@@ -160,6 +176,9 @@ func decodePage(resp *http.Response) ([]Repo, error) {
 			}
 		}
 		return nil, fmt.Errorf("github refused the request (%s); a token is probably needed", resp.Status)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNoSuchOwner
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("github: %s", resp.Status)

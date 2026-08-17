@@ -462,6 +462,9 @@ func scan(args []string) ([]byte, error) {
 	reg.Register(extract.GoMod{})
 	reg.Register(extract.Cargo{})
 	reg.Register(extract.Poetry{})
+	reg.Register(extract.Terraform{})
+	reg.Register(extract.PreCommit{})
+	reg.Register(extract.TerraformVersionFile{})
 	// Reports supply-chain files we saw but cannot expand yet. Without this a
 	// Dockerfile or ansible playbook is silently absent, which reads as "this
 	// repo has none" — a wrong answer rather than a partial one.
@@ -500,7 +503,7 @@ func scan(args []string) ([]byte, error) {
 	// A repository can carry several ecosystems at once, so every effective
 	// resolver runs and their instances are merged.
 	var inst []effective.Instance
-	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}, effective.PoetryLock{}, effective.YarnLock{}, effective.BunLock{}} {
+	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}, effective.PoetryLock{}, effective.YarnLock{}, effective.BunLock{}, effective.TerraformLock{}} {
 		got, err := er.Resolve(ctx, src)
 		if err != nil {
 			return nil, err
@@ -530,6 +533,11 @@ func scan(args []string) ([]byte, error) {
 		"pypi":   version.PEP440,
 		"golang": version.Go,
 		"cargo":  version.Cargo,
+		// Providers and modules share Terraform's constraint syntax; the CLI
+		// itself is identified as a Go module and uses Go's scheme.
+		"terraform":        version.Terraform,
+		"terraform-module": version.Terraform,
+		"terraform-cli":    version.Terraform,
 	}
 	g, err := walk.New(bounds, resolvers, reg, schemes).Walk(ctx, src, rootID)
 	if err != nil {

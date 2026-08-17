@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jverhoeks/deepdep/internal/advisory"
 	"github.com/jverhoeks/deepdep/internal/graph"
+	"github.com/jverhoeks/deepdep/internal/reach"
 	"github.com/jverhoeks/deepdep/internal/store"
+	"github.com/jverhoeks/deepdep/internal/supply"
 	"github.com/jverhoeks/deepdep/internal/walk"
 )
 
@@ -85,5 +88,69 @@ func TestTimedOutScanStillPersistsItsPartialClosure(t *testing.T) {
 	}
 	if len(runs) != 1 {
 		t.Fatal("the partial closure was not persisted")
+	}
+}
+
+// The blast radius exists to answer the question an inherited finding raises:
+// this package is in no file I own, so what do I actually change? A direct
+// dependency's own advisory is excluded — that is already a line to edit, and
+// counting it here would report the easy fix twice.
+func TestComputeReachAttributesOnlyInheritedFindings(t *testing.T) {
+	surfaces := map[graph.NodeID][]string{
+		"pkg:cargo/tauri@2.0.0": {"manifest"},
+		"pkg:cargo/serde@1.0.0": {"manifest"},
+	}
+	findings := []advisory.Finding{
+		{NodeID: "pkg:cargo/spin@0.4.10"}, // inherited, under tauri
+		{NodeID: "pkg:cargo/serde@1.0.0"}, // direct: not a blast-radius item
+	}
+	edges := []reach.Edge{
+		{From: "pkg:cargo/tauri@2.0.0", To: "pkg:cargo/spin@0.4.10"},
+	}
+	var r reportDoc
+	computeReach(&r, findings, nil, surfaces, edges, nil)
+
+	if len(r.Introducers) != 1 || r.Introducers[0].Direct != "pkg:cargo/tauri@2.0.0" {
+		t.Fatalf("introducers = %+v, want tauri alone", r.Introducers)
+	}
+	if r.Introducers[0].Affected != 1 {
+		t.Errorf("tauri accounts for %d, want 1 — serde's own advisory is not its doing",
+			r.Introducers[0].Affected)
+	}
+	if r.PlanOf != 1 {
+		t.Errorf("plan covers %d affected, want 1 (the direct one is excluded)", r.PlanOf)
+	}
+}
+
+// Indirect risk is what a maintainer can act on. The ecosystem baseline —
+// unsigned releases, no SLSA provenance — describes open-source publishing in
+// general, and listing it here would bury the lines that mean something.
+func TestIndirectRiskDropsBaselineAndDirectPackages(t *testing.T) {
+	surfaces := map[graph.NodeID][]string{"pkg:npm/direct@1.0.0": {"manifest"}}
+	assessments := []supply.Assessment{
+		{NodeID: "pkg:npm/inherited@1.0.0", Signals: []supply.Signal{
+			{Code: "unmaintained"}, {Code: "unsigned-releases"},
+		}},
+		{NodeID: "pkg:npm/direct@1.0.0", Signals: []supply.Signal{{Code: "unmaintained"}}},
+	}
+	pinning := map[graph.NodeID]string{
+		"pkg:npm/inherited@1.0.0": "floating",
+		"pkg:npm/direct@1.0.0":    "floating", // direct: not INDIRECT risk
+	}
+	var r reportDoc
+	computeReach(&r, nil, assessments, surfaces, nil, pinning)
+
+	got := map[string]int{}
+	for _, c := range r.IndirectRisk {
+		got[c.Name] = c.Versions
+	}
+	if got["unmaintained"] != 1 {
+		t.Errorf("unmaintained = %d, want 1: the direct package is not indirect risk", got["unmaintained"])
+	}
+	if _, ok := got["unsigned-releases"]; ok {
+		t.Error("the ecosystem baseline must not appear; it describes publishing, not this repo")
+	}
+	if got["floating-version"] != 1 {
+		t.Errorf("floating = %d, want 1", got["floating-version"])
 	}
 }

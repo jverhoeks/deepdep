@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jverhoeks/deepdep/internal/forge"
+	"github.com/jverhoeks/deepdep/internal/reach"
 	"github.com/jverhoeks/deepdep/internal/score"
 )
 
@@ -37,11 +38,15 @@ func TestOrgReportCountsFailuresRatherThanDroppingThem(t *testing.T) {
 func TestOrgReportKeepsUngradedOutOfTheDistribution(t *testing.T) {
 	d := buildOrgReport("acme", []orgRepo{
 		repoResult("acme/graded", reportDoc{Score: score.Result{Grade: "C", Score: 40}}),
-		repoResult("acme/sparse", reportDoc{Score: score.Result{
+		// Surface is what separates "we read too little of it" from "there was
+		// nothing to read", and the two must not print the same line.
+		repoResult("acme/sparse", reportDoc{Surface: 40, Score: score.Result{
 			Suppressed: true, Reason: "only 12% of packages were auditable"}}),
+		repoResult("acme/empty", reportDoc{Surface: 0, Score: score.Result{
+			Suppressed: true, Reason: "nothing to grade"}}),
 	})
-	if d.Graded != 1 || d.Ungraded != 1 {
-		t.Errorf("graded %d ungraded %d, want 1/1", d.Graded, d.Ungraded)
+	if d.Graded != 1 || d.Ungraded != 2 || d.Empty != 1 {
+		t.Errorf("graded %d ungraded %d empty %d, want 1/2/1", d.Graded, d.Ungraded, d.Empty)
 	}
 	total := 0
 	for _, g := range d.Grades {
@@ -53,6 +58,9 @@ func TestOrgReportKeepsUngradedOutOfTheDistribution(t *testing.T) {
 	out := string(renderOrg(d, 0))
 	if !strings.Contains(out, "UNASSESSED, not clean") {
 		t.Errorf("ungraded repositories must not read as clean:\n%s", out)
+	}
+	if !strings.Contains(out, "no packages, actions or hooks found") {
+		t.Errorf("an empty repository must not be reported as one we failed to read:\n%s", out)
 	}
 }
 
@@ -103,5 +111,60 @@ func TestOrgReportKeepsDirectAndInheritedApart(t *testing.T) {
 	}
 	if d.Repos[0].Declared+d.Repos[1].Declared != 30 {
 		t.Error("per-repo declared counts must sum to the org's direct total")
+	}
+}
+
+// The fleet blast radius exists to find the upgrade worth doing ONCE. Nine
+// repositories on nine versions of one library are still one upgrade to plan, so
+// the rollup keys on the name — keying on the versioned id scattered them into
+// nine rows of one repository each, which is exactly the shape that hides it.
+func TestOrgBlastRadiusCollapsesVersionsAndRanksByRepos(t *testing.T) {
+	d := buildOrgReport("acme", []orgRepo{
+		repoResult("acme/one", reportDoc{
+			Surface: 10, Score: score.Result{Grade: "C", Score: 40},
+			Introducers: []reach.Introducer{
+				{Direct: "pkg:cargo/tauri@2.0.0", Affected: 5},
+				{Direct: "pkg:npm/lodash@4.0.0", Affected: 40},
+			},
+			IndirectRisk: []count{{Name: "unmaintained", Versions: 3}},
+		}),
+		repoResult("acme/two", reportDoc{
+			Surface: 10, Score: score.Result{Grade: "B", Score: 25},
+			// A DIFFERENT version of the same library: one upgrade, not two.
+			Introducers: []reach.Introducer{
+				{Direct: "pkg:cargo/tauri@2.11.1", Affected: 4},
+			},
+			IndirectRisk: []count{{Name: "unmaintained", Versions: 2}},
+		}),
+	})
+
+	if len(d.Introducers) != 2 {
+		t.Fatalf("got %d introducers, want 2 after collapsing versions: %+v",
+			len(d.Introducers), d.Introducers)
+	}
+	top := d.Introducers[0]
+	if top.Name != "cargo/tauri" {
+		t.Errorf("top = %q (repos %d, affected %d); want cargo/tauri — two repositories "+
+			"outrank one repository's larger count", top.Name, top.Repos, top.Affected)
+	}
+	if top.Repos != 2 || top.Affected != 9 {
+		t.Errorf("tauri = %d repos / %d affected, want 2 / 9", top.Repos, top.Affected)
+	}
+
+	risk := map[string]int{}
+	for _, c := range d.IndirectRisk {
+		risk[c.Name] = c.Versions
+	}
+	if risk["unmaintained"] != 5 {
+		t.Errorf("unmaintained = %d, want 5 summed across the fleet", risk["unmaintained"])
+	}
+
+	// The render is the deliverable; both blocks are gated on non-empty slices
+	// and had never executed.
+	out := string(renderOrg(d, 0))
+	for _, want := range []string{"BLAST RADIUS", "cargo/tauri", "INDIRECT RISK", "unmaintained"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("fleet report is missing %q:\n%s", want, out)
+		}
 	}
 }

@@ -85,6 +85,18 @@ var packageTypes = map[string]bool{
 	"cargo": true, "maven": true, "golang": true, "nuget": true,
 	"gem": true, "composer": true, "hex": true, "pub": true, "conan": true,
 	"cocoapods": true, "swift": true, "cran": true, "hackage": true,
+
+	// Terraform providers and the CLI are published by a registry AND matchable
+	// by an advisory database — through the Go module each is developed as, which
+	// is what advisory.TerraformProviderPURL and TerraformCLIPURL translate to.
+	//
+	// "terraform-module" is deliberately ABSENT. The registry publishes modules,
+	// but no advisory database files against them, so counting them as packages
+	// would enlarge the auditable denominator with things that can never be
+	// audited — suppressing the grade of every Terraform repository in the name
+	// of covering it. They remain nodes, and inventory, just not package
+	// versions.
+	"terraform": true, "terraform-cli": true,
 }
 
 // IsPackage reports whether an id denotes a software package.
@@ -101,4 +113,25 @@ func IsPackage(id NodeID) bool {
 		return false
 	}
 	return packageTypes[typ]
+}
+
+// IsAction reports whether an id denotes a dependency pinned by GIT REF rather
+// than by published version — a GitHub Action, and a pre-commit hook repository,
+// which share the pkg:github/owner/repo@ref shape because they are the same kind
+// of thing: someone else's repository, executed by this one at a ref it names.
+//
+// Deliberately NOT a package type. No registry publishes these and no PURL query
+// reaches them; OSV answers for them by name alone. But they ARE a graded
+// surface, and for the 17% of repositories that have no packages at all they are
+// the ONLY one — which is why they need a name of their own rather than being
+// counted as packages or left out of the arithmetic entirely.
+func IsAction(id NodeID) bool {
+	s := strings.TrimPrefix(string(id), "pkg:github/")
+	if s == string(id) {
+		return false
+	}
+	if i := strings.IndexAny(s, "@#?"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.Contains(s, "/")
 }

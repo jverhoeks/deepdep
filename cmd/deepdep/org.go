@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/jverhoeks/deepdep/internal/forge"
+	"github.com/jverhoeks/deepdep/internal/graph"
+	"github.com/jverhoeks/deepdep/internal/supply"
 )
 
 // orgCmd scans every repository an organisation owns and reports the fleet.
@@ -133,11 +135,30 @@ func (r orgRepo) status() string {
 	case r.Report == nil:
 		return "no report"
 	case r.Report.Score.Suppressed:
-		return fmt.Sprintf("not graded  (%d packages)", r.Report.Checked)
+		return "not graded  (" + r.found() + ")"
 	default:
-		return fmt.Sprintf("%s  %d/100  (%d packages)",
-			r.Report.Score.Grade, r.Report.Score.Score, r.Report.Checked)
+		return fmt.Sprintf("%s  %d/100  (%s)",
+			r.Report.Score.Grade, r.Report.Score.Score, r.found())
 	}
+}
+
+// found describes what the scan actually saw.
+//
+// Reporting only a package count read as "nothing here" for whole classes of
+// repository that have plenty: a Terraform module or a GitHub Action has no
+// registry packages at all, so `(0 packages)` was the line printed for a repo
+// with a dozen pinned actions and a provider lockfile. Counting only the thing
+// this tool happens to grade on, and calling that the whole finding, is the
+// same mistake as calling an ungraded repository a clean one.
+func (r orgRepo) found() string {
+	parts := []string{fmt.Sprintf("%d packages", r.Report.Checked)}
+	if r.Report.ActionsChecked > 0 {
+		parts = append(parts, fmt.Sprintf("%d actions", r.Report.ActionsChecked))
+	}
+	if r.Report.Checked == 0 && r.Report.ActionsChecked == 0 {
+		return "nothing expandable found"
+	}
+	return strings.Join(parts, ", ")
 }
 
 // scanAndReport drives the two existing commands rather than reimplementing
@@ -193,15 +214,42 @@ type orgDoc struct {
 	Failed    int       `json:"failed"`
 	Graded    int       `json:"graded"`
 	Ungraded  int       `json:"ungraded_low_coverage"`
+	Empty     int       `json:"ungraded_nothing_found"`
 	MedianRaw int       `json:"median_score"`
 	Grades    []count   `json:"grade_distribution"`
 
 	Exposure []exposureRow `json:"exposure"`
-	Surfaces orgSurfaces   `json:"surfaces"`
-	Controls []count       `json:"controls"`
-	Repos    []orgRow      `json:"repos"`
-	Failures []orgFailure  `json:"failures"`
-	Notes    []string      `json:"notes"`
+	// IndirectRisk is summed across the fleet: what carries no advisory today but
+	// is how one arrives. Fleet-level is where it reads best — one unmaintained
+	// upstream in one repository is a note, the same one across nine is a
+	// decision.
+	IndirectRisk []count `json:"indirect_risk"`
+	// DirectIssues and IndirectIssues count FINDINGS across the fleet, summed
+	// from the per-repository counts so a package named by two surfaces stays
+	// one advisory.
+	DirectIssues   int `json:"direct_issues"`
+	IndirectIssues int `json:"indirect_issues"`
+	// Introducers rank the direct dependencies accounting for the most INHERITED
+	// findings org-wide, aggregated by name because the version differs per
+	// repository. This is the org's shortest route: one bump, repeated.
+	Introducers []orgIntroducer `json:"introducers"`
+	Surfaces    orgSurfaces     `json:"surfaces"`
+	Controls    []count         `json:"controls"`
+	Repos       []orgRow        `json:"repos"`
+	Failures    []orgFailure    `json:"failures"`
+	Notes       []string        `json:"notes"`
+}
+
+// orgIntroducer is one direct dependency's fleet-wide blast radius.
+//
+// Repos is the count that decides priority. A dependency accounting for 200
+// inherited findings in one repository is that repository's problem; one
+// accounting for 30 across nine is a platform decision, and a list ordered by
+// findings alone would put the first on top.
+type orgIntroducer struct {
+	Name     string `json:"name"`
+	Repos    int    `json:"repos"`
+	Affected int    `json:"affected"`
 }
 
 type orgSurfaces struct {
@@ -254,6 +302,8 @@ func buildOrgReport(org string, results []orgRepo) orgDoc {
 	grade := map[string]int{}
 	ctlCount := map[string]int{}
 	bucket := map[string]*exposureRow{}
+	riskCount := map[string]int{}
+	intro := map[string]*orgIntroducer{}
 	var scores []int
 
 	for _, r := range results {
@@ -307,6 +357,22 @@ func buildOrgReport(org string, results []orgRepo) orgDoc {
 			}
 		}
 		row.Moving = rep.Coverage["unpinned-ref"]
+		doc.DirectIssues += rep.DirectIssues
+		doc.IndirectIssues += rep.IndirectIssues
+		for _, c := range rep.IndirectRisk {
+			riskCount[c.Name] += c.Versions
+		}
+		// Aggregated by NAME: nine repositories on nine versions of one library
+		// are still one upgrade to plan, and keying on the versioned id would
+		// scatter them into nine rows of one.
+		for _, in := range rep.Introducers {
+			name := introducerName(in.Direct)
+			if intro[name] == nil {
+				intro[name] = &orgIntroducer{Name: name}
+			}
+			intro[name].Repos++
+			intro[name].Affected += in.Affected
+		}
 		doc.Surfaces.MovingRefs += rep.Coverage["unpinned-ref"]
 		doc.Surfaces.Actions += rep.ActionsChecked
 		if len(rep.ActionAdvisories) > 0 {
@@ -324,6 +390,12 @@ func buildOrgReport(org string, results []orgRepo) orgDoc {
 
 		if rep.Score.Suppressed {
 			doc.Ungraded++
+			// Two states, counted apart. A repository with no dependencies at all
+			// is not one we failed to read, and the fleet line asserted the second
+			// reason for both.
+			if rep.Surface == 0 {
+				doc.Empty++
+			}
 			row.Suppress = rep.Score.Reason
 		} else {
 			doc.Graded++
@@ -338,6 +410,34 @@ func buildOrgReport(org string, results []orgRepo) orgDoc {
 			doc.Grades = append(doc.Grades, count{Name: g, Versions: grade[g]})
 		}
 	}
+	doc.IndirectRisk = []count{}
+	for _, code := range supply.Codes() {
+		if riskCount[code] > 0 {
+			doc.IndirectRisk = append(doc.IndirectRisk,
+				count{Name: code, Versions: riskCount[code]})
+		}
+	}
+	if riskCount["floating-version"] > 0 {
+		doc.IndirectRisk = append(doc.IndirectRisk,
+			count{Name: "floating-version", Versions: riskCount["floating-version"]})
+	}
+	doc.Introducers = []orgIntroducer{}
+	for _, in := range intro {
+		doc.Introducers = append(doc.Introducers, *in)
+	}
+	// Repos first: one dependency across nine repositories is a platform
+	// decision, one with 200 findings in a single repository is that
+	// repository's problem, and ordering by findings alone inverts them.
+	sort.Slice(doc.Introducers, func(i, j int) bool {
+		a, b := doc.Introducers[i], doc.Introducers[j]
+		if a.Repos != b.Repos {
+			return a.Repos > b.Repos
+		}
+		if a.Affected != b.Affected {
+			return a.Affected > b.Affected
+		}
+		return a.Name < b.Name
+	})
 	if len(scores) > 0 {
 		sort.Ints(scores)
 		doc.MedianRaw = scores[len(scores)/2]
@@ -385,9 +485,12 @@ func renderOrg(d orgDoc, detail int) []byte {
 	for _, g := range d.Grades {
 		fmt.Fprintf(&b, "  %-2s %4d  %s\n", g.Name, g.Versions, bar(g.Versions, d.Graded))
 	}
-	if d.Ungraded > 0 {
-		fmt.Fprintf(&b, "  --  %4d  not graded — too little of the closure was auditable.\n", d.Ungraded)
+	if thin := d.Ungraded - d.Empty; thin > 0 {
+		fmt.Fprintf(&b, "  --  %4d  not graded — too little of the closure was auditable.\n", thin)
 		fmt.Fprintf(&b, "            These are UNASSESSED, not clean.\n")
+	}
+	if d.Empty > 0 {
+		fmt.Fprintf(&b, "  --  %4d  not graded — no packages, actions or hooks found.\n", d.Empty)
 	}
 
 	if len(d.Exposure) > 0 {
@@ -404,6 +507,35 @@ func renderOrg(d orgDoc, detail int) []byte {
 			}
 			fmt.Fprintf(&b, "  %-22s %9d %9d %5d %5d %7s\n",
 				name, e.Checked, e.Affected, e.Critical, e.High, rate)
+		}
+		// Summed from the per-repository counts, which are per FINDING. Adding up
+		// the rows above instead would count a package named by both a manifest
+		// and a Dockerfile twice — the table does that deliberately, because they
+		// are two lines to edit, but they are still one advisory.
+		if d.DirectIssues+d.IndirectIssues > 0 {
+			fmt.Fprintf(&b, "  %d direct (a line in a file someone here owns), %d inherited.\n",
+				d.DirectIssues, d.IndirectIssues)
+		}
+	}
+
+	if len(d.Introducers) > 0 {
+		fmt.Fprintf(&b, "\nBLAST RADIUS  (one bump, repeated across the fleet)\n")
+		fmt.Fprintf(&b, "  %-44s %6s %9s\n", "direct dependency", "repos", "affected")
+		for i, in := range d.Introducers {
+			if i >= 10 {
+				fmt.Fprintf(&b, "  ... %d more (--format json for all)\n", len(d.Introducers)-10)
+				break
+			}
+			fmt.Fprintf(&b, "  %-44s %6d %9d\n", truncate(in.Name, 44), in.Repos, in.Affected)
+		}
+		fmt.Fprintf(&b, "  Ordered by REPOS first: one dependency across nine repositories is a\n")
+		fmt.Fprintf(&b, "  platform decision; 200 findings inside one is that repository's.\n")
+	}
+
+	if len(d.IndirectRisk) > 0 {
+		fmt.Fprintf(&b, "\nINDIRECT RISK  (no advisory today, across the fleet)\n")
+		for _, c := range d.IndirectRisk {
+			fmt.Fprintf(&b, "  %-30s %8d\n", c.Name, c.Versions)
 		}
 	}
 
@@ -487,4 +619,19 @@ func bar(n, of int) string {
 	}
 	w := int(float64(n) / float64(of) * 40)
 	return strings.Repeat("█", w)
+}
+
+// introducerName drops the version from a node id so one dependency's rows
+// across a fleet collapse into one.
+//
+// Nine repositories on nine versions of one library are still one upgrade to
+// plan. Keying the fleet rollup on the versioned id scattered them into nine
+// rows of one repository each, which is exactly the shape that hides the
+// finding worth acting on.
+func introducerName(id graph.NodeID) string {
+	s := label(id)
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		return s[:i]
+	}
+	return s
 }

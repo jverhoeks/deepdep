@@ -15,6 +15,7 @@ import (
 	"github.com/jverhoeks/deepdep/internal/controls"
 	"github.com/jverhoeks/deepdep/internal/emit"
 	"github.com/jverhoeks/deepdep/internal/graph"
+	"github.com/jverhoeks/deepdep/internal/reach"
 	"github.com/jverhoeks/deepdep/internal/rollup"
 	"github.com/jverhoeks/deepdep/internal/score"
 	"github.com/jverhoeks/deepdep/internal/store"
@@ -163,7 +164,19 @@ func reportCmd(args []string) ([]byte, error) {
 		}
 	}
 
+	// Reachability needs the edge list and the per-node pinning, which nothing
+	// else in the report reads.
+	pkgEdges, err := db.PackageEdges(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+	pinning, err := db.PinningByNode(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+
 	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners, allNodes, surfaces)
+	computeReach(&r, findings, assessments, surfaces, pkgEdges, pinning)
 	r.ActionsChecked = len(actionTargets)
 	r.ActionAdvisories = actionFindings
 	if r.ActionAdvisories == nil {
@@ -297,19 +310,52 @@ type reportDoc struct {
 	// and the second question is the one a maintainer acts on first.
 	Exposure []exposureRow `json:"exposure"`
 	// ActionAdvisories are a weaker claim than Advisory and are kept apart for
-	// that reason alone — see advisory.ActionAdvisory. They are excluded from
-	// the score deliberately: an unverified ref must not move a grade.
-	ActionsChecked     int                       `json:"actions_checked"`
-	ActionAdvisories   []advisory.ActionAdvisory `json:"action_advisories"`
-	Score              score.Result              `json:"score"`
-	PackageNodes       int                       `json:"package_nodes"`
-	Auditable          float64                   `json:"auditable_share"`
-	Controls           []controls.Control        `json:"controls"`
-	ControlsAssessable bool                      `json:"controls_assessable"`
-	MissingControls    []controls.Kind           `json:"controls_missing"`
-	Coverage           map[string]int            `json:"coverage_frontier"`
-	Notes              map[string]string         `json:"notes"`
-	Sources            map[string]string         `json:"sources"`
+	// that reason alone — see advisory.ActionAdvisory.
+	//
+	// They now reach the score at score.ActionClaimWeight rather than being
+	// excluded from it. The old rule — an unverified ref must not move a grade —
+	// was right about the strength of the claim and wrong about the consequence:
+	// for the 17% of repositories with no packages at all, excluding refs meant
+	// there was nothing left to grade, so a repository with a HIGH advisory in a
+	// pinned action scored exactly like one with none. Discounted and visible
+	// beats absent.
+	ActionsChecked   int                       `json:"actions_checked"`
+	ActionAdvisories []advisory.ActionAdvisory `json:"action_advisories"`
+	// IndirectRisk is what carries no advisory TODAY but is how one arrives: an
+	// unmaintained upstream will not ship the fix, and a floating version can
+	// change under a rebuild with nothing committed here. Kept apart from
+	// Advisory because a risk is not a finding and printing them together would
+	// make the report read as alarm.
+	IndirectRisk []count `json:"indirect_risk"`
+	// Introducers attribute inherited findings to the direct dependencies whose
+	// subtrees contain them, and Plan is the greedy shortest route through them.
+	Introducers []reach.Introducer `json:"introducers,omitempty"`
+	Plan        []reach.Introducer `json:"upgrade_plan,omitempty"`
+	PlanClears  int                `json:"upgrade_plan_clears"`
+	PlanOf      int                `json:"upgrade_plan_of"`
+	// Unattributed are inherited findings under NO direct dependency, which no
+	// bump clears; PlanCapped says the plan stopped at its limit instead. The
+	// two produce the same shortfall and want opposite responses.
+	Unattributed int  `json:"unattributed"`
+	PlanCapped   bool `json:"upgrade_plan_capped"`
+	// DirectIssues and IndirectIssues count FINDINGS, so a package named by two
+	// surfaces is one issue rather than two.
+	DirectIssues   int `json:"direct_issues"`
+	IndirectIssues int `json:"indirect_issues"`
+	// ActionNodes is the ref surface's size and ActionsMoving how many of those
+	// refs are a branch or tag rather than a SHA.
+	ActionNodes        int                `json:"action_nodes"`
+	ActionsMoving      int                `json:"actions_moving"`
+	Score              score.Result       `json:"score"`
+	PackageNodes       int                `json:"package_nodes"`
+	Surface            int                `json:"gradable_surface"`
+	Auditable          float64            `json:"auditable_share"`
+	Controls           []controls.Control `json:"controls"`
+	ControlsAssessable bool               `json:"controls_assessable"`
+	MissingControls    []controls.Kind    `json:"controls_missing"`
+	Coverage           map[string]int     `json:"coverage_frontier"`
+	Notes              map[string]string  `json:"notes"`
+	Sources            map[string]string  `json:"sources"`
 }
 
 type finding struct {
@@ -323,6 +369,90 @@ type finding struct {
 	// means transitive: nothing here asked for it, and the fix belongs to
 	// whoever did.
 	Surfaces []string `json:"surfaces,omitempty"`
+}
+
+// planDepth is how many upgrades the plan proposes. Enough to show the shape of
+// the work and short enough to be read as a starting point rather than a backlog.
+const planDepth = 5
+
+// computeReach fills the two sections an INHERITED finding needs and the older
+// exposure table cannot give: what carries risk without carrying an advisory,
+// and which of this repository's own dependencies would clear the most.
+//
+// It is separate from buildReport because it needs the edge list and the
+// per-node pinning, and neither belongs in a signature that already carries
+// nine arguments.
+func computeReach(r *reportDoc, findings []advisory.Finding,
+	assessments []supply.Assessment, surfaces map[graph.NodeID][]string,
+	edges []reach.Edge, pinning map[graph.NodeID]string) {
+
+	isDirect := func(id graph.NodeID) bool { return len(surfaces[id]) > 0 }
+
+	// --- indirect risk -----------------------------------------------------
+	//
+	// Restricted to the signals a maintainer can act on. The ecosystem baseline —
+	// unsigned releases, no SLSA provenance — describes open-source publishing in
+	// general and would bury the four lines that mean something.
+	sig := map[string]int{}
+	for _, a := range assessments {
+		if isDirect(a.NodeID) {
+			continue
+		}
+		for _, s := range a.Signals {
+			if !baselineSignals[s.Code] {
+				sig[s.Code]++
+			}
+		}
+	}
+	r.IndirectRisk = []count{}
+	for _, code := range supply.Codes() {
+		if sig[code] > 0 {
+			r.IndirectRisk = append(r.IndirectRisk, count{Name: code, Versions: sig[code]})
+		}
+	}
+	var floating int
+	for id, pin := range pinning {
+		if pin == "floating" && !isDirect(id) {
+			floating++
+		}
+	}
+	if floating > 0 {
+		r.IndirectRisk = append(r.IndirectRisk,
+			count{Name: "floating-version", Versions: floating})
+	}
+
+	// --- direct vs inherited ------------------------------------------------
+	//
+	// Counted per FINDING, not by summing the exposure rows. A package named in
+	// both package.json and a Dockerfile appears in two rows on purpose — they
+	// are two lines to edit — but it is still one advisory, and adding the rows
+	// up reported it twice.
+	affected := map[graph.NodeID]bool{}
+	for _, f := range findings {
+		if isDirect(f.NodeID) {
+			r.DirectIssues++
+		} else {
+			r.IndirectIssues++
+			affected[f.NodeID] = true
+		}
+	}
+
+	// --- blast radius ------------------------------------------------------
+	var direct []graph.NodeID
+	for id := range surfaces {
+		if graph.IsPackage(id) {
+			direct = append(direct, id)
+		}
+	}
+	sort.Slice(direct, func(i, j int) bool { return direct[i] < direct[j] })
+
+	a := reach.Analyse(direct, affected, edges, planDepth)
+	r.Introducers = a.Introducers
+	r.Plan = a.Plan
+	r.PlanClears = a.Clears
+	r.PlanOf = a.Affected
+	r.Unattributed = a.Unattributed()
+	r.PlanCapped = a.Capped
 }
 
 // exposureRow is one reach bucket. Direct rows are per surface, because
@@ -501,6 +631,26 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 	// zero findings would read as a clean bill.
 	var pkgNodes, resolved int
 	for _, n := range nodes {
+		// The ref surface — CI actions and pre-commit hooks — is counted in BOTH
+		// halves of coverage. Every one of them is auditable by construction: OSV
+		// answers for an action by name, so naming it is all that is required, and
+		// ActionTargets returns them all.
+		//
+		// It therefore only ever raises coverage, and no repository that is graded
+		// today can lose its grade to this. What it fixes is the opposite case: a
+		// repository whose entire supply chain is six pinned actions had a
+		// coverage of 0/0, was told it was too sparse to grade, and had in fact
+		// been read completely.
+		//
+		// No `continue`: an action pinned to a branch is still a coverage-frontier
+		// entry below, and dropping out of the loop here silently emptied the
+		// unpinned-ref bucket that the hygiene term now reads.
+		if graph.IsAction(n.ID) {
+			r.ActionNodes++
+			if n.Reason == graph.ReasonUnpinnedRef {
+				r.ActionsMoving++
+			}
+		}
 		if graph.IsPackage(n.ID) {
 			// A node we decided will not be installed is not a gap in our
 			// knowledge. A dependency's own devDependencies and a Python extra
@@ -525,8 +675,11 @@ func buildReport(meta store.Run, state string, knownAt time.Time,
 		}
 	}
 	r.PackageNodes = pkgNodes
-	if pkgNodes > 0 {
-		r.Auditable = float64(len(targets)) / float64(pkgNodes)
+	// The denominator is the whole gradable surface and the numerator is what was
+	// actually audited on it. Actions appear in both because all of them are.
+	r.Surface = pkgNodes + r.ActionNodes
+	if r.Surface > 0 {
+		r.Auditable = float64(len(targets)+r.ActionNodes) / float64(r.Surface)
 		if r.Auditable > 1 {
 			r.Auditable = 1
 		}
@@ -669,7 +822,8 @@ func renderReport(r reportDoc) []byte {
 		}
 		fmt.Fprintf(&b, "  %-17s %-52s %+5.0f / %d\n", t.Name, truncate(t.Detail, 52), t.Points, t.Max)
 	}
-	fmt.Fprintf(&b, "  %d%% of package nodes were auditable\n\n", int(r.Auditable*100+0.5))
+	fmt.Fprintf(&b, "  %d%% of %d dependencies were auditable (%d packages, %d refs)\n\n",
+		int(r.Auditable*100+0.5), r.Surface, r.PackageNodes, r.ActionNodes)
 
 	fmt.Fprintf(&b, "1. MALICIOUS PACKAGES  (%d)\n", len(r.Malicious))
 	if len(r.Malicious) == 0 {
@@ -725,6 +879,22 @@ func renderReport(r reportDoc) []byte {
 		}
 		fmt.Fprintf(&b, "   rate = share of that surface's packages carrying at least one advisory.\n")
 		fmt.Fprintf(&b, "   A package named by two surfaces is counted in both: two lines to edit.\n")
+
+		// The split stated as a sentence, not left to be read out of the table.
+		// "every one of these is inherited" and "half are yours to edit" are
+		// different mornings, and the numbers alone do not say which this is.
+		//
+		// Read off the per-finding counts rather than by adding the rows above:
+		// the table counts a package named by two surfaces twice, on purpose.
+		dIssues, iIssues := r.DirectIssues, r.IndirectIssues
+		switch {
+		case dIssues == 0 && iIssues > 0:
+			fmt.Fprintf(&b, "   ALL %d are inherited: none is a line in a file here.\n", iIssues)
+		case iIssues == 0 && dIssues > 0:
+			fmt.Fprintf(&b, "   All %d are DIRECT: every one is a line in a file here.\n", dIssues)
+		case dIssues > 0:
+			fmt.Fprintf(&b, "   %d direct (yours to edit), %d inherited.\n", dIssues, iIssues)
+		}
 	}
 
 	fmt.Fprintf(&b, "\n2c. CI ACTIONS WITH PUBLISHED ADVISORIES  (%d of %d invoked)\n",
@@ -742,8 +912,55 @@ func renderReport(r reportDoc) []byte {
 		fmt.Fprintf(&b, "\n   NOT version-matched. OSV answers for CI actions only WITHOUT a\n")
 		fmt.Fprintf(&b, "   version — its records carry no purl and state ranges in a versioning\n")
 		fmt.Fprintf(&b, "   that refs do not follow — so this says the action has an advisory, not\n")
-		fmt.Fprintf(&b, "   that your ref is inside it. Go and look. It is excluded from the score\n")
-		fmt.Fprintf(&b, "   for the same reason: an unverified ref must not move a grade.\n")
+		fmt.Fprintf(&b, "   that your ref is inside it. Go and look. It scores at %.0f%% weight for\n",
+			score.ActionClaimWeight*100)
+		fmt.Fprintf(&b, "   the same reason: the claim is weaker, not absent.\n")
+	}
+
+	if len(r.IndirectRisk) > 0 {
+		fmt.Fprintf(&b, "\n2d. INDIRECT RISK  (no advisory today)\n")
+		for _, c := range r.IndirectRisk {
+			note := ""
+			if c.Name == "floating-version" {
+				note = "   a rebuild can move these"
+			}
+			fmt.Fprintf(&b, "   %-28s %8d%s\n", c.Name, c.Versions, note)
+		}
+		fmt.Fprintf(&b, "   Not findings. This is how a finding arrives: an unmaintained\n")
+		fmt.Fprintf(&b, "   package will not ship the fix when one is needed.\n")
+	}
+
+	if len(r.Introducers) > 0 {
+		fmt.Fprintf(&b, "\n2e. BLAST RADIUS  (which of your dependencies brought these in)\n")
+		fmt.Fprintf(&b, "   %-46s %8s %10s\n", "direct dependency", "affected", "only here")
+		for i, in := range r.Introducers {
+			if i >= planDepth {
+				fmt.Fprintf(&b, "   ... %d more (--format json for all)\n", len(r.Introducers)-planDepth)
+				break
+			}
+			fmt.Fprintf(&b, "   %-46s %8d %10s\n",
+				truncate(label(in.Direct), 46), in.Affected, orDashN(in.Exclusive))
+		}
+		fmt.Fprintf(&b, "   \"only here\" is what THIS bump alone clears. A package pulled in by\n")
+		fmt.Fprintf(&b, "   four dependencies is not fixed by upgrading one of them.\n")
+		if len(r.Plan) > 0 {
+			fmt.Fprintf(&b, "\n   Shortest route: %d %s %s %d of %d affected packages.\n",
+				len(r.Plan), plural(len(r.Plan), "bump"),
+				map[bool]string{true: "clears", false: "clear"}[len(r.Plan) == 1],
+				r.PlanClears, r.PlanOf)
+			for _, in := range r.Plan {
+				fmt.Fprintf(&b, "     %-46s +%d\n", truncate(label(in.Direct), 46), in.New)
+			}
+			// Naming WHY the plan falls short. Capped means keep going;
+			// unattributed means no bump reaches them and something else must.
+			if r.PlanCapped {
+				fmt.Fprintf(&b, "   Capped at %d. More bumps would clear the rest.\n", planDepth)
+			}
+			if r.Unattributed > 0 {
+				fmt.Fprintf(&b, "   %d reach no direct dependency: no bump here clears %s.\n",
+					r.Unattributed, plural2(r.Unattributed, "it", "them"))
+			}
+		}
 	}
 
 	fmt.Fprintf(&b, "\n3. POSTURE\n")
@@ -856,13 +1073,37 @@ func computeScore(r reportDoc, pins map[string]int) score.Result {
 	in := score.Input{
 		Checked:            r.Checked,
 		Malicious:          len(r.Malicious),
+		ActionsChecked:     r.ActionsChecked,
 		Floating:           pins["floating"],
 		Pinned:             pins["pinned"],
 		Locked:             pins["locked"],
+		ActionsFloating:    r.ActionsMoving,
+		ActionsPinned:      r.ActionNodes - r.ActionsMoving,
 		ControlsMissing:    len(r.MissingControls),
 		ControlsTotal:      len(controls.Kinds),
 		ControlsAssessable: r.ControlsAssessable,
 		Auditable:          r.Auditable,
+		Surface:            r.Surface,
+	}
+	// One action can carry several advisories; the severity counts are per REF,
+	// matching how the package counts are per version. Counting rows instead
+	// would let one much-discussed action outweigh a dozen quiet ones.
+	worst := map[graph.NodeID]string{}
+	for _, a := range r.ActionAdvisories {
+		sev := a.Advisory.SeverityLabel()
+		if severityRank(sev) > severityRank(worst[a.NodeID]) {
+			worst[a.NodeID] = sev
+		}
+	}
+	for _, sev := range worst {
+		switch sev {
+		case "CRITICAL":
+			in.ActionCritical++
+		case "HIGH":
+			in.ActionHigh++
+		case "MODERATE":
+			in.ActionModerate++
+		}
 	}
 	for _, c := range r.BySev {
 		switch c.Name {
@@ -899,4 +1140,13 @@ func sortedIntKeys(m map[string]int) []string {
 		return out[i] < out[j]
 	})
 	return out
+}
+
+// plural2 picks between two irregular forms, where plural's "add an s" does not
+// apply.
+func plural2(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }

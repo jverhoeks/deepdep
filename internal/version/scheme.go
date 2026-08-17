@@ -52,3 +52,22 @@ type VersionScheme interface {
 	Satisfies(v Version, constraint string) (bool, error)
 	Enumerate(constraint string, available []Version, p BoundPolicy) ([]Version, error)
 }
+
+// ExactVersion is an OPTIONAL scheme capability: naming the single version an
+// exact constraint denotes, without asking a registry what exists.
+//
+// IsExact already reports that a constraint admits one version; this returns
+// which one. The pair only looks redundant. An exact constraint is a complete
+// answer on its own — `version = "3.5.1"` in a Terraform required_providers
+// block names 3.5.1 and nothing else — so an ecosystem with no resolver behind
+// it can still produce an auditable version rather than an unresolved frontier.
+//
+// It is a separate interface, and returns the version as a string, so that
+// stripping "=" and any other per-ecosystem constraint syntax stays inside the
+// scheme. The walker must not learn that syntax: it is the same rule that keeps
+// it from synthesising constraint strings when applying a lockfile pin.
+type ExactVersion interface {
+	// Exact returns the version an exact constraint names. The bool is false
+	// whenever IsExact would be false, and whenever the version does not parse.
+	Exact(constraint string) (string, bool)
+}

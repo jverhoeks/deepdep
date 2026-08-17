@@ -13,9 +13,9 @@ import (
 func TestCoverageRecognisesRemoteInstallingTools(t *testing.T) {
 	for _, p := range []string{
 		"Dockerfile", "docker/Dockerfile.ci", "docker-compose.yml",
-		".pre-commit-config.yaml", ".mise.toml", ".tool-versions",
+		".mise.toml", ".tool-versions",
 		"ansible.cfg", "playbook.yml", "requirements.yml",
-		"infra/main.tf", ".terraform.lock.hcl", "Chart.yaml", "flake.nix",
+		"infra/vars.tfvars", "Chart.yaml", "flake.nix",
 		"Brewfile", ".gitmodules", "Makefile", "justfile",
 		"go.sum",
 		"pom.xml", "Gemfile", "composer.json", "bun.lockb",
@@ -35,6 +35,9 @@ func TestCoverageIgnoresWhatWeAlreadyParseAndVendoredTrees(t *testing.T) {
 		"go.mod",                   // real extractor exists (GoMod)
 		"Cargo.toml", "Cargo.lock", // real extractors exist (Cargo, CargoLock)
 		"poetry.lock",              // real extractor exists (PoetryLock)
+		"infra/main.tf",            // real extractor exists (Terraform)
+		".terraform.lock.hcl",      // real extractor exists (TerraformLock)
+		".pre-commit-config.yaml",  // real extractor exists (PreCommit)
 		"pnpm-lock.yaml",           // real reader exists (PnpmLock)
 		"yarn.lock", "bun.lock",    // real readers exist (YarnLock, BunLock)
 		"README.md", "src/main.go", // not supply chain
@@ -86,10 +89,9 @@ func TestCoverageDistinguishesTools(t *testing.T) {
 		".mise.toml":              "mise",
 		".tool-versions":          "asdf",
 		"playbook.yml":            "ansible",
-		"infra/main.tf":           "terraform",
+		"infra/vars.tfvars":       "terraform",
 		".npmrc":                  "npm-registry",
 		"renovate.json":           "renovate",
-		".pre-commit-config.yaml": "pre-commit",
 	} {
 		if got := tool(p); got != want {
 			t.Errorf("%q -> %q, want %q", p, got, want)
@@ -107,8 +109,10 @@ func TestToolsCatalogueIsNonTrivial(t *testing.T) {
 // often before any review. They are the highest-leverage surface in the
 // catalogue, so each must be recognised AND classified as a hook.
 func TestGitAndInstallHooksAreClassifiedAsHooks(t *testing.T) {
+	// .pre-commit-config.yaml is absent: it now has a real extractor that
+	// expands the remote repositories it executes, which is strictly more than
+	// recognising it as a hook.
 	for _, p := range []string{
-		".pre-commit-config.yaml",
 		".husky/pre-commit", ".huskyrc.json",
 		"lefthook.yml", ".simple-git-hooks.json", ".lintstagedrc",
 		"commitlint.config.js", ".overcommit.yml", "Dangerfile",

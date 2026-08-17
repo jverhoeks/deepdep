@@ -45,7 +45,6 @@ var catalogue = []entry{
 	// ---- git hooks and commit-time execution -------------------------------
 	// These run code on your machine on an ordinary git operation. pre-commit and
 	// lefthook fetch and execute REMOTE repositories pinned in their config.
-	{"pre-commit", Hook, exact(".pre-commit-config.yaml", ".pre-commit-config.yml", ".pre-commit-hooks.yaml")},
 	{"husky", Hook, func(d, b string) bool {
 		return strings.HasPrefix(d, ".husky") ||
 			b == ".huskyrc" || b == ".huskyrc.json" || b == ".huskyrc.js" || b == "husky.config.js"
@@ -121,8 +120,10 @@ var catalogue = []entry{
 		return b == "Dockerfile" || strings.HasPrefix(b, "Dockerfile.") || strings.HasSuffix(b, ".dockerfile")
 	}},
 	{"docker-compose", Orchestrator, exact("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml")},
-	{"terraform", Manifest, func(_, b string) bool { return strings.HasSuffix(b, ".tf") }},
-	{"terraform", Lockfile, exact(".terraform.lock.hcl")},
+	// .tf and .terraform.lock.hcl have real extractors and are deliberately
+	// absent. .tfvars stays: it carries values, not dependencies, but it is
+	// still a supply-chain surface worth recognising.
+	{"terraform", Manifest, func(_, b string) bool { return strings.HasSuffix(b, ".tfvars") }},
 	{"helm", Manifest, exact("Chart.yaml")},
 	{"helm", Lockfile, exact("Chart.lock")},
 	{"kustomize", Orchestrator, exact("kustomization.yaml", "kustomization.yml")},
