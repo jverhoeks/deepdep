@@ -212,12 +212,16 @@ func (s cargoScheme) parseOne(part string) (cargoBounds, error) {
 	case strings.HasPrefix(part, "^"):
 		return s.caret(strings.TrimSpace(part[1:]))
 
-	case strings.ContainsAny(part, "*x"):
+	case strings.ContainsAny(part, "*xX"):
 		// A wildcard bounds whatever was written to its LEFT, exactly like tilde
 		// on a partial version. Any number of components can be starred —
 		// "3.*.*" appears in the wild — so truncate at the FIRST wildcard rather
 		// than trimming one suffix, which left "3.*" behind and failed to parse.
-		return s.wildcard(part)
+		kept := leadingNumericComponents(part)
+		if kept == "" {
+			return cargoBounds{}, nil // "*.*" is still just anything
+		}
+		return s.tilde(kept)
 
 	default:
 		// A bare version is a caret. This is the default that makes Cargo
@@ -236,79 +240,33 @@ func (s cargoScheme) parsePartial(str string) (cargoVersion, error) {
 	return v.(cargoVersion), nil
 }
 
-// caret bounds by the leftmost NON-ZERO component, which is what makes the
-// pre-1.0 rule narrower than the usual reading.
+// caret bounds by the leftmost NON-ZERO component. The rule itself lives on
+// Release, shared with the Poetry dialect, so the pre-1.0 case — the one that is
+// silent when wrong — has a single implementation.
 func (s cargoScheme) caret(str string) (cargoBounds, error) {
-	lo, err := s.parsePartial(str)
-	if err != nil {
-		return cargoBounds{}, err
-	}
-	given := componentsGiven(str)
-
-	var hi cargoVersion
-	switch {
-	case lo.major > 0:
-		hi = cargoVersion{major: lo.major + 1}
-	case lo.minor > 0:
-		hi = cargoVersion{minor: lo.minor + 1}
-	case lo.patch > 0:
-		hi = cargoVersion{patch: lo.patch + 1}
-	default:
-		// Everything is zero, so the bound follows how much was WRITTEN:
-		// ^0 allows <1.0.0, ^0.0 allows <0.1.0, ^0.0.0 allows only 0.0.0.
-		switch given {
-		case 1:
-			hi = cargoVersion{major: 1}
-		case 2:
-			hi = cargoVersion{minor: 1}
-		default:
-			hi = cargoVersion{patch: 1}
-		}
-	}
-	hi.raw = hi.canonical()
-	return cargoBounds{lo: &lo, loClosed: true, hi: &hi}, nil
-}
-
-// wildcard keeps the numeric components up to the first star and bounds by the
-// last of them. "3.*.*" and "3.*" both mean >=3.0.0, <4.0.0; a bare "*" means
-// anything.
-func (s cargoScheme) wildcard(part string) (cargoBounds, error) {
-	var kept []string
-	for _, c := range strings.Split(strings.TrimSpace(part), ".") {
-		if c == "*" || c == "x" || c == "X" || c == "" {
-			break
-		}
-		kept = append(kept, c)
-	}
-	if len(kept) == 0 {
-		return cargoBounds{}, nil // "*.*" is still just anything
-	}
-	return s.tilde(strings.Join(kept, "."))
+	return s.bounded(str, Release.CaretUpper)
 }
 
 // tilde pins every component to the LEFT of the last one written: ~1.2.3 and
 // ~1.2 both allow <1.3.0, while ~1 allows <2.0.0.
 func (s cargoScheme) tilde(str string) (cargoBounds, error) {
+	return s.bounded(str, Release.TildeUpper)
+}
+
+// bounded turns a partial version plus one of Release's bounding rules into a
+// half-open interval.
+func (s cargoScheme) bounded(str string, upper func(Release) Release) (cargoBounds, error) {
 	lo, err := s.parsePartial(str)
 	if err != nil {
 		return cargoBounds{}, err
 	}
-	var hi cargoVersion
-	if componentsGiven(str) == 1 {
-		hi = cargoVersion{major: lo.major + 1}
-	} else {
-		hi = cargoVersion{major: lo.major, minor: lo.minor + 1}
+	r, err := ParseRelease(str)
+	if err != nil {
+		return cargoBounds{}, err
 	}
-	hi.raw = hi.canonical()
+	u := upper(r)
+	hi := cargoVersion{major: u.Major, minor: u.Minor, patch: u.Patch, raw: u.String()}
 	return cargoBounds{lo: &lo, loClosed: true, hi: &hi}, nil
-}
-
-func (v cargoVersion) canonical() string {
-	return fmt.Sprintf("%d.%d.%d", v.major, v.minor, v.patch)
-}
-
-func componentsGiven(s string) int {
-	return len(strings.Split(strings.TrimSpace(s), "."))
 }
 
 // Enumerate expands a requirement. Unlike Go, Cargo resolves to the NEWEST

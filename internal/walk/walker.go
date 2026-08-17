@@ -331,7 +331,13 @@ func (w *Walker) expandOne(ctx context.Context, g *graph.Graph, mu *sync.Mutex,
 // coverage suppressed the grade of every repository in a 131-repo fleet, which
 // said more about the metric than about the repositories.
 const (
-	ReasonDevNotInstalled   = "dev-not-installed"
+	ReasonDevNotInstalled = "dev-not-installed"
+	// ReasonExtraNotRequested is no longer PRODUCED: optional dependencies are
+	// walked in every ecosystem now (see skipScope). It is retained because runs
+	// stored before that change still carry it, and NotInstalled must go on
+	// classifying those correctly — deleting it would silently reclassify every
+	// historical run's frontier as an unexplored blind spot and suppress its
+	// grade.
 	ReasonExtraNotRequested = "extra-not-requested"
 )
 
@@ -352,19 +358,21 @@ func skipScope(eco string, s graph.Scope) (string, bool) {
 		// installed by anyone.
 		return ReasonDevNotInstalled, true
 	case graph.Optional:
-		if eco == "pypi" {
-			// Python extras are opt-in: nothing installs pkg[extra] unless a
-			// dependent explicitly asked for that extra. Walking them anyway
-			// pulls the whole optional universe — pyobjc alone declares 300+
-			// framework subpackages, and fsspec 50 cloud backends.
-			//
-			// LIMITATION: extras requested explicitly (pydantic[email]) are also
-			// skipped, because the requested extra is not yet carried along the
-			// edge. That under-reports; the frontier makes it visible.
-			return ReasonExtraNotRequested, true
-		}
-		// npm optionalDependencies ARE installed by default; failure to build is
-		// tolerated, but the package is fetched and its code is present.
+		// Optional dependencies are WALKED, in every ecosystem. The closure takes
+		// the widest reading: an extra or a feature-gated crate is code a
+		// consumer can switch on without the repository it belongs to changing a
+		// line, so it is genuinely reachable and belongs in the answer.
+		//
+		// PyPI extras used to be skipped here. The rationale was real — pyobjc
+		// declares 300+ framework subpackages and fsspec 50 cloud backends — but
+		// it is an argument about SIZE, and size is what MaxNodes and MaxDepth
+		// exist to bound. Trading a wrong answer for a small one is the trade
+		// this tool is meant not to make: on one Poetry repository it left 125
+		// packages behind `extra-not-requested` against 55 resolved.
+		//
+		// npm optionalDependencies were never skipped: they are installed by
+		// default, and a failure to build is tolerated rather than preventing the
+		// fetch. This now matches.
 		return "", false
 	}
 	return "", false

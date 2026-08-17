@@ -29,6 +29,22 @@ import (
 // See version.PoetryToPEP440.
 type Poetry struct{}
 
+// poetryDialect is looked up once by name rather than referenced directly, so
+// this extractor depends on the dialect REGISTRY rather than on one dialect's
+// identity — which is what lets a future manifest (Pipenv, PDM) reuse the seam
+// without the version package growing a special case per extractor.
+var poetryDialect = mustDialect("poetry")
+
+func mustDialect(name string) version.Dialect {
+	d, ok := version.DialectFor(name)
+	if !ok {
+		// A dialect that failed to register would look exactly like a manifest
+		// with no dependencies, so this is not survivable at runtime.
+		panic("extract: no such constraint dialect: " + name)
+	}
+	return d
+}
+
 func (Poetry) Name() string { return "poetry" }
 
 func (Poetry) Match(p string) bool {
@@ -135,7 +151,7 @@ func (Poetry) Extract(_ context.Context, f source.File) ([]graph.Edge, []graph.N
 				// unless a dependant asks for that extra by name.
 				sc = graph.Optional
 			}
-			spec, err := version.PoetryToPEP440(d.Version)
+			spec, err := poetryDialect.Translate(d.Version)
 			if err != nil {
 				// Alternation has no PEP 440 equivalent. Record the package with
 				// no constraint and say why, rather than inventing a span that
