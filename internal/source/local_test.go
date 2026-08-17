@@ -42,7 +42,7 @@ func TestLocalSourceWalksTreeSkippingNoise(t *testing.T) {
 	mk("vendor/y/go.mod", "module y")
 	mk(".git/config", "x")
 
-	s, err := source.Open(context.Background(), dir, t.TempDir(), "")
+	s, err := source.Open(context.Background(), dir, t.TempDir(), "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestLocalSourcePathsAreRelativeAndSlashed(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, "web"), 0o755)
 	os.WriteFile(filepath.Join(dir, "web", "package.json"), []byte("{}"), 0o644)
 
-	s, _ := source.Open(context.Background(), dir, t.TempDir(), "")
+	s, _ := source.Open(context.Background(), dir, t.TempDir(), "", "")
 	got := walkPaths(t, s)
 	if len(got) != 1 || got[0] != "web/package.json" {
 		t.Errorf("got %v, want [web/package.json]", got)
@@ -107,7 +107,7 @@ func TestSymlinksAreSkippedNotRead(t *testing.T) {
 		t.Skip("symlinks unsupported here")
 	}
 
-	s, err := source.Open(context.Background(), dir, t.TempDir(), "")
+	s, err := source.Open(context.Background(), dir, t.TempDir(), "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestWalkIfReadsOnlyClaimedFilesAndSkipsBuildTrees(t *testing.T) {
 		mk(noisy+"/junk.json", 1<<20)
 	}
 
-	s, err := source.Open(context.Background(), dir, t.TempDir(), "")
+	s, err := source.Open(context.Background(), dir, t.TempDir(), "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

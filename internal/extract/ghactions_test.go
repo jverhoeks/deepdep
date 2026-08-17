@@ -255,3 +255,56 @@ jobs:
 		}
 	}
 }
+
+// `uses: ./` is a LOCAL action — the repository's own action.yml, not a
+// dependency on anyone. It was being split as org/repo, which yields org "."
+// and an empty repo, and the resulting nameless purl failed to parse and took
+// the whole repository's scan down with it ("purl is missing name").
+//
+// Whatever the local action itself depends on is extracted from action.yml
+// directly, so skipping the reference loses nothing.
+func TestLocalActionReferencesAreSkipped(t *testing.T) {
+	for _, uses := range []string{"./", "./.github/actions/setup", "../sibling"} {
+		edges, nodes := ghExtract(t, `
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: `+uses+`
+`)
+		for id := range nodes {
+			if strings.Contains(string(id), "pkg:github/.") || strings.Contains(string(id), "pkg:github/..") {
+				t.Errorf("uses: %q produced a node for a local path: %s", uses, id)
+			}
+		}
+		// The real action alongside it must still come through: skipping the
+		// local reference must not skip the step list.
+		found := false
+		for _, e := range edges {
+			if strings.Contains(string(e.To), "actions/checkout") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("uses: %q — the neighbouring actions/checkout was lost", uses)
+		}
+	}
+}
+
+// A local reference in a job-level `uses:` is the same mistake in the other
+// position, and reusable-workflow calls are where `uses:` sits at job level.
+func TestLocalReusableWorkflowReferenceIsSkipped(t *testing.T) {
+	_, nodes, err := (extract.GHActions{}).Extract(context.Background(), source.File{
+		Path: ".github/workflows/ci.yml",
+		Data: []byte("jobs:\n  call:\n    uses: ./.github/workflows/build.yml\n"),
+	})
+	if err != nil {
+		t.Fatalf("a local reusable-workflow call must not fail the scan: %v", err)
+	}
+	for _, n := range nodes {
+		if n.Ecosystem == "github" {
+			t.Errorf("local reusable workflow became a dependency node: %s", n.ID)
+		}
+	}
+}
