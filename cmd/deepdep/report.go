@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -104,9 +105,17 @@ func reportCmd(args []string) ([]byte, error) {
 		for _, f := range facts {
 			repos = append(repos, f.SourceRepo)
 		}
-		projects, err := client.Projects(ctx, repos)
+		projects, unreachable, err := client.Projects(ctx, repos)
 		if err != nil {
 			return nil, err
+		}
+		// A posture lookup that failed leaves that project unknown rather than
+		// losing the whole report, but the loss is SAID rather than absorbed:
+		// silently treating unreachable as unremarkable would read as "nothing
+		// upstream is unmaintained".
+		if unreachable > 0 {
+			fmt.Fprintf(os.Stderr, "deepdep: %d of %d upstream projects were unreachable; their posture is unknown\n",
+				unreachable, len(repos))
 		}
 		if err := db.RecordSupply(ctx, facts, projects, knownAt); err != nil {
 			return nil, err
