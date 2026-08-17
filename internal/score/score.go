@@ -36,15 +36,20 @@ const (
 // confident letter would be the most misleading thing the tool could print.
 const MinCoverage = 0.5
 
-// ActionClaimWeight discounts an advisory against a CI action or pre-commit hook
-// relative to one matched against a package version.
+// ActionClaimWeight is the share of the vulnerability budget that advisories
+// against CI actions and pre-commit hooks may ever reach: a ref surface with
+// nothing but criticals scores ActionClaimWeight × MaxVuln, no more.
 //
 // OSV answers an action query by NAME: "this action has a published advisory",
 // never "the ref you pinned is affected". Counting that as if a version had
 // matched would upgrade the weaker claim the report is careful to keep weak —
 // and the discount is the reason these can be scored at all rather than excluded
-// as they previously were. Half, named and exported here rather than buried in
-// the arithmetic, so it can be argued with directly.
+// as they previously were.
+//
+// It scales POINTS, not the finding count. Weighting the count instead put the
+// factor inside the density's square root, where it delivered its own square
+// root — a stated half arriving as 0.845 near saturation, which is where the
+// discount is the only thing standing between an unverified claim and an F.
 //
 // The irony is deliberate and worth stating: an action pinned to a TAG could be
 // version-matched, and one pinned to a SHA — the better practice — cannot.
@@ -144,24 +149,19 @@ func Compute(in Input) Result {
 	// Severity-weighted DENSITY, not a raw count: 60 criticals in 6510 packages
 	// and 60 in 100 are not the same repository, and a count alone punishes
 	// size rather than risk.
-	var vuln float64
-	audited := in.Checked + in.ActionsChecked
-	if audited > 0 {
-		weighted := float64(in.Critical)*10 + float64(in.High)*3 + float64(in.Moderate)
-		// Discounted, never excluded. Excluding them meant a repository whose
-		// whole supply chain is six pinned actions — one of them carrying a HIGH
-		// advisory — could not be told apart from one carrying none.
-		weighted += ActionClaimWeight *
-			(float64(in.ActionCritical)*10 + float64(in.ActionHigh)*3 + float64(in.ActionModerate))
-		density := weighted / float64(audited)
-		// Square root, not linear. A linear term with a realistic saturation
-		// point gives airflow's 36 HIGH across 3676 packages a single point out
-		// of 45, and one with an aggressive one saturates react and next.js
-		// alike — losing exactly the resolution that matters at the bad end.
-		// The curve keeps both ends readable: airflow ~14, react ~34,
-		// next.js ~45.
-		vuln = clamp(MaxVuln*math.Sqrt(min1(density/SaturationDensity)), MaxVuln)
-	}
+	//
+	// The two surfaces are scored on SEPARATE curves and then summed, rather than
+	// pooled into one density. Pooling was wrong twice over. It diluted package
+	// findings — 3 findings in 100 packages became 3 in 117 once refs joined the
+	// denominator — and it applied ActionClaimWeight inside a square root, where
+	// a weight delivers its own square root: 0.5 arrived as 0.845 at the point it
+	// mattered most, so the discount was neither half nor visible.
+	vuln := clamp(
+		densityPoints(weightedSeverity(in.Critical, in.High, in.Moderate), in.Checked)+
+			ActionClaimWeight*densityPoints(
+				weightedSeverity(in.ActionCritical, in.ActionHigh, in.ActionModerate),
+				in.ActionsChecked),
+		MaxVuln)
 	vulnDetail := fmt.Sprintf("%d critical, %d high, %d moderate in %d packages",
 		in.Critical, in.High, in.Moderate, in.Checked)
 	if in.ActionsChecked > 0 {
@@ -268,6 +268,28 @@ func Compute(in Input) Result {
 		r.Grade = "A"
 	}
 	return r
+}
+
+// weightedSeverity is the one place severities become numbers. A critical is
+// worth ten moderates and a high three, so a single critical is not lost among
+// the noise of a large closure.
+func weightedSeverity(critical, high, moderate int) float64 {
+	return float64(critical)*10 + float64(high)*3 + float64(moderate)
+}
+
+// densityPoints converts a severity-weighted finding count over a surface into
+// points out of MaxVuln.
+//
+// Square root, not linear. A linear term with a realistic saturation point gives
+// airflow's 36 HIGH across 3676 packages a single point out of 45, and one with
+// an aggressive saturation point saturates react and next.js alike — losing
+// exactly the resolution that matters at the bad end. The curve keeps both ends
+// readable: airflow ~14, react ~34, next.js ~45.
+func densityPoints(weighted float64, checked int) float64 {
+	if checked <= 0 {
+		return 0
+	}
+	return MaxVuln * math.Sqrt(min1(weighted/float64(checked)/SaturationDensity))
 }
 
 func clamp(v float64, max int) float64 {

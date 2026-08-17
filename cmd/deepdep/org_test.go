@@ -37,11 +37,15 @@ func TestOrgReportCountsFailuresRatherThanDroppingThem(t *testing.T) {
 func TestOrgReportKeepsUngradedOutOfTheDistribution(t *testing.T) {
 	d := buildOrgReport("acme", []orgRepo{
 		repoResult("acme/graded", reportDoc{Score: score.Result{Grade: "C", Score: 40}}),
-		repoResult("acme/sparse", reportDoc{Score: score.Result{
+		// Surface is what separates "we read too little of it" from "there was
+		// nothing to read", and the two must not print the same line.
+		repoResult("acme/sparse", reportDoc{Surface: 40, Score: score.Result{
 			Suppressed: true, Reason: "only 12% of packages were auditable"}}),
+		repoResult("acme/empty", reportDoc{Surface: 0, Score: score.Result{
+			Suppressed: true, Reason: "nothing to grade"}}),
 	})
-	if d.Graded != 1 || d.Ungraded != 1 {
-		t.Errorf("graded %d ungraded %d, want 1/1", d.Graded, d.Ungraded)
+	if d.Graded != 1 || d.Ungraded != 2 || d.Empty != 1 {
+		t.Errorf("graded %d ungraded %d empty %d, want 1/2/1", d.Graded, d.Ungraded, d.Empty)
 	}
 	total := 0
 	for _, g := range d.Grades {
@@ -53,6 +57,9 @@ func TestOrgReportKeepsUngradedOutOfTheDistribution(t *testing.T) {
 	out := string(renderOrg(d, 0))
 	if !strings.Contains(out, "UNASSESSED, not clean") {
 		t.Errorf("ungraded repositories must not read as clean:\n%s", out)
+	}
+	if !strings.Contains(out, "no packages, actions or hooks found") {
+		t.Errorf("an empty repository must not be reported as one we failed to read:\n%s", out)
 	}
 }
 

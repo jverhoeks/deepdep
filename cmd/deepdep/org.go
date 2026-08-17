@@ -212,6 +212,7 @@ type orgDoc struct {
 	Failed    int       `json:"failed"`
 	Graded    int       `json:"graded"`
 	Ungraded  int       `json:"ungraded_low_coverage"`
+	Empty     int       `json:"ungraded_nothing_found"`
 	MedianRaw int       `json:"median_score"`
 	Grades    []count   `json:"grade_distribution"`
 
@@ -343,6 +344,12 @@ func buildOrgReport(org string, results []orgRepo) orgDoc {
 
 		if rep.Score.Suppressed {
 			doc.Ungraded++
+			// Two states, counted apart. A repository with no dependencies at all
+			// is not one we failed to read, and the fleet line asserted the second
+			// reason for both.
+			if rep.Surface == 0 {
+				doc.Empty++
+			}
 			row.Suppress = rep.Score.Reason
 		} else {
 			doc.Graded++
@@ -404,9 +411,12 @@ func renderOrg(d orgDoc, detail int) []byte {
 	for _, g := range d.Grades {
 		fmt.Fprintf(&b, "  %-2s %4d  %s\n", g.Name, g.Versions, bar(g.Versions, d.Graded))
 	}
-	if d.Ungraded > 0 {
-		fmt.Fprintf(&b, "  --  %4d  not graded — too little of the closure was auditable.\n", d.Ungraded)
+	if thin := d.Ungraded - d.Empty; thin > 0 {
+		fmt.Fprintf(&b, "  --  %4d  not graded — too little of the closure was auditable.\n", thin)
 		fmt.Fprintf(&b, "            These are UNASSESSED, not clean.\n")
+	}
+	if d.Empty > 0 {
+		fmt.Fprintf(&b, "  --  %4d  not graded — no packages, actions or hooks found.\n", d.Empty)
 	}
 
 	if len(d.Exposure) > 0 {

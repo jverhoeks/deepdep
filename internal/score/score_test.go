@@ -1,6 +1,7 @@
 package score_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/jverhoeks/deepdep/internal/score"
@@ -68,15 +69,56 @@ func TestActionAdvisoriesCountAtADiscount(t *testing.T) {
 		t.Error("a HIGH advisory in the only dependency did not move the score")
 	}
 
-	// Same finding, same surface size, matched against a package version.
+	// Same finding, same surface size, matched against a package version. The
+	// RATIO is asserted, not merely the ordering: weighting the finding count
+	// instead of the points put the factor inside the density's square root,
+	// where a stated half arrived as 0.845 — an ordering-only assertion passes
+	// against that and cannot tell the intended discount from a nullified one.
 	matched := score.Input{Checked: 6, Pinned: 6, High: 1,
 		ControlsTotal: 9, ControlsAssessable: true, Auditable: 1.0, Surface: 6}
 	weak := score.Input{ActionsChecked: 6, ActionsPinned: 6, ActionHigh: 1,
 		ControlsTotal: 9, ControlsAssessable: true, Auditable: 1.0, Surface: 6}
-	if score.Compute(weak).Score >= score.Compute(matched).Score {
-		t.Errorf("name-matched %d >= version-matched %d; the weaker claim was upgraded",
-			score.Compute(weak).Score, score.Compute(matched).Score)
+	mv, wv := vulnPoints(t, matched), vulnPoints(t, weak)
+	if got := wv / mv; math.Abs(got-score.ActionClaimWeight) > 1e-9 {
+		t.Errorf("name-matched scored %.3f of version-matched (%.1f vs %.1f); want exactly %.2f",
+			got, wv, mv, score.ActionClaimWeight)
 	}
+}
+
+// A ref surface may never dominate the vulnerability budget, however many
+// advisories it carries.
+func TestActionAdvisoriesAreCappedAtTheirShare(t *testing.T) {
+	in := score.Input{ActionsChecked: 3, ActionsPinned: 3, ActionCritical: 3,
+		ControlsTotal: 9, ControlsAssessable: true, Auditable: 1.0, Surface: 3}
+	want := score.ActionClaimWeight * score.MaxVuln
+	if got := vulnPoints(t, in); math.Abs(got-want) > 1e-9 {
+		t.Errorf("a wholly critical ref surface scored %.1f of %d; want the %.1f cap",
+			got, score.MaxVuln, want)
+	}
+}
+
+// Package findings must not be diluted by the ref surface. Pooling both into one
+// density turned 3 findings in 100 packages into 3 in 117 the moment a workflow
+// file appeared, quietly improving the grade of every repository that has CI.
+func TestRefsDoNotDilutePackageFindings(t *testing.T) {
+	without := score.Input{Checked: 100, Pinned: 100, High: 3,
+		ControlsTotal: 9, ControlsAssessable: true, Auditable: 1.0, Surface: 100}
+	with := without
+	with.ActionsChecked, with.ActionsPinned, with.Surface = 17, 17, 117
+	if a, b := vulnPoints(t, without), vulnPoints(t, with); math.Abs(a-b) > 1e-9 {
+		t.Errorf("adding 17 advisory-free refs moved the term %.2f -> %.2f", a, b)
+	}
+}
+
+func vulnPoints(t *testing.T, in score.Input) float64 {
+	t.Helper()
+	for _, term := range score.Compute(in).Terms {
+		if term.Name == "vulnerabilities" {
+			return term.Points
+		}
+	}
+	t.Fatal("no vulnerabilities term")
+	return 0
 }
 
 // Nothing-to-grade and too-little-read are different states. A repository with

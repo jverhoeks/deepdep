@@ -61,14 +61,32 @@ Two consequences shaped the design:
 `ActionTargets` returns every `pkg:github/%` node and OSV answers for an action
 by name, so naming one is all that auditing one requires. The ref surface is
 therefore always 100% covered, which means this change can only ever RAISE
-coverage — **no repository graded before it can lose its grade to it.**
+coverage — **no repository can lose its grade to the coverage gate.**
+
+That claim is about the gate, not about letters. The vulnerability and hygiene
+changes move scores in both directions, and a previously-graded repository can
+move between letters. (Verified across all 208 stored runs: `pkg:github/%` and
+`graph.IsAction` select the same set, so the two halves of the ratio cannot
+drift apart.)
 
 ### Action advisories score at a discount
 
-`score.ActionClaimWeight = 0.5`. OSV answers an action query by name — "this
-action has a published advisory" — never "the ref you pinned is affected".
-Discounted and visible beats absent; full weight would silently upgrade a claim
-the report is careful to keep weak.
+`score.ActionClaimWeight = 0.5` — the share of the vulnerability budget the ref
+surface may ever reach. OSV answers an action query by name — "this action has a
+published advisory" — never "the ref you pinned is affected". Discounted and
+visible beats absent; full weight would silently upgrade a claim the report is
+careful to keep weak.
+
+**It scales points, not the finding count.** The first implementation weighted
+the count, which put the factor inside the density's square root — where a
+weight delivers its own square root. A stated half arrived as 0.845, and the
+first fixture run printed `+38 / 45` and a D. The ordering-only test passed
+against that: it confirmed *some* discount and could not tell the intended one
+from a nullified one, which is why the test now asserts the ratio.
+
+The two surfaces are also scored on separate curves rather than pooled into one
+density. Pooling diluted package findings — 3 findings in 100 packages became 3
+in 117 the moment a workflow file appeared.
 
 The irony is worth stating: an action pinned to a TAG could be version-matched,
 and one pinned to a SHA — the better practice — cannot.
@@ -110,23 +128,23 @@ chain.
 | | before | after |
 |---|---|---|
 | `terraform-aws-mcaf-transfer` | not graded, 25% of 4 | **C (36)**, 91% of 22 |
-| six-pinned-action fixture | not graded, 0% of 3 | **D (56)**, 67% of 9 |
+| six-pinned-action fixture | not graded, 0% of 3 | **C (40)**, 67% of 9 |
 
 The transfer repository's C is 18 hygiene points for 18 of 20 refs moving — the
-discrimination the question asked for, and previously unreachable.
+discrimination the question asked for, and previously unreachable. The fixture's
+is 18 for controls plus 22 for the discounted HIGH: exactly half of the 45 that
+same finding would score version-matched.
 
 ## Known limitation: the density curve is steep on small surfaces
 
 The vulnerability term is a severity-weighted density saturating at 0.35, tuned
-when only large repositories were gradable. One name-matched HIGH among six refs
-is a density of 0.25 and scores 38 of 45; the same finding among 100 packages
-scores 13.
+when only large repositories were gradable. A single HIGH among six dependencies
+saturates the curve; the same finding among 100 packages scores 13.
 
 This is the existing model behaving as designed — proportional exposure — now
-visible because small surfaces are gradable for the first time. It means a single
-unverified advisory can move a tiny repository from B to D. Flagged rather than
-tuned: changing `SaturationDensity` would move every grade in the fleet, which is
-a different decision from this one.
+visible because small surfaces are gradable for the first time. Flagged rather
+than tuned: changing `SaturationDensity` would move every grade in the fleet,
+which is a different decision from this one.
 
 ## Out of scope
 
