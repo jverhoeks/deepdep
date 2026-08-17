@@ -147,8 +147,7 @@ var catalogue = []entry{
 	// every version ever CONSIDERED, including ones MVS rejected, so it is not
 	// the install set and must not be read as one.
 	{"go", Lockfile, exact("go.sum")},
-	{"cargo", Manifest, exact("Cargo.toml")},
-	{"cargo", Lockfile, exact("Cargo.lock")},
+	// Cargo.toml and Cargo.lock have real extractors and are deliberately absent.
 	{"maven", Manifest, exact("pom.xml")},
 	{"gradle", Manifest, func(_, b string) bool {
 		return b == "build.gradle" || b == "build.gradle.kts" || b == "libs.versions.toml"

@@ -391,6 +391,7 @@ func scan(args []string) ([]byte, error) {
 		registry    = fs.String("registry", "https://registry.npmjs.org", "")
 		pypiIndex   = fs.String("pypi-index", "https://pypi.org", "")
 		goProxy     = fs.String("goproxy", "https://proxy.golang.org", "")
+		cratesIndex = fs.String("crates-index", "https://crates.io", "")
 	)
 	if err := fs.Parse(args); err != nil {
 		return nil, err
@@ -459,6 +460,7 @@ func scan(args []string) ([]byte, error) {
 	reg.Register(extract.Requirements{})
 	reg.Register(extract.Dockerfile{})
 	reg.Register(extract.GoMod{})
+	reg.Register(extract.Cargo{})
 	// Reports supply-chain files we saw but cannot expand yet. Without this a
 	// Dockerfile or ansible playbook is silently absent, which reads as "this
 	// repo has none" — a wrong answer rather than a partial one.
@@ -480,21 +482,24 @@ func scan(args []string) ([]byte, error) {
 		npm := resolve.NewNPMResolver(*registry, blobs, http.DefaultClient, *metadataAge, time.Now)
 		pypi := resolve.NewPyPIResolver(*pypiIndex, blobs, http.DefaultClient, *metadataAge, time.Now)
 		goprox := resolve.NewGoProxyResolver(*goProxy, blobs, http.DefaultClient, *metadataAge, time.Now)
+		crates := resolve.NewCratesResolver(*cratesIndex, blobs, http.DefaultClient, *metadataAge, time.Now)
 		if db != nil {
 			npm = npm.WithObservations(db)
 			pypi = pypi.WithObservations(db)
 			goprox = goprox.WithObservations(db)
+			crates = crates.WithObservations(db)
 		}
 		resolvers["npm"] = npm
 		resolvers["pypi"] = pypi
 		resolvers["golang"] = goprox
+		resolvers["cargo"] = crates
 	}
 
 	// Read the lockfiles first: in will-mode their pins decide what installs.
 	// A repository can carry several ecosystems at once, so every effective
 	// resolver runs and their instances are merged.
 	var inst []effective.Instance
-	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}} {
+	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}} {
 		got, err := er.Resolve(ctx, src)
 		if err != nil {
 			return nil, err
@@ -523,6 +528,7 @@ func scan(args []string) ([]byte, error) {
 		"npm":    version.NPM,
 		"pypi":   version.PEP440,
 		"golang": version.Go,
+		"cargo":  version.Cargo,
 	}
 	g, err := walk.New(bounds, resolvers, reg, schemes).Walk(ctx, src, rootID)
 	if err != nil {
