@@ -17,7 +17,7 @@ func TestCoverageRecognisesRemoteInstallingTools(t *testing.T) {
 		"ansible.cfg", "playbook.yml", "requirements.yml",
 		"infra/main.tf", ".terraform.lock.hcl", "Chart.yaml", "flake.nix",
 		"Brewfile", ".gitmodules", "Makefile", "justfile",
-		"go.sum", "Cargo.toml",
+		"go.sum",
 		"pom.xml", "Gemfile", "composer.json", "pnpm-lock.yaml", "bun.lockb",
 		".npmrc", "Jenkinsfile", ".circleci/config.yml",
 		"renovate.json", "install.sh", ".github/actions/build/action.yml",
@@ -33,6 +33,7 @@ func TestCoverageIgnoresWhatWeAlreadyParseAndVendoredTrees(t *testing.T) {
 		"package.json",             // real extractor exists
 		".github/workflows/ci.yml", // real extractor exists
 		"go.mod",                   // real extractor exists (GoMod)
+		"Cargo.toml", "Cargo.lock", // real extractors exist (Cargo, CargoLock)
 		"README.md", "src/main.go", // not supply chain
 		"node_modules/x/Dockerfile", // someone else's build
 		"vendor/y/Makefile",
