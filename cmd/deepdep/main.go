@@ -391,7 +391,7 @@ func scan(args []string) ([]byte, error) {
 		registry    = fs.String("registry", "https://registry.npmjs.org", "")
 		pypiIndex   = fs.String("pypi-index", "https://pypi.org", "")
 		goProxy     = fs.String("goproxy", "https://proxy.golang.org", "")
-		cratesIndex = fs.String("crates-index", "https://crates.io", "")
+		cratesIndex = fs.String("crates-index", "https://index.crates.io", "")
 	)
 	if err := fs.Parse(args); err != nil {
 		return nil, err
