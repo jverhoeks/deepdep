@@ -89,7 +89,9 @@ var catalogue = []entry{
 	// pyproject.toml, requirements*.txt and uv.lock have real extractors and are
 	// deliberately absent: this list is the frontier, not an inventory.
 	{"setuptools", Manifest, exact("setup.py", "setup.cfg", "MANIFEST.in")},
-	{"poetry", Lockfile, exact("poetry.lock")},
+	// poetry.lock and the [tool.poetry] tables of pyproject.toml have real
+	// extractors. poetry.toml is CONFIG (repositories, virtualenv settings), not
+	// a dependency declaration, so it stays on the frontier.
 	{"poetry", Manifest, exact("poetry.toml")},
 	{"pipenv", Manifest, exact("Pipfile")},
 	{"pipenv", Lockfile, exact("Pipfile.lock")},
