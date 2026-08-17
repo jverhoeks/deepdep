@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -82,6 +83,19 @@ func Token() string {
 // the ONLY condition that justifies trying the other endpoint.
 var ErrNoSuchOwner = errors.New("no such organisation or user")
 
+// ErrSAML marks a refusal that no retry and no scope change will fix: the token
+// exists and is valid, and the organisation has not authorised it. Only a
+// browser round-trip clears it, so the error has to say so.
+var ErrSAML = errors.New("organisation SAML enforcement")
+
+// samlError carries GitHub's own sentence so the caller can print it once and
+// append the organisation-specific fix, rather than concatenating two
+// overlapping explanations of the same refusal.
+type samlError struct{ msg string }
+
+func (e *samlError) Error() string        { return e.msg }
+func (e *samlError) Is(target error) bool { return target == ErrSAML }
+
 // Org lists an organisation's repositories, newest activity first.
 //
 // It falls back to the user endpoint when the name is a user rather than an
@@ -103,6 +117,12 @@ func (c *Client) Org(ctx context.Context, name string, o Options) ([]Repo, error
 		if len(repos) > 0 {
 			return repos, nil
 		}
+	} else if errors.Is(err, ErrSAML) {
+		// Named here rather than in decodePage, which knows the URL it fetched but
+		// not the organisation the reader has to click through for.
+		return nil, fmt.Errorf(
+			"%s Run `gh auth refresh -h github.com -s read:org`, then authorise the token at "+
+				"https://github.com/orgs/%s/sso", err, name)
 	} else if !errors.Is(err, ErrNoSuchOwner) {
 		return nil, err
 	}
@@ -165,15 +185,26 @@ func (c *Client) list(ctx context.Context, path string, o Options) ([]Repo, erro
 func decodePage(resp *http.Response) ([]Repo, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
-		// Rate limiting is the failure people actually hit, and "403" tells them
-		// nothing about the fix. Reset time comes back as a unix timestamp.
-		if reset := resp.Header.Get("X-RateLimit-Reset"); reset != "" {
-			if ts, err := strconv.ParseInt(reset, 10, 64); err == nil {
+		// A 403 is at least three different problems with three different fixes,
+		// and GitHub sends X-RateLimit-Reset on EVERY response — so keying the
+		// message off that header alone reported SAML enforcement as a rate limit
+		// and sent the reader to `gh auth login`, which cannot fix it. Exhaustion
+		// is signalled by Remaining, not by the presence of Reset.
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+		if msg := githubMessage(body); strings.Contains(msg, "SAML") {
+			return nil, &samlError{msg: msg}
+		}
+		if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+			if ts, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
 				return nil, fmt.Errorf(
 					"github rate limit reached (resets %s). Set GITHUB_TOKEN or run `gh auth login`: "+
 						"unauthenticated is 60 requests an hour, authenticated is 5000",
 					time.Unix(ts, 0).Format(time.Kitchen))
 			}
+			return nil, fmt.Errorf("github rate limit reached. Set GITHUB_TOKEN or run `gh auth login`")
+		}
+		if msg := githubMessage(body); msg != "" {
+			return nil, fmt.Errorf("github refused the request: %s", msg)
 		}
 		return nil, fmt.Errorf("github refused the request (%s); a token is probably needed", resp.Status)
 	}
@@ -188,4 +219,20 @@ func decodePage(resp *http.Response) ([]Repo, error) {
 		return nil, err
 	}
 	return page, nil
+}
+
+// githubMessage pulls the human-readable reason out of an error body.
+//
+// GitHub explains a 403 in the body and nowhere else — the status line is the
+// same three digits whether the token is exhausted, unauthorised for a
+// SAML-protected organisation, or missing a scope. Passing that sentence through
+// is the difference between a fix and a guess.
+func githubMessage(body []byte) string {
+	var e struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &e); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(e.Message)
 }
