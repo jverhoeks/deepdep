@@ -139,7 +139,13 @@ var catalogue = []entry{
 	{"homebrew", Lockfile, exact("Brewfile.lock.json")},
 
 	// ---- other language ecosystems ------------------------------------------
-	{"go", Manifest, exact("go.mod")},
+	// go.mod has a real extractor and is deliberately absent, like pyproject.toml
+	// and uv.lock above: Coverage reports what we could NOT expand, so listing an
+	// expanded file here makes the document contradict itself.
+	//
+	// go.sum stays. It is genuinely unexpanded, and deliberately so — it records
+	// every version ever CONSIDERED, including ones MVS rejected, so it is not
+	// the install set and must not be read as one.
 	{"go", Lockfile, exact("go.sum")},
 	{"cargo", Manifest, exact("Cargo.toml")},
 	{"cargo", Lockfile, exact("Cargo.lock")},

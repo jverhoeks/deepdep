@@ -390,6 +390,7 @@ func scan(args []string) ([]byte, error) {
 		timeout     = fs.Duration("timeout", 5*time.Minute, "")
 		registry    = fs.String("registry", "https://registry.npmjs.org", "")
 		pypiIndex   = fs.String("pypi-index", "https://pypi.org", "")
+		goProxy     = fs.String("goproxy", "https://proxy.golang.org", "")
 	)
 	if err := fs.Parse(args); err != nil {
 		return nil, err
@@ -457,6 +458,7 @@ func scan(args []string) ([]byte, error) {
 	reg.Register(extract.PyProject{})
 	reg.Register(extract.Requirements{})
 	reg.Register(extract.Dockerfile{})
+	reg.Register(extract.GoMod{})
 	// Reports supply-chain files we saw but cannot expand yet. Without this a
 	// Dockerfile or ansible playbook is silently absent, which reads as "this
 	// repo has none" — a wrong answer rather than a partial one.
@@ -477,19 +479,22 @@ func scan(args []string) ([]byte, error) {
 		blobs := cache.NewFS(*cacheDir)
 		npm := resolve.NewNPMResolver(*registry, blobs, http.DefaultClient, *metadataAge, time.Now)
 		pypi := resolve.NewPyPIResolver(*pypiIndex, blobs, http.DefaultClient, *metadataAge, time.Now)
+		goprox := resolve.NewGoProxyResolver(*goProxy, blobs, http.DefaultClient, *metadataAge, time.Now)
 		if db != nil {
 			npm = npm.WithObservations(db)
 			pypi = pypi.WithObservations(db)
+			goprox = goprox.WithObservations(db)
 		}
 		resolvers["npm"] = npm
 		resolvers["pypi"] = pypi
+		resolvers["golang"] = goprox
 	}
 
 	// Read the lockfiles first: in will-mode their pins decide what installs.
 	// A repository can carry several ecosystems at once, so every effective
 	// resolver runs and their instances are merged.
 	var inst []effective.Instance
-	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}} {
+	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}} {
 		got, err := er.Resolve(ctx, src)
 		if err != nil {
 			return nil, err
@@ -515,8 +520,9 @@ func scan(args []string) ([]byte, error) {
 	}
 
 	schemes := map[string]version.VersionScheme{
-		"npm":  version.NPM,
-		"pypi": version.PEP440,
+		"npm":    version.NPM,
+		"pypi":   version.PEP440,
+		"golang": version.Go,
 	}
 	g, err := walk.New(bounds, resolvers, reg, schemes).Walk(ctx, src, rootID)
 	if err != nil {
