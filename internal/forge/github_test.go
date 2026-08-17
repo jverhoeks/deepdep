@@ -42,8 +42,12 @@ func TestRateLimitDoesNotSilentlyFallBackToASmallerList(t *testing.T) {
 				fmt.Fprint(w, repoPage("org", 100)) // full page: more to come
 				return
 			}
+			// Both headers, as GitHub sends them: Reset appears on every response,
+			// so exhaustion is signalled by Remaining reaching zero.
 			w.Header().Set("X-RateLimit-Reset", "1893456000")
+			w.Header().Set("X-RateLimit-Remaining", "0")
 			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprint(w, `{"message":"API rate limit exceeded"}`)
 		case strings.HasPrefix(r.URL.Path, "/users/"):
 			userCalls++
 			fmt.Fprint(w, repoPage("user", 3))
@@ -127,5 +131,56 @@ func TestUnknownOwnerIsAnError(t *testing.T) {
 	if _, err := forge.New(srv.URL, "", srv.Client()).
 		Org(context.Background(), "nope", forge.Options{}); err == nil {
 		t.Error("an owner that does not exist must not look like an empty one")
+	}
+}
+
+// A 403 is at least three problems with three different fixes, and GitHub
+// distinguishes them only in the body. Keying the message off X-RateLimit-Reset
+// — which GitHub sends on EVERY response, including successful ones — reported
+// SAML enforcement as a rate limit and sent the reader to `gh auth login`, which
+// cannot fix it. The real fix is a token authorisation in a browser.
+func TestSAMLDenialIsNotReportedAsARateLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Reset", "1893456000")
+		w.Header().Set("X-RateLimit-Remaining", "4987") // plenty left: not exhausted
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"Resource protected by organization SAML enforcement. `+
+			`You must grant your OAuth token access to this organization."}`)
+	}))
+	defer srv.Close()
+
+	_, err := forge.New(srv.URL, "tok", srv.Client()).
+		Org(context.Background(), "acme", forge.Options{})
+	if err == nil {
+		t.Fatal("a SAML denial must be an error")
+	}
+	if strings.Contains(err.Error(), "rate limit") {
+		t.Errorf("reported as a rate limit: %v", err)
+	}
+	for _, want := range []string{"SAML", "gh auth refresh", "orgs/acme/sso"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error is missing %q, so it does not say how to fix it: %v", want, err)
+		}
+	}
+}
+
+// Genuine exhaustion is signalled by Remaining reaching zero, and must still
+// produce the message that names the token as the fix.
+func TestExhaustionIsStillReportedAsARateLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Reset", "1893456000")
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"API rate limit exceeded"}`)
+	}))
+	defer srv.Close()
+
+	_, err := forge.New(srv.URL, "", srv.Client()).
+		Org(context.Background(), "acme", forge.Options{})
+	if err == nil || !strings.Contains(err.Error(), "rate limit") {
+		t.Errorf("error = %v, want it to name the rate limit", err)
+	}
+	if !strings.Contains(err.Error(), "GITHUB_TOKEN") {
+		t.Errorf("error = %v, want it to name the fix", err)
 	}
 }
