@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,7 +33,24 @@ type CratesResolver struct {
 
 	mu   sync.Mutex
 	docs map[string]*cratesDoc
+
+	// paceMu serialises the pacing decision. crates.io asks crawlers for about
+	// one request a second and enforces it with 429s; a fleet scan runs many
+	// workers at once and earns them immediately.
+	paceMu   sync.Mutex
+	nextSlot time.Time
+	interval time.Duration
 }
+
+// cratesInterval is the minimum gap between requests from one process. It is
+// deliberately close to crates.io's published crawler guidance rather than as
+// fast as the server will tolerate: being throttled costs a whole repository's
+// Rust closure, and the cache makes a re-scan free anyway.
+const cratesInterval = 250 * time.Millisecond
+
+// cratesMaxAttempts bounds retries so a server that is down fails the request
+// instead of hanging the scan.
+const cratesMaxAttempts = 4
 
 func NewCratesResolver(base string, c cache.Cache, hc *http.Client, maxAge time.Duration, now func() time.Time) *CratesResolver {
 	if hc == nil {
@@ -44,7 +62,8 @@ func NewCratesResolver(base string, c cache.Cache, hc *http.Client, maxAge time.
 	return &CratesResolver{
 		base: strings.TrimRight(base, "/"), cache: c, client: hc,
 		maxAge: maxAge, now: now,
-		docs: map[string]*cratesDoc{},
+		docs:     map[string]*cratesDoc{},
+		interval: cratesInterval,
 	}
 }
 
@@ -156,20 +175,93 @@ func (r *CratesResolver) Requirements(ctx context.Context, name string, v versio
 	return out, nil
 }
 
+// pace blocks until this process may make its next request.
+//
+// The slot is claimed under the lock and the SLEEP happens outside it, so
+// concurrent callers queue up at one-per-interval instead of all waking
+// together and firing at once.
+func (r *CratesResolver) pace(ctx context.Context) error {
+	r.paceMu.Lock()
+	now := time.Now()
+	slot := r.nextSlot
+	if slot.Before(now) {
+		slot = now
+	}
+	r.nextSlot = slot.Add(r.interval)
+	r.paceMu.Unlock()
+
+	d := time.Until(slot)
+	if d <= 0 {
+		return nil
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// delayRequests pushes every pending slot back, so one 429 slows the whole
+// process rather than only the request that happened to receive it.
+func (r *CratesResolver) delayRequests(d time.Duration) {
+	r.paceMu.Lock()
+	defer r.paceMu.Unlock()
+	if until := time.Now().Add(d); until.After(r.nextSlot) {
+		r.nextSlot = until
+	}
+}
+
 func (r *CratesResolver) get(ctx context.Context, path string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.base+path, nil)
-	if err != nil {
-		return nil, err
+	var lastStatus string
+	for attempt := 0; attempt < cratesMaxAttempts; attempt++ {
+		if err := r.pace(ctx); err != nil {
+			return nil, err
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.base+path, nil)
+		if err != nil {
+			return nil, err
+		}
+		// crates.io requires a descriptive User-Agent and returns 403 without one.
+		req.Header.Set("User-Agent", "deepdep (https://github.com/jverhoeks/deepdep)")
+		resp, err := r.client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+			// Honour Retry-After when given; otherwise back off geometrically.
+			// A 429 surfaced as an error marks the node "error:ratelimit" and a
+			// whole Rust repository degrades to Declared with no failure line —
+			// numbers that look real and are not.
+			wait := retryAfter(resp.Header.Get("Retry-After"), r.interval<<attempt)
+			resp.Body.Close()
+			lastStatus = resp.Status
+			r.delayRequests(wait)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("crates.io %s: %s", path, resp.Status)
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+		resp.Body.Close()
+		return body, err
 	}
-	// crates.io requires a descriptive User-Agent and returns 403 without one.
-	req.Header.Set("User-Agent", "deepdep (https://github.com/jverhoeks/deepdep)")
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return nil, err
+	return nil, fmt.Errorf("crates.io %s: %s after %d attempts", path, lastStatus, cratesMaxAttempts)
+}
+
+// retryAfter reads the header, which crates.io sends as whole seconds. A missing
+// or unreadable value falls back to the caller's computed backoff.
+func retryAfter(h string, fallback time.Duration) time.Duration {
+	if h == "" {
+		return fallback
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("crates.io %s: %s", path, resp.Status)
+	secs, err := strconv.Atoi(strings.TrimSpace(h))
+	if err != nil || secs < 0 {
+		return fallback
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	return time.Duration(secs) * time.Second
 }
