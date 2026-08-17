@@ -15,6 +15,7 @@ import (
 	"github.com/jverhoeks/deepdep/internal/controls"
 	"github.com/jverhoeks/deepdep/internal/emit"
 	"github.com/jverhoeks/deepdep/internal/graph"
+	"github.com/jverhoeks/deepdep/internal/reach"
 	"github.com/jverhoeks/deepdep/internal/rollup"
 	"github.com/jverhoeks/deepdep/internal/score"
 	"github.com/jverhoeks/deepdep/internal/store"
@@ -163,7 +164,19 @@ func reportCmd(args []string) ([]byte, error) {
 		}
 	}
 
+	// Reachability needs the edge list and the per-node pinning, which nothing
+	// else in the report reads.
+	pkgEdges, err := db.PackageEdges(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+	pinning, err := db.PinningByNode(ctx, meta.RunID)
+	if err != nil {
+		return nil, err
+	}
+
 	r := buildReport(meta, *state, knownAt, targets, findings, assessments, owners, allNodes, surfaces)
+	computeReach(&r, findings, assessments, surfaces, pkgEdges, pinning)
 	r.ActionsChecked = len(actionTargets)
 	r.ActionAdvisories = actionFindings
 	if r.ActionAdvisories == nil {
@@ -308,6 +321,18 @@ type reportDoc struct {
 	// beats absent.
 	ActionsChecked   int                       `json:"actions_checked"`
 	ActionAdvisories []advisory.ActionAdvisory `json:"action_advisories"`
+	// IndirectRisk is what carries no advisory TODAY but is how one arrives: an
+	// unmaintained upstream will not ship the fix, and a floating version can
+	// change under a rebuild with nothing committed here. Kept apart from
+	// Advisory because a risk is not a finding and printing them together would
+	// make the report read as alarm.
+	IndirectRisk []count `json:"indirect_risk"`
+	// Introducers attribute inherited findings to the direct dependencies whose
+	// subtrees contain them, and Plan is the greedy shortest route through them.
+	Introducers []reach.Introducer `json:"introducers,omitempty"`
+	Plan        []reach.Introducer `json:"upgrade_plan,omitempty"`
+	PlanClears  int                `json:"upgrade_plan_clears"`
+	PlanOf      int                `json:"upgrade_plan_of"`
 	// ActionNodes is the ref surface's size and ActionsMoving how many of those
 	// refs are a branch or tag rather than a SHA.
 	ActionNodes        int                `json:"action_nodes"`
@@ -335,6 +360,76 @@ type finding struct {
 	// means transitive: nothing here asked for it, and the fix belongs to
 	// whoever did.
 	Surfaces []string `json:"surfaces,omitempty"`
+}
+
+// planDepth is how many upgrades the plan proposes. Enough to show the shape of
+// the work and short enough to be read as a starting point rather than a backlog.
+const planDepth = 5
+
+// computeReach fills the two sections an INHERITED finding needs and the older
+// exposure table cannot give: what carries risk without carrying an advisory,
+// and which of this repository's own dependencies would clear the most.
+//
+// It is separate from buildReport because it needs the edge list and the
+// per-node pinning, and neither belongs in a signature that already carries
+// nine arguments.
+func computeReach(r *reportDoc, findings []advisory.Finding,
+	assessments []supply.Assessment, surfaces map[graph.NodeID][]string,
+	edges []reach.Edge, pinning map[graph.NodeID]string) {
+
+	isDirect := func(id graph.NodeID) bool { return len(surfaces[id]) > 0 }
+
+	// --- indirect risk -----------------------------------------------------
+	//
+	// Restricted to the signals a maintainer can act on. The ecosystem baseline —
+	// unsigned releases, no SLSA provenance — describes open-source publishing in
+	// general and would bury the four lines that mean something.
+	sig := map[string]int{}
+	for _, a := range assessments {
+		if isDirect(a.NodeID) {
+			continue
+		}
+		for _, s := range a.Signals {
+			if !baselineSignals[s.Code] {
+				sig[s.Code]++
+			}
+		}
+	}
+	r.IndirectRisk = []count{}
+	for _, code := range supply.Codes() {
+		if sig[code] > 0 {
+			r.IndirectRisk = append(r.IndirectRisk, count{Name: code, Versions: sig[code]})
+		}
+	}
+	var floating int
+	for id, pin := range pinning {
+		if pin == "floating" && !isDirect(id) {
+			floating++
+		}
+	}
+	if floating > 0 {
+		r.IndirectRisk = append(r.IndirectRisk,
+			count{Name: "floating-version", Versions: floating})
+	}
+
+	// --- blast radius ------------------------------------------------------
+	affected := map[graph.NodeID]bool{}
+	for _, f := range findings {
+		if !isDirect(f.NodeID) {
+			affected[f.NodeID] = true
+		}
+	}
+	var direct []graph.NodeID
+	for id := range surfaces {
+		if graph.IsPackage(id) {
+			direct = append(direct, id)
+		}
+	}
+	sort.Slice(direct, func(i, j int) bool { return direct[i] < direct[j] })
+
+	r.Introducers = reach.Introducers(direct, affected, edges)
+	r.Plan, r.PlanClears = reach.Cover(direct, affected, edges, planDepth)
+	r.PlanOf = len(affected)
 }
 
 // exposureRow is one reach bucket. Direct rows are per surface, because
@@ -761,6 +856,27 @@ func renderReport(r reportDoc) []byte {
 		}
 		fmt.Fprintf(&b, "   rate = share of that surface's packages carrying at least one advisory.\n")
 		fmt.Fprintf(&b, "   A package named by two surfaces is counted in both: two lines to edit.\n")
+
+		// The split stated as a sentence, not left to be read out of the table.
+		// "every one of these is inherited" and "half are yours to edit" are
+		// different mornings, and the numbers alone do not say which this is.
+		var dIssues, iIssues int
+		for _, e := range r.Exposure {
+			n := e.Malicious + e.Critical + e.High + e.Other
+			if e.Reach == "direct" {
+				dIssues += n
+			} else {
+				iIssues += n
+			}
+		}
+		switch {
+		case dIssues == 0 && iIssues > 0:
+			fmt.Fprintf(&b, "   ALL %d are inherited: none is a line in a file here.\n", iIssues)
+		case iIssues == 0 && dIssues > 0:
+			fmt.Fprintf(&b, "   All %d are DIRECT: every one is a line in a file here.\n", dIssues)
+		case dIssues > 0:
+			fmt.Fprintf(&b, "   %d direct (yours to edit), %d inherited.\n", dIssues, iIssues)
+		}
 	}
 
 	fmt.Fprintf(&b, "\n2c. CI ACTIONS WITH PUBLISHED ADVISORIES  (%d of %d invoked)\n",
@@ -778,8 +894,46 @@ func renderReport(r reportDoc) []byte {
 		fmt.Fprintf(&b, "\n   NOT version-matched. OSV answers for CI actions only WITHOUT a\n")
 		fmt.Fprintf(&b, "   version — its records carry no purl and state ranges in a versioning\n")
 		fmt.Fprintf(&b, "   that refs do not follow — so this says the action has an advisory, not\n")
-		fmt.Fprintf(&b, "   that your ref is inside it. Go and look. It is excluded from the score\n")
-		fmt.Fprintf(&b, "   for the same reason: an unverified ref must not move a grade.\n")
+		fmt.Fprintf(&b, "   that your ref is inside it. Go and look. It scores at %.0f%% weight for\n",
+			score.ActionClaimWeight*100)
+		fmt.Fprintf(&b, "   the same reason: the claim is weaker, not absent.\n")
+	}
+
+	if len(r.IndirectRisk) > 0 {
+		fmt.Fprintf(&b, "\n2d. INDIRECT RISK  (no advisory today)\n")
+		for _, c := range r.IndirectRisk {
+			note := ""
+			if c.Name == "floating-version" {
+				note = "   a rebuild can move these"
+			}
+			fmt.Fprintf(&b, "   %-28s %8d%s\n", c.Name, c.Versions, note)
+		}
+		fmt.Fprintf(&b, "   Not findings. This is how a finding arrives: an unmaintained\n")
+		fmt.Fprintf(&b, "   package will not ship the fix when one is needed.\n")
+	}
+
+	if len(r.Introducers) > 0 {
+		fmt.Fprintf(&b, "\n2e. BLAST RADIUS  (which of your dependencies brought these in)\n")
+		fmt.Fprintf(&b, "   %-46s %8s %10s\n", "direct dependency", "affected", "only here")
+		for i, in := range r.Introducers {
+			if i >= planDepth {
+				fmt.Fprintf(&b, "   ... %d more (--format json for all)\n", len(r.Introducers)-planDepth)
+				break
+			}
+			fmt.Fprintf(&b, "   %-46s %8d %10s\n",
+				truncate(label(in.Direct), 46), in.Affected, orDashN(in.Exclusive))
+		}
+		fmt.Fprintf(&b, "   \"only here\" is what THIS bump alone clears. A package pulled in by\n")
+		fmt.Fprintf(&b, "   four dependencies is not fixed by upgrading one of them.\n")
+		if len(r.Plan) > 0 {
+			fmt.Fprintf(&b, "\n   Shortest route: %d %s %s %d of %d affected packages.\n",
+				len(r.Plan), plural(len(r.Plan), "bump"),
+				map[bool]string{true: "clears", false: "clear"}[len(r.Plan) == 1],
+				r.PlanClears, r.PlanOf)
+			for _, in := range r.Plan {
+				fmt.Fprintf(&b, "     %-46s +%d\n", truncate(label(in.Direct), 46), in.New)
+			}
+		}
 	}
 
 	fmt.Fprintf(&b, "\n3. POSTURE\n")
