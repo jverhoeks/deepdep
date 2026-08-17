@@ -13,6 +13,11 @@ deepdep report --format json         # the same, for a pipeline
 Offline, from a git checkout. No daemon, no image pull, and it **never executes
 the code it analyses**.
 
+📄 **[Five dependencies. Four of them vulnerable.](docs/2026-08-17-five-dependencies-four-vulnerable.md)**
+— the most-starred repository on GitHub declares five packages and four carry an
+advisory. Named findings across 163 repositories, and the four fixes worth the
+hours.
+
 📄 **[Who can actually fix it](docs/2026-08-16-who-can-fix-it.md)** — 163 of
 GitHub's most-used repositories, with risk sorted by whose job it is, and what
 to do about it. Declared packages are **4.1× likelier** to carry an advisory

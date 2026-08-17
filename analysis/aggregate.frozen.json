@@ -2614,7 +2614,6 @@
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
@@ -2622,8 +2621,8 @@
     "unpinned-ref"
    ],
    "checked": 2414,
-   "package_nodes": 2422,
-   "auditable": 0.9966969446738233,
+   "package_nodes": 2421,
+   "auditable": 0.9971086327963652,
    "grade": "D",
    "score": 51,
    "suppressed": false,
@@ -2712,8 +2711,7 @@
     "no-license": 8
    },
    "coverage": {
-    "dev-not-installed": 2663,
-    "error:fetch": 1,
+    "dev-not-installed": 2664,
     "extra-not-requested": 322,
     "no-extractor": 8,
     "registry-redirect": 1,
@@ -2850,23 +2848,22 @@
    "age_days": 133,
    "stars_per_day": 439.1278195488722,
    "summary": {
-    "total": 2279,
-    "resolved": 835,
-    "declared": 1418,
+    "total": 2284,
+    "resolved": 838,
+    "declared": 1420,
     "inferred": 3,
     "opaque": 23
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 827,
-   "package_nodes": 831,
-   "auditable": 0.9951865222623345,
+   "checked": 830,
+   "package_nodes": 833,
+   "auditable": 0.9963985594237695,
    "grade": "D",
    "score": 61,
    "suppressed": false,
@@ -2876,20 +2873,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 23.058578621027596,
-     "detail": "1 critical, 17 high, 15 moderate in 827 packages"
+     "points": 23.0168687672441,
+     "detail": "1 critical, 17 high, 15 moderate in 830 packages"
     },
     "hygiene": {
-     "points": 10.423216444981861,
-     "detail": "52% floating (431 of 827 versions unheld by any exact constraint)"
+     "points": 10.457831325301205,
+     "detail": "52% floating (434 of 830 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.776299879081016,
-     "detail": "218 unmaintained, 28 dangerous-workflow, 209 unreviewed"
+     "points": 9.77710843373494,
+     "detail": "220 unmaintained, 28 dangerous-workflow, 209 unreviewed"
     }
    },
    "malicious": 0,
@@ -2914,7 +2911,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 798,
+     "checked": 801,
      "affected": 15,
      "malicious": 0,
      "critical": 0,
@@ -2960,17 +2957,16 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 3,
-    "unmaintained": 218,
+    "unmaintained": 220,
     "dangerous-workflow": 28,
     "unreviewed-code": 209,
-    "no-branch-protection": 266,
+    "no-branch-protection": 269,
     "overprivileged-ci": 506,
     "no-source-repo": 21,
     "no-license": 4
    },
    "coverage": {
-    "dev-not-installed": 1081,
-    "error:fetch": 1,
+    "dev-not-installed": 1084,
     "extra-not-requested": 313,
     "no-extractor": 9,
     "unpinned-ref": 14
@@ -2979,7 +2975,7 @@
    "sample_manifests": 1,
    "db": {
     "pinning": {
-     "floating": 431,
+     "floating": 434,
      "locked": 168,
      "pinned": 228
     },
@@ -2988,9 +2984,9 @@
      "deb": 3,
      "generic": 39,
      "github": 12,
-     "npm": 1694,
+     "npm": 1698,
      "oci": 2,
-     "pypi": 528
+     "pypi": 529
     },
     "build_files": {
      "dockerfile": 2,
@@ -3018,14 +3014,13 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 8156,
-    "resolved": 3584,
-    "declared": 4539,
+    "total": 8844,
+    "resolved": 4346,
+    "declared": 4465,
     "inferred": 1,
     "opaque": 32
    },
    "bounds_hit": [
-    "bound:timeout",
     "dev-not-installed",
     "error:badrange",
     "inferred:run",
@@ -3033,11 +3028,11 @@
     "unpinned-ref",
     "unresolved-arg"
    ],
-   "checked": 3568,
-   "package_nodes": 3831,
-   "auditable": 0.9313495170973636,
+   "checked": 4330,
+   "package_nodes": 4334,
+   "auditable": 0.9990770650669127,
    "grade": "F",
-   "score": 73,
+   "score": 72,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -3045,29 +3040,29 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 27.84069144141249,
-     "detail": "9 critical, 94 high, 106 moderate in 3568 packages"
+     "points": 26.07915013805967,
+     "detail": "11 critical, 97 high, 108 moderate in 4330 packages"
     },
     "hygiene": {
-     "points": 15.07847533632287,
-     "detail": "75% floating (2690 of 3568 versions unheld by any exact constraint)"
+     "points": 15.431870669745958,
+     "detail": "77% floating (3341 of 4330 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 10.060257847533633,
-     "detail": "1312 unmaintained, 42 dangerous-workflow, 913 unreviewed"
+     "points": 10.555427251732102,
+     "detail": "1721 unmaintained, 42 dangerous-workflow, 1158 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 230,
+   "advisories": 237,
    "sev": {
-    "CRITICAL": 9,
-    "HIGH": 94,
-    "MODERATE": 106,
+    "CRITICAL": 11,
+    "HIGH": 97,
+    "MODERATE": 108,
     "LOW": 21
    },
    "exposure": {
@@ -3083,12 +3078,12 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3391,
-     "affected": 51,
+     "checked": 4153,
+     "affected": 57,
      "malicious": 0,
-     "critical": 9,
-     "high": 79,
-     "other": 94
+     "critical": 11,
+     "high": 82,
+     "other": 96
     }
    },
    "direct_findings": [
@@ -3635,18 +3630,17 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "deprecated": 55,
-    "unmaintained": 1312,
+    "deprecated": 67,
+    "unmaintained": 1721,
     "dangerous-workflow": 42,
-    "unreviewed-code": 913,
-    "no-branch-protection": 1403,
-    "overprivileged-ci": 1752,
-    "no-source-repo": 41,
-    "no-license": 14
+    "unreviewed-code": 1158,
+    "no-branch-protection": 1839,
+    "overprivileged-ci": 2077,
+    "no-source-repo": 47,
+    "no-license": 17
    },
    "coverage": {
-    "bound:timeout": 259,
-    "dev-not-installed": 4246,
+    "dev-not-installed": 4431,
     "error:badrange": 3,
     "no-extractor": 15,
     "unpinned-ref": 15,
@@ -3656,16 +3650,16 @@
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 2690,
-     "locked": 60,
-     "pinned": 818
+     "floating": 3341,
+     "locked": 58,
+     "pinned": 931
     },
     "ecosystems": {
      "": 1,
      "deb": 1,
      "generic": 59,
      "github": 15,
-     "npm": 8076,
+     "npm": 8764,
      "oci": 4
     },
     "build_files": {
@@ -4046,9 +4040,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 4182,
+    "total": 4180,
     "resolved": 1639,
-    "declared": 2460,
+    "declared": 2458,
     "inferred": 31,
     "opaque": 52
    },
@@ -4826,7 +4820,7 @@
     "extra-not-requested": 588,
     "no-extractor": 29,
     "offline": 1,
-    "unpinned-ref": 29,
+    "unpinned-ref": 27,
     "unresolved-arg": 1
    },
    "manifests": 24,
@@ -4843,7 +4837,7 @@
      "generic": 112,
      "github": 10,
      "npm": 3194,
-     "oci": 25,
+     "oci": 23,
      "pypi": 809,
      "rpm": 13
     },
@@ -4856,8 +4850,8 @@
      "unpinned": 5
     },
     "images": {
-     "total": 24,
-     "unpinned": 24
+     "total": 22,
+     "unpinned": 22
     },
     "opaque": 52
    }
@@ -5038,14 +5032,13 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 11740,
-    "resolved": 5490,
-    "declared": 6202,
+    "total": 13585,
+    "resolved": 7372,
+    "declared": 6165,
     "inferred": 13,
     "opaque": 35
    },
    "bounds_hit": [
-    "bound:timeout",
     "dev-not-installed",
     "error:fetch",
     "extra-not-requested",
@@ -5053,11 +5046,11 @@
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 5475,
-   "package_nodes": 6352,
-   "auditable": 0.861933249370277,
+   "checked": 7357,
+   "package_nodes": 7371,
+   "auditable": 0.9981006647673314,
    "grade": "F",
-   "score": 78,
+   "score": 79,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -5065,37 +5058,37 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 45,
-     "detail": "25 critical, 489 high, 554 moderate in 5475 packages"
+     "points": 43.31749493096879,
+     "detail": "27 critical, 508 high, 592 moderate in 7357 packages"
     },
     "hygiene": {
-     "points": 6.001826484018265,
-     "detail": "30% floating (1643 of 5475 versions unheld by any exact constraint)"
+     "points": 8.185401658284627,
+     "detail": "41% floating (3011 of 7357 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.098630136986301,
-     "detail": "1191 unmaintained, 98 dangerous-workflow, 1008 unreviewed"
+     "points": 7.331792850346608,
+     "detail": "1818 unmaintained, 100 dangerous-workflow, 1378 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 1272,
+   "advisories": 1340,
    "sev": {
-    "CRITICAL": 25,
-    "HIGH": 489,
-    "MODERATE": 554,
-    "LOW": 168,
+    "CRITICAL": 27,
+    "HIGH": 508,
+    "MODERATE": 592,
+    "LOW": 177,
     "UNKNOWN": 36
    },
    "exposure": {
     "manifest": {
      "reach": "direct",
      "surface": "manifest",
-     "checked": 611,
+     "checked": 612,
      "affected": 76,
      "malicious": 0,
      "critical": 15,
@@ -5114,12 +5107,12 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 4859,
-     "affected": 198,
+     "checked": 6740,
+     "affected": 215,
      "malicious": 0,
-     "critical": 10,
-     "high": 257,
-     "other": 476
+     "critical": 12,
+     "high": 276,
+     "other": 523
     }
    },
    "direct_findings": [
@@ -10909,21 +10902,20 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "deprecated": 47,
+    "deprecated": 96,
     "unlisted": 7,
-    "unmaintained": 1191,
-    "dangerous-workflow": 98,
-    "unreviewed-code": 1008,
-    "no-branch-protection": 1309,
-    "overprivileged-ci": 2377,
-    "no-source-repo": 213,
-    "no-license": 98
+    "unmaintained": 1818,
+    "dangerous-workflow": 100,
+    "unreviewed-code": 1378,
+    "no-branch-protection": 1951,
+    "overprivileged-ci": 3263,
+    "no-source-repo": 284,
+    "no-license": 133
    },
    "coverage": {
-    "bound:timeout": 863,
-    "dev-not-installed": 3879,
+    "dev-not-installed": 4690,
     "error:fetch": 1,
-    "extra-not-requested": 1438,
+    "extra-not-requested": 1453,
     "no-extractor": 12,
     "unpinned-ref": 9
    },
@@ -10931,9 +10923,9 @@
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 1643,
-     "locked": 2077,
-     "pinned": 1755
+     "floating": 3011,
+     "locked": 2096,
+     "pinned": 2250
     },
     "ecosystems": {
      "": 1,
@@ -10941,9 +10933,9 @@
      "deb": 6,
      "generic": 61,
      "github": 3,
-     "npm": 8880,
+     "npm": 10708,
      "oci": 6,
-     "pypi": 2782
+     "pypi": 2799
     },
     "build_files": {
      "dockerfile": 12,
@@ -10972,24 +10964,23 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 8024,
-    "resolved": 3791,
-    "declared": 4037,
+    "total": 8023,
+    "resolved": 3792,
+    "declared": 4035,
     "inferred": 44,
     "opaque": 152
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "inferred:run,distro-assumed",
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 3730,
+   "checked": 3731,
    "package_nodes": 3775,
-   "auditable": 0.9880794701986755,
+   "auditable": 0.9883443708609272,
    "grade": "D",
    "score": 51,
    "suppressed": false,
@@ -10999,19 +10990,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 22.244334502622753,
-     "detail": "6 critical, 64 high, 67 moderate in 3730 packages"
+     "points": 22.241353287772853,
+     "detail": "6 critical, 64 high, 67 moderate in 3731 packages"
     },
     "hygiene": {
-     "points": 6.402144772117962,
-     "detail": "32% floating (1194 of 3730 versions unheld by any exact constraint)"
+     "points": 6.4057893326186015,
+     "detail": "32% floating (1195 of 3731 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.289544235924932,
+     "points": 9.287054409005629,
      "detail": "1247 unmaintained, 56 dangerous-workflow, 839 unreviewed"
     }
    },
@@ -11047,7 +11038,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3573,
+     "checked": 3574,
      "affected": 55,
      "malicious": 0,
      "critical": 6,
@@ -11166,16 +11157,15 @@
    },
    "coverage": {
     "dev-not-installed": 3903,
-    "error:fetch": 1,
     "extra-not-requested": 76,
     "no-extractor": 19,
-    "unpinned-ref": 38
+    "unpinned-ref": 37
    },
    "manifests": 4,
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 1194,
+     "floating": 1195,
      "locked": 1321,
      "pinned": 1215
     },
@@ -11185,7 +11175,7 @@
      "generic": 215,
      "github": 44,
      "npm": 7586,
-     "oci": 10,
+     "oci": 9,
      "pypi": 126
     },
     "build_files": {
@@ -11197,8 +11187,8 @@
      "unpinned": 31
     },
     "images": {
-     "total": 10,
-     "unpinned": 7
+     "total": 9,
+     "unpinned": 6
     },
     "opaque": 152
    }
@@ -12340,9 +12330,9 @@
    "age_days": 218,
    "stars_per_day": 289,
    "summary": {
-    "total": 3928,
-    "resolved": 1593,
-    "declared": 2272,
+    "total": 3930,
+    "resolved": 1594,
+    "declared": 2273,
     "inferred": 8,
     "opaque": 55
    },
@@ -12353,9 +12343,9 @@
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 1581,
-   "package_nodes": 1589,
-   "auditable": 0.9949653870358716,
+   "checked": 1582,
+   "package_nodes": 1590,
+   "auditable": 0.9949685534591195,
    "grade": "F",
    "score": 75,
    "suppressed": false,
@@ -12365,19 +12355,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 33.35410936523182,
-     "detail": "4 critical, 67 high, 63 moderate in 1581 packages"
+     "points": 33.343565944906686,
+     "detail": "4 critical, 67 high, 63 moderate in 1582 packages"
     },
     "hygiene": {
-     "points": 11.473750790638837,
-     "detail": "57% floating (907 of 1581 versions unheld by any exact constraint)"
+     "points": 11.47914032869785,
+     "detail": "57% floating (908 of 1582 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.772296015180265,
+     "points": 9.766118836915297,
      "detail": "581 unmaintained, 28 dangerous-workflow, 337 unreviewed"
     }
    },
@@ -12403,7 +12393,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 1500,
+     "checked": 1501,
      "affected": 24,
      "malicious": 0,
      "critical": 4,
@@ -13166,14 +13156,14 @@
     "unmaintained": 581,
     "dangerous-workflow": 28,
     "unreviewed-code": 337,
-    "no-branch-protection": 666,
-    "overprivileged-ci": 842,
+    "no-branch-protection": 667,
+    "overprivileged-ci": 843,
     "no-source-repo": 20,
     "no-license": 5
    },
    "coverage": {
     "dev-not-installed": 1924,
-    "extra-not-requested": 327,
+    "extra-not-requested": 328,
     "no-extractor": 2,
     "unpinned-ref": 19
    },
@@ -13181,7 +13171,7 @@
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 907,
+     "floating": 908,
      "locked": 403,
      "pinned": 271
     },
@@ -13192,7 +13182,7 @@
      "github": 17,
      "npm": 3344,
      "oci": 2,
-     "pypi": 488
+     "pypi": 490
     },
     "build_files": {
      "workflow": 10,
@@ -13220,15 +13210,16 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 6584,
-    "resolved": 3200,
-    "declared": 3142,
+    "total": 6587,
+    "resolved": 3201,
+    "declared": 3144,
     "inferred": 69,
     "opaque": 173
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:badrange",
+    "error:fetch",
     "error:parse",
     "extra-not-requested",
     "inferred:run",
@@ -13237,9 +13228,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3121,
-   "package_nodes": 3191,
-   "auditable": 0.9780633030397994,
+   "checked": 3122,
+   "package_nodes": 3194,
+   "auditable": 0.9774577332498434,
    "grade": "C",
    "score": 48,
    "suppressed": false,
@@ -13249,20 +13240,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 22.330978183348037,
-     "detail": "4 critical, 57 high, 58 moderate in 3121 packages"
+     "points": 22.32740150707246,
+     "detail": "4 critical, 57 high, 58 moderate in 3122 packages"
     },
     "hygiene": {
-     "points": 3.351489907081064,
-     "detail": "17% floating (523 of 3121 versions unheld by any exact constraint)"
+     "points": 3.356822549647662,
+     "detail": "17% floating (524 of 3122 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.198974687600128,
-     "detail": "1072 unmaintained, 14 dangerous-workflow, 786 unreviewed"
+     "points": 9.200832799487507,
+     "detail": "1073 unmaintained, 14 dangerous-workflow, 786 unreviewed"
     }
    },
    "malicious": 0,
@@ -13287,7 +13278,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 2973,
+     "checked": 2974,
      "affected": 47,
      "malicious": 0,
      "critical": 4,
@@ -13377,17 +13368,18 @@
    "repo_signals": {
     "deprecated": 26,
     "unlisted": 6,
-    "unmaintained": 1072,
+    "unmaintained": 1073,
     "dangerous-workflow": 14,
     "unreviewed-code": 786,
-    "no-branch-protection": 1147,
-    "overprivileged-ci": 1540,
+    "no-branch-protection": 1148,
+    "overprivileged-ci": 1541,
     "no-source-repo": 14,
     "no-license": 6
    },
    "coverage": {
     "dev-not-installed": 3031,
     "error:badrange": 1,
+    "error:fetch": 2,
     "error:parse": 3,
     "extra-not-requested": 54,
     "no-extractor": 33,
@@ -13398,7 +13390,7 @@
    "sample_manifests": 2,
    "db": {
     "pinning": {
-     "floating": 523,
+     "floating": 524,
      "locked": 1857,
      "pinned": 741
     },
@@ -13407,9 +13399,9 @@
      "deb": 69,
      "generic": 250,
      "github": 49,
-     "npm": 6106,
+     "npm": 6107,
      "oci": 8,
-     "pypi": 101
+     "pypi": 103
     },
     "build_files": {
      "dockerfile": 5,
@@ -14361,9 +14353,9 @@
    "age_days": 472,
    "stars_per_day": 419.3707627118644,
    "summary": {
-    "total": 9516,
-    "resolved": 5093,
-    "declared": 4330,
+    "total": 9518,
+    "resolved": 5094,
+    "declared": 4331,
     "inferred": 20,
     "opaque": 73
    },
@@ -14378,9 +14370,9 @@
     "unpinned-ref",
     "unresolved-arg"
    ],
-   "checked": 5038,
-   "package_nodes": 5073,
-   "auditable": 0.9931007293514685,
+   "checked": 5039,
+   "package_nodes": 5074,
+   "auditable": 0.9931020890815925,
    "grade": "D",
    "score": 59,
    "suppressed": false,
@@ -14390,19 +14382,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 19.378639621155248,
-     "detail": "3 critical, 62 high, 111 moderate in 5038 packages"
+     "points": 19.37671666013626,
+     "detail": "3 critical, 62 high, 111 moderate in 5039 packages"
     },
     "hygiene": {
-     "points": 11.973005160778087,
-     "detail": "60% floating (3016 of 5038 versions unheld by any exact constraint)"
+     "points": 11.974598134550508,
+     "detail": "60% floating (3017 of 5039 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.32135768161969,
+     "points": 7.319904743004564,
      "detail": "1290 unmaintained, 48 dangerous-workflow, 977 unreviewed"
     }
    },
@@ -14428,7 +14420,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 4785,
+     "checked": 4786,
      "affected": 39,
      "malicious": 0,
      "critical": 3,
@@ -14998,7 +14990,7 @@
     "no-license": 53
    },
    "coverage": {
-    "dev-not-installed": 4271,
+    "dev-not-installed": 4272,
     "error:404": 14,
     "error:badrange": 1,
     "no-extractor": 34,
@@ -15010,7 +15002,7 @@
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 3016,
+     "floating": 3017,
      "pinned": 2022
     },
     "ecosystems": {
@@ -15019,7 +15011,7 @@
      "deb": 17,
      "generic": 140,
      "github": 24,
-     "npm": 9324,
+     "npm": 9326,
      "oci": 7
     },
     "build_files": {
@@ -15281,15 +15273,16 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 8797,
-    "resolved": 4135,
-    "declared": 4316,
+    "total": 8783,
+    "resolved": 4136,
+    "declared": 4301,
     "inferred": 12,
     "opaque": 334
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:404",
+    "error:fetch",
     "error:pin-not-found",
     "extra-not-requested",
     "inferred:run",
@@ -15299,9 +15292,9 @@
     "unpinned-ref",
     "unresolved-arg"
    ],
-   "checked": 4030,
-   "package_nodes": 4066,
-   "auditable": 0.9911460895228726,
+   "checked": 4031,
+   "package_nodes": 4068,
+   "auditable": 0.9909046214355949,
    "grade": "C",
    "score": 39,
    "suppressed": false,
@@ -15311,19 +15304,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 14.576619798015905,
-     "detail": "0 critical, 44 high, 16 moderate in 4030 packages"
+     "points": 14.574811620895755,
+     "detail": "0 critical, 44 high, 16 moderate in 4031 packages"
     },
     "hygiene": {
-     "points": 3.007444168734491,
-     "detail": "15% floating (606 of 4030 versions unheld by any exact constraint)"
+     "points": 3.006698089804019,
+     "detail": "15% floating (606 of 4031 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.464019851116626,
+     "points": 8.461920119077153,
      "detail": "1086 unmaintained, 110 dangerous-workflow, 748 unreviewed"
     }
    },
@@ -15340,7 +15333,7 @@
     "manifest": {
      "reach": "direct",
      "surface": "manifest",
-     "checked": 703,
+     "checked": 702,
      "affected": 2,
      "malicious": 0,
      "critical": 0,
@@ -15359,7 +15352,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3323,
+     "checked": 3325,
      "affected": 27,
      "malicious": 0,
      "critical": 0,
@@ -15460,13 +15453,14 @@
     "dangerous-workflow": 110,
     "unreviewed-code": 748,
     "no-branch-protection": 1178,
-    "overprivileged-ci": 1843,
+    "overprivileged-ci": 1844,
     "no-source-repo": 70,
     "no-license": 15
    },
    "coverage": {
-    "dev-not-installed": 2947,
+    "dev-not-installed": 2931,
     "error:404": 21,
+    "error:fetch": 1,
     "error:pin-not-found": 5,
     "extra-not-requested": 1196,
     "no-extractor": 91,
@@ -15480,16 +15474,16 @@
     "pinning": {
      "floating": 606,
      "locked": 2675,
-     "pinned": 749
+     "pinned": 750
     },
     "ecosystems": {
      "": 1,
      "deb": 7,
      "generic": 507,
      "github": 59,
-     "npm": 5956,
+     "npm": 5941,
      "oci": 21,
-     "pypi": 2246
+     "pypi": 2247
     },
     "build_files": {
      "dockerfile": 30,
@@ -15939,8 +15933,8 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 1014,
-    "resolved": 402,
+    "total": 1013,
+    "resolved": 401,
     "declared": 540,
     "inferred": 19,
     "opaque": 53
@@ -15951,11 +15945,11 @@
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 385,
-   "package_nodes": 404,
-   "auditable": 0.9529702970297029,
+   "checked": 384,
+   "package_nodes": 403,
+   "auditable": 0.9528535980148883,
    "grade": "F",
-   "score": 83,
+   "score": 78,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -15963,29 +15957,29 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 45,
-     "detail": "0 critical, 35 high, 30 moderate in 385 packages"
+     "points": 39.584899718381074,
+     "detail": "0 critical, 32 high, 8 moderate in 384 packages"
     },
     "hygiene": {
-     "points": 8.415584415584416,
-     "detail": "42% floating (162 of 385 versions unheld by any exact constraint)"
+     "points": 8.4375,
+     "detail": "42% floating (162 of 384 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.74025974025974,
+     "points": 9.765625,
      "detail": "38 unmaintained, 0 dangerous-workflow, 212 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 74,
+   "advisories": 45,
    "sev": {
-    "HIGH": 35,
-    "MODERATE": 30,
-    "LOW": 8,
+    "HIGH": 32,
+    "MODERATE": 8,
+    "LOW": 4,
     "UNKNOWN": 1
    },
    "exposure": {
@@ -16011,12 +16005,12 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 337,
-     "affected": 5,
+     "checked": 336,
+     "affected": 3,
      "malicious": 0,
      "critical": 0,
-     "high": 12,
-     "other": 31
+     "high": 9,
+     "other": 5
     }
    },
    "direct_findings": [
@@ -16392,8 +16386,8 @@
    "repo_signals": {
     "unmaintained": 38,
     "unreviewed-code": 212,
-    "no-branch-protection": 45,
-    "overprivileged-ci": 85,
+    "no-branch-protection": 46,
+    "overprivileged-ci": 83,
     "no-source-repo": 9,
     "no-license": 3
    },
@@ -16407,7 +16401,7 @@
    "db": {
     "pinning": {
      "floating": 162,
-     "pinned": 223
+     "pinned": 222
     },
     "ecosystems": {
      "": 1,
@@ -16415,7 +16409,7 @@
      "generic": 71,
      "github": 15,
      "oci": 4,
-     "pypi": 905
+     "pypi": 904
     },
     "build_files": {
      "dockerfile": 5,
@@ -16443,15 +16437,16 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 6904,
+    "total": 6905,
     "resolved": 3110,
-    "declared": 3731,
+    "declared": 3732,
     "inferred": 8,
     "opaque": 55
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:404",
+    "error:fetch",
     "error:pin-not-found",
     "extra-not-requested",
     "inferred:run",
@@ -16460,8 +16455,8 @@
     "unpinned-ref"
    ],
    "checked": 3082,
-   "package_nodes": 3092,
-   "auditable": 0.9967658473479948,
+   "package_nodes": 3093,
+   "auditable": 0.9964435822825736,
    "grade": "D",
    "score": 57,
    "suppressed": false,
@@ -16601,6 +16596,7 @@
    "coverage": {
     "dev-not-installed": 3043,
     "error:404": 1,
+    "error:fetch": 1,
     "error:pin-not-found": 1,
     "extra-not-requested": 661,
     "no-extractor": 10,
@@ -16620,7 +16616,7 @@
      "deb": 6,
      "generic": 85,
      "github": 17,
-     "npm": 5826,
+     "npm": 5827,
      "oci": 5,
      "pypi": 964
     },
@@ -18810,7 +18806,7 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 28,
-    "unlisted": 9,
+    "unlisted": 10,
     "unmaintained": 1281,
     "dangerous-workflow": 46,
     "unreviewed-code": 780,
@@ -19188,9 +19184,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7023,
+    "total": 7024,
     "resolved": 3650,
-    "declared": 3355,
+    "declared": 3356,
     "inferred": 1,
     "opaque": 17
    },
@@ -19873,7 +19869,7 @@
     "no-license": 19
    },
    "coverage": {
-    "dev-not-installed": 3346,
+    "dev-not-installed": 3347,
     "no-extractor": 7,
     "unpinned-ref": 2
    },
@@ -19889,7 +19885,7 @@
      "deb": 1,
      "generic": 38,
      "github": 11,
-     "npm": 6968,
+     "npm": 6969,
      "oci": 4
     },
     "build_files": {
@@ -19918,9 +19914,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 5726,
+    "total": 5727,
     "resolved": 2677,
-    "declared": 3009,
+    "declared": 3010,
     "inferred": 5,
     "opaque": 35
    },
@@ -20055,7 +20051,7 @@
     "no-license": 6
    },
    "coverage": {
-    "dev-not-installed": 3000,
+    "dev-not-installed": 3001,
     "no-extractor": 1,
     "unpinned-ref": 8
    },
@@ -20072,7 +20068,7 @@
      "deb": 3,
      "generic": 42,
      "github": 12,
-     "npm": 5667,
+     "npm": 5668,
      "oci": 1
     },
     "build_files": {
@@ -20751,23 +20747,24 @@
    "stars_per_day": null,
    "summary": {
     "total": 7840,
-    "resolved": 3837,
-    "declared": 3865,
+    "resolved": 3836,
+    "declared": 3866,
     "inferred": 7,
     "opaque": 131
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:404",
+    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "inferred:run,distro-assumed",
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 3788,
-   "package_nodes": 3796,
-   "auditable": 0.9978925184404637,
+   "checked": 3787,
+   "package_nodes": 3798,
+   "auditable": 0.9971037388099,
    "grade": "C",
    "score": 42,
    "suppressed": false,
@@ -20777,20 +20774,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 11.527446963192416,
-     "detail": "1 critical, 19 high, 20 moderate in 3788 packages"
+     "points": 11.528968838829543,
+     "detail": "1 critical, 19 high, 20 moderate in 3787 packages"
     },
     "hygiene": {
-     "points": 5.681098204857444,
-     "detail": "28% floating (1076 of 3788 versions unheld by any exact constraint)"
+     "points": 5.677317137575918,
+     "detail": "28% floating (1075 of 3787 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.452481520591341,
-     "detail": "1004 unmaintained, 43 dangerous-workflow, 706 unreviewed"
+     "points": 7.446527594401901,
+     "detail": "1003 unmaintained, 43 dangerous-workflow, 705 unreviewed"
     }
    },
    "malicious": 0,
@@ -20815,7 +20812,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3600,
+     "checked": 3599,
      "affected": 17,
      "malicious": 0,
      "critical": 1,
@@ -20895,18 +20892,19 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 37,
-    "unmaintained": 1004,
+    "unmaintained": 1003,
     "dangerous-workflow": 43,
-    "unreviewed-code": 706,
-    "no-branch-protection": 1162,
-    "overprivileged-ci": 1789,
+    "unreviewed-code": 705,
+    "no-branch-protection": 1161,
+    "overprivileged-ci": 1788,
     "no-source-repo": 68,
     "no-license": 16
    },
    "coverage": {
-    "dev-not-installed": 3542,
+    "dev-not-installed": 3541,
     "error:404": 1,
-    "extra-not-requested": 257,
+    "error:fetch": 3,
+    "extra-not-requested": 256,
     "no-extractor": 37,
     "unpinned-ref": 28
    },
@@ -20914,7 +20912,7 @@
    "sample_manifests": 18,
    "db": {
     "pinning": {
-     "floating": 1076,
+     "floating": 1075,
      "locked": 1529,
      "pinned": 1183
     },
@@ -20924,9 +20922,9 @@
      "deb": 6,
      "generic": 204,
      "github": 34,
-     "npm": 7214,
+     "npm": 7215,
      "oci": 6,
-     "pypi": 374
+     "pypi": 373
     },
     "build_files": {
      "dockerfile": 5,
@@ -21056,23 +21054,22 @@
    "stars_per_day": null,
    "summary": {
     "total": 7471,
-    "resolved": 3602,
-    "declared": 3798,
+    "resolved": 3605,
+    "declared": 3795,
     "inferred": 9,
     "opaque": 62
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:404",
-    "error:fetch",
     "inferred:run",
     "no-extractor",
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3563,
+   "checked": 3566,
    "package_nodes": 3577,
-   "auditable": 0.9960861056751468,
+   "auditable": 0.9969247973161868,
    "grade": "D",
    "score": 62,
    "suppressed": false,
@@ -21082,20 +21079,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 31.187746218884495,
-     "detail": "12 critical, 125 high, 104 moderate in 3563 packages"
+     "points": 31.17462466460387,
+     "detail": "12 critical, 125 high, 104 moderate in 3566 packages"
     },
     "hygiene": {
-     "points": 3.5475722705585184,
-     "detail": "18% floating (632 of 3563 versions unheld by any exact constraint)"
+     "points": 3.544587773415592,
+     "detail": "18% floating (632 of 3566 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.771260174010665,
-     "detail": "1373 unmaintained, 35 dangerous-workflow, 808 unreviewed"
+     "points": 9.775659001682557,
+     "detail": "1373 unmaintained, 35 dangerous-workflow, 811 unreviewed"
     }
    },
    "malicious": 0,
@@ -21130,7 +21127,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3282,
+     "checked": 3285,
      "affected": 71,
      "malicious": 0,
      "critical": 10,
@@ -22028,16 +22025,15 @@
     "unlisted": 1,
     "unmaintained": 1373,
     "dangerous-workflow": 35,
-    "unreviewed-code": 808,
+    "unreviewed-code": 811,
     "no-branch-protection": 1418,
-    "overprivileged-ci": 1857,
+    "overprivileged-ci": 1860,
     "no-source-repo": 55,
     "no-license": 18
    },
    "coverage": {
     "dev-not-installed": 3769,
     "error:404": 4,
-    "error:fetch": 3,
     "no-extractor": 18,
     "offline": 1,
     "unpinned-ref": 3
@@ -22048,7 +22044,7 @@
     "pinning": {
      "floating": 632,
      "locked": 1918,
-     "pinned": 1013
+     "pinned": 1016
     },
     "ecosystems": {
      "": 1,
@@ -23834,9 +23830,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 5059,
+    "total": 5060,
     "resolved": 2236,
-    "declared": 2627,
+    "declared": 2628,
     "inferred": 37,
     "opaque": 159
    },
@@ -24504,7 +24500,7 @@
     "no-license": 7
    },
    "coverage": {
-    "dev-not-installed": 2493,
+    "dev-not-installed": 2494,
     "extra-not-requested": 100,
     "no-extractor": 17,
     "offline": 1,
@@ -24523,7 +24519,7 @@
      "deb": 33,
      "generic": 232,
      "github": 49,
-     "npm": 4572,
+     "npm": 4573,
      "oci": 5,
      "pypi": 167
     },
@@ -24759,7 +24755,6 @@
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "error:pin-not-found",
     "extra-not-requested",
     "inferred:run",
@@ -24768,8 +24763,8 @@
     "unpinned-ref"
    ],
    "checked": 3198,
-   "package_nodes": 3210,
-   "auditable": 0.9962616822429906,
+   "package_nodes": 3209,
+   "auditable": 0.9965721408538486,
    "grade": "C",
    "score": 38,
    "suppressed": false,
@@ -24879,8 +24874,7 @@
     "no-license": 25
    },
    "coverage": {
-    "dev-not-installed": 3150,
-    "error:fetch": 1,
+    "dev-not-installed": 3151,
     "error:pin-not-found": 2,
     "extra-not-requested": 731,
     "no-extractor": 21,
@@ -24900,9 +24894,9 @@
      "deb": 9,
      "generic": 213,
      "github": 34,
-     "npm": 6059,
+     "npm": 6060,
      "oci": 9,
-     "pypi": 1023
+     "pypi": 1022
     },
     "build_files": {
      "dockerfile": 6,
@@ -25934,10 +25928,10 @@
     "unmaintained": 45,
     "dangerous-workflow": 1,
     "unreviewed-code": 29,
-    "no-branch-protection": 59,
-    "overprivileged-ci": 101,
-    "no-source-repo": 23,
-    "no-license": 7
+    "no-branch-protection": 60,
+    "overprivileged-ci": 102,
+    "no-source-repo": 22,
+    "no-license": 6
    },
    "coverage": {
     "extra-not-requested": 611,
@@ -25986,10 +25980,10 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7475,
-    "resolved": 3656,
-    "declared": 3676,
-    "inferred": 24,
+    "total": 7473,
+    "resolved": 3657,
+    "declared": 3674,
+    "inferred": 23,
     "opaque": 119
    },
    "bounds_hit": [
@@ -26003,9 +25997,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3586,
+   "checked": 3587,
    "package_nodes": 3612,
-   "auditable": 0.9928017718715393,
+   "auditable": 0.993078626799557,
    "grade": "C",
    "score": 46,
    "suppressed": false,
@@ -26015,19 +26009,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 18.62484121762231,
-     "detail": "2 critical, 51 high, 42 moderate in 3586 packages"
+     "points": 18.62224487813557,
+     "detail": "2 critical, 51 high, 42 moderate in 3587 packages"
     },
     "hygiene": {
-     "points": 2.626882320133854,
-     "detail": "13% floating (471 of 3586 versions unheld by any exact constraint)"
+     "points": 2.6317256760524117,
+     "detail": "13% floating (472 of 3587 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 15.555555555555555,
      "detail": "7 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.076965978806468,
+     "points": 9.074435461388347,
      "detail": "1203 unmaintained, 35 dangerous-workflow, 827 unreviewed"
     }
    },
@@ -26063,7 +26057,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3315,
+     "checked": 3316,
      "affected": 40,
      "malicious": 0,
      "critical": 2,
@@ -26291,7 +26285,7 @@
     "dangerous-workflow": 35,
     "unreviewed-code": 827,
     "no-branch-protection": 1325,
-    "overprivileged-ci": 1722,
+    "overprivileged-ci": 1723,
     "no-source-repo": 46,
     "no-license": 40
    },
@@ -26302,23 +26296,23 @@
     "extra-not-requested": 228,
     "no-extractor": 56,
     "offline": 1,
-    "unpinned-ref": 7
+    "unpinned-ref": 5
    },
    "manifests": 17,
    "sample_manifests": 2,
    "db": {
     "pinning": {
-     "floating": 471,
+     "floating": 472,
      "locked": 2177,
      "pinned": 938
     },
     "ecosystems": {
      "": 1,
-     "deb": 23,
+     "deb": 22,
      "generic": 204,
      "github": 38,
-     "npm": 6832,
-     "oci": 11,
+     "npm": 6833,
+     "oci": 9,
      "pypi": 366
     },
     "build_files": {
@@ -26330,8 +26324,8 @@
      "unpinned": 4
     },
     "images": {
-     "total": 11,
-     "unpinned": 3
+     "total": 9,
+     "unpinned": 1
     },
     "opaque": 119
    }
@@ -26348,15 +26342,14 @@
    "stars_per_day": null,
    "summary": {
     "total": 8051,
-    "resolved": 3723,
-    "declared": 4238,
+    "resolved": 3725,
+    "declared": 4236,
     "inferred": 12,
     "opaque": 78
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:404",
-    "error:fetch",
     "error:pin-not-found",
     "extra-not-requested",
     "inferred:run",
@@ -26364,9 +26357,9 @@
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 3712,
+   "checked": 3714,
    "package_nodes": 3733,
-   "auditable": 0.994374497723011,
+   "auditable": 0.994910259844629,
    "grade": "D",
    "score": 59,
    "suppressed": false,
@@ -26376,20 +26369,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 25.27938104288414,
-     "detail": "2 critical, 94 high, 108 moderate in 3712 packages"
+     "points": 25.272573615524173,
+     "detail": "2 critical, 94 high, 108 moderate in 3714 packages"
     },
     "hygiene": {
-     "points": 4.10021551724138,
-     "detail": "21% floating (761 of 3712 versions unheld by any exact constraint)"
+     "points": 4.108777598276791,
+     "detail": "21% floating (763 of 3714 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 10.017510775862068,
-     "detail": "1228 unmaintained, 50 dangerous-workflow, 1051 unreviewed"
+     "points": 10.020193861066236,
+     "detail": "1229 unmaintained, 50 dangerous-workflow, 1052 unreviewed"
     }
    },
    "malicious": 0,
@@ -26415,7 +26408,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3368,
+     "checked": 3370,
      "affected": 67,
      "malicious": 0,
      "critical": 2,
@@ -27132,10 +27125,10 @@
    "repo_signals": {
     "deprecated": 35,
     "unlisted": 10,
-    "unmaintained": 1228,
+    "unmaintained": 1229,
     "dangerous-workflow": 50,
-    "unreviewed-code": 1051,
-    "no-branch-protection": 1342,
+    "unreviewed-code": 1052,
+    "no-branch-protection": 1343,
     "overprivileged-ci": 1726,
     "no-source-repo": 71,
     "no-license": 40
@@ -27143,7 +27136,6 @@
    "coverage": {
     "dev-not-installed": 3255,
     "error:404": 3,
-    "error:fetch": 2,
     "error:pin-not-found": 4,
     "extra-not-requested": 954,
     "no-extractor": 10,
@@ -27153,18 +27145,18 @@
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 761,
-     "locked": 1963,
-     "pinned": 988
+     "floating": 763,
+     "locked": 1962,
+     "pinned": 989
     },
     "ecosystems": {
      "": 1,
      "deb": 2,
      "generic": 98,
      "github": 6,
-     "npm": 6132,
+     "npm": 6133,
      "oci": 4,
-     "pypi": 1798,
+     "pypi": 1797,
      "rpm": 10
     },
     "build_files": {
@@ -31720,14 +31712,13 @@
    "stars_per_day": null,
    "summary": {
     "total": 10596,
-    "resolved": 4680,
-    "declared": 5513,
+    "resolved": 4681,
+    "declared": 5512,
     "inferred": 30,
     "opaque": 373
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "error:pin-not-found",
     "extra-not-requested",
     "inferred:run",
@@ -31736,9 +31727,9 @@
     "unpinned-ref",
     "unresolved-arg"
    ],
-   "checked": 4613,
+   "checked": 4614,
    "package_nodes": 4647,
-   "auditable": 0.9926834516892619,
+   "auditable": 0.9928986442866365,
    "grade": "C",
    "score": 38,
    "suppressed": false,
@@ -31748,19 +31739,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 8.455205981591273,
-     "detail": "2 critical, 9 high, 10 moderate in 4613 packages"
+     "points": 8.45428967641583,
+     "detail": "2 critical, 9 high, 10 moderate in 4614 packages"
     },
     "hygiene": {
-     "points": 6.516366789507913,
-     "detail": "33% floating (1503 of 4613 versions unheld by any exact constraint)"
+     "points": 6.519289120069354,
+     "detail": "33% floating (1504 of 4614 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 15.555555555555555,
      "detail": "7 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.856058963797961,
+     "points": 7.8543563068920665,
      "detail": "1288 unmaintained, 48 dangerous-workflow, 936 unreviewed"
     }
    },
@@ -31797,7 +31788,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 4157,
+     "checked": 4158,
      "affected": 14,
      "malicious": 0,
      "critical": 1,
@@ -31871,7 +31862,7 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 27,
-    "unlisted": 8,
+    "unlisted": 9,
     "unmaintained": 1288,
     "dangerous-workflow": 48,
     "unreviewed-code": 936,
@@ -31882,7 +31873,6 @@
    },
    "coverage": {
     "dev-not-installed": 3736,
-    "error:fetch": 1,
     "error:pin-not-found": 3,
     "extra-not-requested": 1699,
     "no-extractor": 14,
@@ -31894,7 +31884,7 @@
    "sample_manifests": 1,
    "db": {
     "pinning": {
-     "floating": 1503,
+     "floating": 1504,
      "locked": 1827,
      "pinned": 1283
     },
@@ -31903,9 +31893,9 @@
      "deb": 12,
      "generic": 452,
      "github": 51,
-     "npm": 7459,
+     "npm": 7458,
      "oci": 10,
-     "pypi": 2595,
+     "pypi": 2596,
      "rpm": 16
     },
     "build_files": {
@@ -31935,9 +31925,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7631,
-    "resolved": 3103,
-    "declared": 4348,
+    "total": 7637,
+    "resolved": 3105,
+    "declared": 4352,
     "inferred": 29,
     "opaque": 151
    },
@@ -31952,9 +31942,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3032,
-   "package_nodes": 3105,
-   "auditable": 0.9764895330112722,
+   "checked": 3034,
+   "package_nodes": 3106,
+   "auditable": 0.9768190598840953,
    "grade": "C",
    "score": 41,
    "suppressed": false,
@@ -31964,20 +31954,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 11.639734318354723,
-     "detail": "0 critical, 15 high, 26 moderate in 3032 packages"
+     "points": 11.635897254028158,
+     "detail": "0 critical, 15 high, 26 moderate in 3034 packages"
     },
     "hygiene": {
-     "points": 3.7730870712401057,
-     "detail": "19% floating (572 of 3032 versions unheld by any exact constraint)"
+     "points": 3.783783783783784,
+     "detail": "19% floating (574 of 3034 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.103562005277045,
-     "detail": "833 unmaintained, 71 dangerous-workflow, 521 unreviewed"
+     "points": 8.103164139749506,
+     "detail": "834 unmaintained, 71 dangerous-workflow, 521 unreviewed"
     }
    },
    "malicious": 0,
@@ -32012,7 +32002,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 2864,
+     "checked": 2866,
      "affected": 23,
      "malicious": 0,
      "critical": 0,
@@ -32082,18 +32072,18 @@
    "repo_signals": {
     "deprecated": 6,
     "unlisted": 42,
-    "unmaintained": 833,
+    "unmaintained": 834,
     "dangerous-workflow": 71,
     "unreviewed-code": 521,
-    "no-branch-protection": 936,
-    "overprivileged-ci": 1311,
+    "no-branch-protection": 937,
+    "overprivileged-ci": 1313,
     "no-source-repo": 58,
     "no-license": 35
    },
    "coverage": {
-    "dev-not-installed": 2952,
+    "dev-not-installed": 2957,
     "error:404": 44,
-    "error:fetch": 2,
+    "error:fetch": 1,
     "error:pin-not-found": 1,
     "extra-not-requested": 1311,
     "no-extractor": 21,
@@ -32104,7 +32094,7 @@
    "sample_manifests": 1,
    "db": {
     "pinning": {
-     "floating": 572,
+     "floating": 574,
      "locked": 1594,
      "pinned": 866
     },
@@ -32114,7 +32104,7 @@
      "deb": 28,
      "generic": 215,
      "github": 42,
-     "npm": 5287,
+     "npm": 5293,
      "oci": 5,
      "pypi": 2052
     },
@@ -32276,24 +32266,25 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 9042,
-    "resolved": 4245,
-    "declared": 4724,
+    "total": 9044,
+    "resolved": 4246,
+    "declared": 4725,
     "inferred": 1,
     "opaque": 72
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:badrange",
+    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
     "offline",
     "unpinned-ref"
    ],
-   "checked": 4210,
-   "package_nodes": 4212,
-   "auditable": 0.9995251661918328,
+   "checked": 4211,
+   "package_nodes": 4214,
+   "auditable": 0.9992880873279545,
    "grade": "D",
    "score": 56,
    "suppressed": false,
@@ -32303,19 +32294,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 18.572668382828034,
-     "detail": "5 critical, 48 high, 57 moderate in 4210 packages"
+     "points": 18.570462995610995,
+     "detail": "5 critical, 48 high, 57 moderate in 4211 packages"
     },
     "hygiene": {
-     "points": 8.080760095011875,
-     "detail": "40% floating (1701 of 4210 versions unheld by any exact constraint)"
+     "points": 8.083590596057944,
+     "detail": "40% floating (1702 of 4211 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.989311163895488,
+     "points": 8.9871764426502,
      "detail": "1327 unmaintained, 100 dangerous-workflow, 796 unreviewed"
     }
    },
@@ -32341,7 +32332,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3950,
+     "checked": 3951,
      "affected": 36,
      "malicious": 0,
      "critical": 4,
@@ -32423,7 +32414,7 @@
     "unmaintained": 1327,
     "dangerous-workflow": 100,
     "unreviewed-code": 796,
-    "no-branch-protection": 1406,
+    "no-branch-protection": 1407,
     "overprivileged-ci": 1977,
     "no-source-repo": 88,
     "no-license": 22
@@ -32431,6 +32422,7 @@
    "coverage": {
     "dev-not-installed": 3927,
     "error:badrange": 1,
+    "error:fetch": 1,
     "extra-not-requested": 735,
     "no-extractor": 26,
     "offline": 1,
@@ -32440,7 +32432,7 @@
    "sample_manifests": 5,
    "db": {
     "pinning": {
-     "floating": 1701,
+     "floating": 1702,
      "locked": 1413,
      "pinned": 1096
     },
@@ -32449,9 +32441,9 @@
      "apk": 1,
      "generic": 130,
      "github": 34,
-     "npm": 7830,
+     "npm": 7831,
      "oci": 3,
-     "pypi": 1043
+     "pypi": 1044
     },
     "build_files": {
      "dockerfile": 3,
@@ -38972,24 +38964,25 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7416,
-    "resolved": 3636,
-    "declared": 3633,
+    "total": 7409,
+    "resolved": 3632,
+    "declared": 3630,
     "inferred": 4,
     "opaque": 143
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:badrange",
+    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3605,
+   "checked": 3601,
    "package_nodes": 3611,
-   "auditable": 0.998338410412628,
+   "auditable": 0.9972306840210468,
    "grade": "D",
    "score": 58,
    "suppressed": false,
@@ -38999,20 +38992,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 15.670092946699231,
-     "detail": "2 critical, 35 high, 28 moderate in 3605 packages"
+     "points": 15.67879372079925,
+     "detail": "2 critical, 35 high, 28 moderate in 3601 packages"
     },
     "hygiene": {
-     "points": 15.400832177531207,
-     "detail": "77% floating (2776 of 3605 versions unheld by any exact constraint)"
+     "points": 15.395723410163844,
+     "detail": "77% floating (2772 of 3601 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.503467406380027,
-     "detail": "1363 unmaintained, 33 dangerous-workflow, 789 unreviewed"
+     "points": 9.505692863093584,
+     "detail": "1361 unmaintained, 33 dangerous-workflow, 789 unreviewed"
     }
    },
    "malicious": 0,
@@ -39047,7 +39040,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3182,
+     "checked": 3178,
      "affected": 25,
      "malicious": 0,
      "critical": 2,
@@ -39125,19 +39118,20 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 59,
-    "unlisted": 1,
-    "unmaintained": 1363,
+    "unlisted": 2,
+    "unmaintained": 1361,
     "dangerous-workflow": 33,
     "unreviewed-code": 789,
-    "no-branch-protection": 1379,
-    "overprivileged-ci": 1849,
+    "no-branch-protection": 1374,
+    "overprivileged-ci": 1845,
     "no-source-repo": 44,
     "no-license": 12
    },
    "coverage": {
     "dev-not-installed": 3358,
     "error:badrange": 2,
-    "extra-not-requested": 200,
+    "error:fetch": 4,
+    "extra-not-requested": 193,
     "no-extractor": 63,
     "offline": 1,
     "unpinned-ref": 9
@@ -39146,7 +39140,7 @@
    "sample_manifests": 29,
    "db": {
     "pinning": {
-     "floating": 2776,
+     "floating": 2772,
      "locked": 40,
      "pinned": 789
     },
@@ -39155,9 +39149,9 @@
      "deb": 3,
      "generic": 225,
      "github": 19,
-     "npm": 6908,
+     "npm": 6911,
      "oci": 2,
-     "pypi": 258
+     "pypi": 248
     },
     "build_files": {
      "dockerfile": 4,
@@ -39409,10 +39403,11 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 1,
+    "unlisted": 1,
     "unmaintained": 41,
     "dangerous-workflow": 1,
     "unreviewed-code": 29,
-    "no-branch-protection": 54,
+    "no-branch-protection": 53,
     "overprivileged-ci": 93,
     "no-source-repo": 18,
     "no-license": 3
@@ -39716,14 +39711,15 @@
    "stars_per_day": null,
    "summary": {
     "total": 7320,
-    "resolved": 3069,
-    "declared": 3979,
+    "resolved": 3068,
+    "declared": 3980,
     "inferred": 50,
     "opaque": 222
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:404",
+    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "inferred:run,distro-assumed",
@@ -39732,9 +39728,9 @@
     "registry-redirect",
     "unpinned-ref"
    ],
-   "checked": 3016,
-   "package_nodes": 3067,
-   "auditable": 0.9833713726768829,
+   "checked": 3015,
+   "package_nodes": 3068,
+   "auditable": 0.9827249022164276,
    "grade": "D",
    "score": 50,
    "suppressed": false,
@@ -39744,19 +39740,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 18.8386027049702,
-     "detail": "1 critical, 39 high, 58 moderate in 3016 packages"
+     "points": 18.841726592348436,
+     "detail": "1 critical, 39 high, 58 moderate in 3015 packages"
     },
     "hygiene": {
-     "points": 11.160477453580901,
-     "detail": "56% floating (1683 of 3016 versions unheld by any exact constraint)"
+     "points": 11.157545605306801,
+     "detail": "56% floating (1682 of 3015 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.022546419098143,
+     "points": 7.024875621890548,
      "detail": "834 unmaintained, 38 dangerous-workflow, 426 unreviewed"
     }
    },
@@ -39783,7 +39779,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 2877,
+     "checked": 2876,
      "affected": 21,
      "malicious": 0,
      "critical": 0,
@@ -41402,29 +41398,30 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 26,
-    "unlisted": 4,
+    "unlisted": 6,
     "unmaintained": 834,
     "dangerous-workflow": 38,
     "unreviewed-code": 426,
-    "no-branch-protection": 928,
-    "overprivileged-ci": 1300,
+    "no-branch-protection": 925,
+    "overprivileged-ci": 1299,
     "no-source-repo": 180,
     "no-license": 25
    },
    "coverage": {
     "dev-not-installed": 2583,
     "error:404": 1,
+    "error:fetch": 2,
     "extra-not-requested": 1183,
     "no-extractor": 142,
     "offline": 1,
     "registry-redirect": 13,
-    "unpinned-ref": 56
+    "unpinned-ref": 55
    },
    "manifests": 270,
    "sample_manifests": 5,
    "db": {
     "pinning": {
-     "floating": 1683,
+     "floating": 1682,
      "locked": 458,
      "pinned": 875
     },
@@ -41434,8 +41431,8 @@
      "deb": 49,
      "generic": 436,
      "github": 43,
-     "npm": 4774,
-     "oci": 7,
+     "npm": 4775,
+     "oci": 6,
      "pypi": 2009
     },
     "build_files": {
@@ -41447,8 +41444,8 @@
      "unpinned": 41
     },
     "images": {
-     "total": 7,
-     "unpinned": 7
+     "total": 6,
+     "unpinned": 6
     },
     "opaque": 222
    }
@@ -42893,9 +42890,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 6598,
+    "total": 6599,
     "resolved": 3331,
-    "declared": 3129,
+    "declared": 3130,
     "inferred": 5,
     "opaque": 133
    },
@@ -43203,17 +43200,17 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 39,
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 1238,
     "dangerous-workflow": 34,
     "unreviewed-code": 728,
-    "no-branch-protection": 1243,
+    "no-branch-protection": 1242,
     "overprivileged-ci": 1694,
     "no-source-repo": 43,
     "no-license": 34
    },
    "coverage": {
-    "dev-not-installed": 2984,
+    "dev-not-installed": 2985,
     "error:404": 1,
     "error:badrange": 4,
     "error:parse": 4,
@@ -43235,7 +43232,7 @@
      "deb": 5,
      "generic": 210,
      "github": 30,
-     "npm": 6193,
+     "npm": 6194,
      "oci": 2,
      "pypi": 157
     },
@@ -43520,9 +43517,10 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
+    "unlisted": 1,
     "unmaintained": 16,
     "unreviewed-code": 14,
-    "no-branch-protection": 26,
+    "no-branch-protection": 25,
     "overprivileged-ci": 52,
     "no-source-repo": 12,
     "no-license": 2
@@ -45244,15 +45242,16 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 2291,
+    "total": 2292,
     "resolved": 759,
-    "declared": 1333,
+    "declared": 1334,
     "inferred": 29,
     "opaque": 170
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:badrange",
+    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
@@ -45260,8 +45259,8 @@
     "unpinned-ref"
    ],
    "checked": 703,
-   "package_nodes": 733,
-   "auditable": 0.9590723055934516,
+   "package_nodes": 735,
+   "auditable": 0.9564625850340136,
    "grade": "D",
    "score": 61,
    "suppressed": false,
@@ -45460,7 +45459,8 @@
    "coverage": {
     "dev-not-installed": 1054,
     "error:badrange": 1,
-    "extra-not-requested": 57,
+    "error:fetch": 2,
+    "extra-not-requested": 56,
     "no-extractor": 193,
     "offline": 1,
     "unpinned-ref": 27
@@ -45478,9 +45478,9 @@
      "deb": 29,
      "generic": 393,
      "github": 50,
-     "npm": 1718,
+     "npm": 1720,
      "oci": 3,
-     "pypi": 97
+     "pypi": 96
     },
     "build_files": {
      "dockerfile": 3,
@@ -45639,8 +45639,8 @@
    "age_days": 265,
    "stars_per_day": 1458.2264150943397,
    "summary": {
-    "total": 8587,
-    "resolved": 3924,
+    "total": 8588,
+    "resolved": 3925,
     "declared": 3837,
     "inferred": 28,
     "opaque": 798
@@ -45653,9 +45653,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3781,
-   "package_nodes": 3819,
-   "auditable": 0.9900497512437811,
+   "checked": 3782,
+   "package_nodes": 3820,
+   "auditable": 0.9900523560209424,
    "grade": "C",
    "score": 41,
    "suppressed": false,
@@ -45665,19 +45665,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 16.7796950739195,
-     "detail": "3 critical, 37 high, 43 moderate in 3781 packages"
+     "points": 16.777476564612,
+     "detail": "3 critical, 37 high, 43 moderate in 3782 packages"
     },
     "hygiene": {
-     "points": 6.479767257339328,
-     "detail": "32% floating (1225 of 3781 versions unheld by any exact constraint)"
+     "points": 6.483342147012163,
+     "detail": "32% floating (1226 of 3782 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 11.11111111111111,
      "detail": "5 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 7.101295953451468,
+     "points": 7.09941829719725,
      "detail": "1006 unmaintained, 30 dangerous-workflow, 664 unreviewed"
     }
    },
@@ -45713,7 +45713,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3565,
+     "checked": 3566,
      "affected": 26,
      "malicious": 0,
      "critical": 3,
@@ -45776,7 +45776,7 @@
     "dangerous-workflow": 30,
     "unreviewed-code": 664,
     "no-branch-protection": 1134,
-    "overprivileged-ci": 1590,
+    "overprivileged-ci": 1591,
     "no-source-repo": 81,
     "no-license": 43
    },
@@ -45791,7 +45791,7 @@
    "sample_manifests": 3,
    "db": {
     "pinning": {
-     "floating": 1225,
+     "floating": 1226,
      "locked": 986,
      "pinned": 1570
     },
@@ -45800,7 +45800,7 @@
      "deb": 27,
      "generic": 934,
      "github": 65,
-     "npm": 7550,
+     "npm": 7551,
      "oci": 10
     },
     "build_files": {
@@ -45829,24 +45829,23 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 944,
-    "resolved": 260,
-    "declared": 651,
+    "total": 956,
+    "resolved": 262,
+    "declared": 661,
     "inferred": 25,
     "opaque": 8
    },
    "bounds_hit": [
     "dev-not-installed",
     "error:badrange",
-    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 256,
-   "package_nodes": 285,
-   "auditable": 0.8982456140350877,
+   "checked": 258,
+   "package_nodes": 286,
+   "auditable": 0.9020979020979021,
    "grade": "F",
    "score": 90,
    "suppressed": false,
@@ -45856,20 +45855,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 42.521003213538066,
-     "detail": "0 critical, 17 high, 29 moderate in 256 packages"
+     "points": 42.355872480151056,
+     "detail": "0 critical, 17 high, 29 moderate in 258 packages"
     },
     "hygiene": {
-     "points": 18.75,
-     "detail": "94% floating (240 of 256 versions unheld by any exact constraint)"
+     "points": 18.75968992248062,
+     "detail": "94% floating (242 of 258 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.37890625,
-     "detail": "94 unmaintained, 0 dangerous-workflow, 49 unreviewed"
+     "points": 8.430232558139535,
+     "detail": "95 unmaintained, 0 dangerous-workflow, 50 unreviewed"
     }
    },
    "malicious": 0,
@@ -45904,7 +45903,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 238,
+     "checked": 240,
      "affected": 5,
      "malicious": 0,
      "critical": 0,
@@ -46360,19 +46359,18 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 1,
-    "unlisted": 1,
-    "unmaintained": 94,
-    "unreviewed-code": 49,
+    "unlisted": 2,
+    "unmaintained": 95,
+    "unreviewed-code": 50,
     "no-branch-protection": 105,
-    "overprivileged-ci": 118,
+    "overprivileged-ci": 120,
     "no-source-repo": 20,
     "no-license": 2
    },
    "coverage": {
     "dev-not-installed": 198,
     "error:badrange": 4,
-    "error:fetch": 1,
-    "extra-not-requested": 420,
+    "extra-not-requested": 431,
     "no-extractor": 9,
     "unpinned-ref": 19
    },
@@ -46380,7 +46378,7 @@
    "sample_manifests": 3,
    "db": {
     "pinning": {
-     "floating": 240,
+     "floating": 242,
      "pinned": 16
     },
     "ecosystems": {
@@ -46389,7 +46387,7 @@
      "github": 17,
      "npm": 294,
      "oci": 2,
-     "pypi": 584,
+     "pypi": 596,
      "rpm": 25
     },
     "build_files": {
@@ -46559,13 +46557,12 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 36,
-    "unlisted": 1,
     "unmaintained": 904,
     "dangerous-workflow": 39,
     "unreviewed-code": 773,
     "no-branch-protection": 998,
     "overprivileged-ci": 1576,
-    "no-source-repo": 78,
+    "no-source-repo": 79,
     "no-license": 47
    },
    "coverage": {
@@ -47208,10 +47205,10 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 1836,
-    "resolved": 545,
-    "declared": 769,
-    "inferred": 82,
+    "total": 1834,
+    "resolved": 546,
+    "declared": 768,
+    "inferred": 80,
     "opaque": 440
    },
    "bounds_hit": [
@@ -47224,9 +47221,9 @@
     "unpinned-ref",
     "unresolved-arg"
    ],
-   "checked": 361,
-   "package_nodes": 442,
-   "auditable": 0.8167420814479638,
+   "checked": 362,
+   "package_nodes": 441,
+   "auditable": 0.8208616780045351,
    "grade": "C",
    "score": 48,
    "suppressed": false,
@@ -47236,19 +47233,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 17.90358030043708,
-     "detail": "0 critical, 5 high, 5 moderate in 361 packages"
+     "points": 17.87883449690276,
+     "detail": "0 critical, 5 high, 5 moderate in 362 packages"
     },
     "hygiene": {
-     "points": 12.686980609418283,
-     "detail": "63% floating (229 of 361 versions unheld by any exact constraint)"
+     "points": 12.70718232044199,
+     "detail": "64% floating (230 of 362 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 4.030470914127424,
+     "points": 4.019337016574585,
      "detail": "56 unmaintained, 0 dangerous-workflow, 41 unreviewed"
     }
    },
@@ -47283,7 +47280,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 218,
+     "checked": 219,
      "affected": 1,
      "malicious": 0,
      "critical": 0,
@@ -47413,7 +47410,7 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 56,
     "unreviewed-code": 41,
     "no-branch-protection": 73,
@@ -47426,23 +47423,23 @@
     "no-extractor": 58,
     "offline": 1,
     "registry-redirect": 2,
-    "unpinned-ref": 121,
+    "unpinned-ref": 120,
     "unresolved-arg": 1
    },
    "manifests": 20,
    "sample_manifests": 4,
    "db": {
     "pinning": {
-     "floating": 229,
+     "floating": 230,
      "pinned": 132
     },
     "ecosystems": {
      "": 1,
-     "deb": 51,
+     "deb": 49,
      "generic": 661,
      "github": 113,
-     "oci": 33,
-     "pypi": 960,
+     "oci": 32,
+     "pypi": 961,
      "rpm": 17
     },
     "build_files": {
@@ -47454,8 +47451,8 @@
      "unpinned": 89
     },
     "images": {
-     "total": 32,
-     "unpinned": 32
+     "total": 31,
+     "unpinned": 31
     },
     "opaque": 440
    }
@@ -47758,10 +47755,10 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 46,
     "unreviewed-code": 26,
-    "no-branch-protection": 54,
+    "no-branch-protection": 53,
     "overprivileged-ci": 97,
     "no-source-repo": 39,
     "no-license": 3
@@ -49528,10 +49525,10 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 34,
     "unreviewed-code": 49,
-    "no-branch-protection": 48,
+    "no-branch-protection": 47,
     "overprivileged-ci": 124,
     "no-source-repo": 15
    },
@@ -52912,8 +52909,8 @@
    "stars_per_day": null,
    "summary": {
     "total": 7432,
-    "resolved": 3787,
-    "declared": 3271,
+    "resolved": 3788,
+    "declared": 3270,
     "inferred": 39,
     "opaque": 335
    },
@@ -52926,9 +52923,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3746,
-   "package_nodes": 3806,
-   "auditable": 0.9842354177614293,
+   "checked": 3747,
+   "package_nodes": 3807,
+   "auditable": 0.9842395587076438,
    "grade": "D",
    "score": 63,
    "suppressed": false,
@@ -52938,19 +52935,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 32.26447132894829,
-     "detail": "8 critical, 144 high, 162 moderate in 3746 packages"
+     "points": 32.260165667845655,
+     "detail": "8 critical, 144 high, 162 moderate in 3747 packages"
     },
     "hygiene": {
-     "points": 7.709556860651361,
-     "detail": "39% floating (1444 of 3746 versions unheld by any exact constraint)"
+     "points": 7.7128369362156395,
+     "detail": "39% floating (1445 of 3747 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 13.333333333333332,
      "detail": "6 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.410037373198078,
+     "points": 9.407526020816652,
      "detail": "1042 unmaintained, 139 dangerous-workflow, 752 unreviewed"
     }
    },
@@ -52986,7 +52983,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3493,
+     "checked": 3494,
      "affected": 97,
      "malicious": 0,
      "critical": 6,
@@ -53218,12 +53215,12 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 47,
-    "unlisted": 4,
+    "unlisted": 5,
     "unmaintained": 1042,
     "dangerous-workflow": 139,
     "unreviewed-code": 752,
     "no-branch-protection": 1099,
-    "overprivileged-ci": 1847,
+    "overprivileged-ci": 1848,
     "no-source-repo": 60,
     "no-license": 13
    },
@@ -53233,13 +53230,13 @@
     "error:badrange": 2,
     "no-extractor": 35,
     "offline": 1,
-    "unpinned-ref": 23
+    "unpinned-ref": 22
    },
    "manifests": 62,
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 1444,
+     "floating": 1445,
      "locked": 1342,
      "pinned": 960
     },
@@ -53249,8 +53246,8 @@
      "deb": 19,
      "generic": 410,
      "github": 14,
-     "npm": 6970,
-     "oci": 10
+     "npm": 6971,
+     "oci": 9
     },
     "build_files": {
      "dockerfile": 12,
@@ -53261,8 +53258,8 @@
      "unpinned": 13
     },
     "images": {
-     "total": 10,
-     "unpinned": 10
+     "total": 9,
+     "unpinned": 9
     },
     "opaque": 335
    }
@@ -53610,8 +53607,8 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 9798,
-    "resolved": 5525,
+    "total": 9800,
+    "resolved": 5527,
     "declared": 4237,
     "inferred": 2,
     "opaque": 34
@@ -53624,9 +53621,9 @@
     "no-extractor",
     "unpinned-ref"
    ],
-   "checked": 5511,
-   "package_nodes": 5517,
-   "auditable": 0.9989124524197933,
+   "checked": 5513,
+   "package_nodes": 5519,
+   "auditable": 0.9989128465301685,
    "grade": "D",
    "score": 65,
    "suppressed": false,
@@ -53636,20 +53633,20 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 32.41756011165576,
-     "detail": "10 critical, 222 high, 235 moderate in 5511 packages"
+     "points": 32.41167937507918,
+     "detail": "10 critical, 222 high, 235 moderate in 5513 packages"
     },
     "hygiene": {
-     "points": 5.410996189439303,
-     "detail": "27% floating (1491 of 5511 versions unheld by any exact constraint)"
+     "points": 5.416288771993471,
+     "detail": "27% floating (1493 of 5513 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.139902014153511,
-     "detail": "1430 unmaintained, 173 dangerous-workflow, 1236 unreviewed"
+     "points": 9.139307092327227,
+     "detail": "1431 unmaintained, 173 dangerous-workflow, 1236 unreviewed"
     }
    },
    "malicious": 0,
@@ -53674,7 +53671,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 5210,
+     "checked": 5212,
      "affected": 119,
      "malicious": 0,
      "critical": 6,
@@ -54984,11 +54981,11 @@
    "repo_signals": {
     "deprecated": 52,
     "unlisted": 1,
-    "unmaintained": 1430,
+    "unmaintained": 1431,
     "dangerous-workflow": 173,
     "unreviewed-code": 1236,
-    "no-branch-protection": 1521,
-    "overprivileged-ci": 2819,
+    "no-branch-protection": 1522,
+    "overprivileged-ci": 2821,
     "no-source-repo": 47,
     "no-license": 16
    },
@@ -55003,7 +55000,7 @@
    "sample_manifests": 73,
    "db": {
     "pinning": {
-     "floating": 1491,
+     "floating": 1493,
      "locked": 2259,
      "pinned": 1761
     },
@@ -55012,7 +55009,7 @@
      "deb": 2,
      "generic": 95,
      "github": 15,
-     "npm": 9682,
+     "npm": 9684,
      "oci": 3
     },
     "build_files": {
@@ -55041,9 +55038,9 @@
    "age_days": 152,
    "stars_per_day": 304.73026315789474,
    "summary": {
-    "total": 7140,
-    "resolved": 3558,
-    "declared": 3377,
+    "total": 7142,
+    "resolved": 3559,
+    "declared": 3378,
     "inferred": 43,
     "opaque": 162
    },
@@ -55056,9 +55053,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3523,
-   "package_nodes": 3567,
-   "auditable": 0.9876647042332493,
+   "checked": 3524,
+   "package_nodes": 3568,
+   "auditable": 0.9876681614349776,
    "grade": "C",
    "score": 38,
    "suppressed": false,
@@ -55068,19 +55065,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 6.4075525162585425,
-     "detail": "0 critical, 7 high, 4 moderate in 3523 packages"
+     "points": 6.406643321147012,
+     "detail": "0 critical, 7 high, 4 moderate in 3524 packages"
     },
     "hygiene": {
-     "points": 3.7297757592960545,
-     "detail": "19% floating (657 of 3523 versions unheld by any exact constraint)"
+     "points": 3.7343927355278095,
+     "detail": "19% floating (658 of 3524 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.289809821175135,
+     "points": 8.287457434733257,
      "detail": "1047 unmaintained, 31 dangerous-workflow, 776 unreviewed"
     }
    },
@@ -55105,7 +55102,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3347,
+     "checked": 3348,
      "affected": 6,
      "malicious": 0,
      "critical": 0,
@@ -55148,7 +55145,7 @@
     "no-license": 41
    },
    "coverage": {
-    "dev-not-installed": 3341,
+    "dev-not-installed": 3342,
     "error:404": 1,
     "error:parse": 1,
     "no-extractor": 12,
@@ -55159,7 +55156,7 @@
    "sample_manifests": 0,
    "db": {
     "pinning": {
-     "floating": 657,
+     "floating": 658,
      "locked": 1826,
      "pinned": 1040
     },
@@ -55168,7 +55165,7 @@
      "deb": 43,
      "generic": 207,
      "github": 20,
-     "npm": 6865,
+     "npm": 6867,
      "oci": 4
     },
     "build_files": {
@@ -55197,9 +55194,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 7634,
-    "resolved": 3409,
-    "declared": 3993,
+    "total": 7636,
+    "resolved": 3410,
+    "declared": 3994,
     "inferred": 8,
     "opaque": 224
    },
@@ -55214,9 +55211,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 3350,
-   "package_nodes": 3365,
-   "auditable": 0.9955423476968797,
+   "checked": 3351,
+   "package_nodes": 3366,
+   "auditable": 0.9955436720142602,
    "grade": "D",
    "score": 51,
    "suppressed": false,
@@ -55226,19 +55223,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 11.680720543244824,
-     "detail": "1 critical, 16 high, 21 moderate in 3350 packages"
+     "points": 11.678977542333346,
+     "detail": "1 critical, 16 high, 21 moderate in 3351 packages"
     },
     "hygiene": {
-     "points": 14.411940298507462,
-     "detail": "72% floating (2414 of 3350 versions unheld by any exact constraint)"
+     "points": 14.413607878245301,
+     "detail": "72% floating (2415 of 3351 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 15.555555555555555,
      "detail": "7 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.461194029850747,
+     "points": 9.458370635631155,
      "detail": "1243 unmaintained, 45 dangerous-workflow, 690 unreviewed"
     }
    },
@@ -55274,7 +55271,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 3117,
+     "checked": 3118,
      "affected": 10,
      "malicious": 0,
      "critical": 1,
@@ -55326,7 +55323,7 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 38,
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 1243,
     "dangerous-workflow": 45,
     "unreviewed-code": 690,
@@ -55336,7 +55333,7 @@
     "no-license": 32
    },
    "coverage": {
-    "dev-not-installed": 3506,
+    "dev-not-installed": 3507,
     "error:404": 5,
     "error:badrange": 2,
     "extra-not-requested": 453,
@@ -55348,7 +55345,7 @@
    "sample_manifests": 6,
    "db": {
     "pinning": {
-     "floating": 2414,
+     "floating": 2415,
      "locked": 202,
      "pinned": 734
     },
@@ -55357,9 +55354,9 @@
      "deb": 7,
      "generic": 283,
      "github": 25,
-     "npm": 6644,
+     "npm": 6645,
      "oci": 1,
-     "pypi": 673
+     "pypi": 674
     },
     "build_files": {
      "dockerfile": 1,
@@ -55387,14 +55384,13 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 10777,
-    "resolved": 5045,
-    "declared": 5625,
+    "total": 12688,
+    "resolved": 7025,
+    "declared": 5556,
     "inferred": 5,
     "opaque": 102
    },
    "bounds_hit": [
-    "bound:timeout",
     "dev-not-installed",
     "error:404",
     "inferred:run",
@@ -55402,11 +55398,11 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 4963,
-   "package_nodes": 6143,
-   "auditable": 0.8079114439199089,
+   "checked": 6943,
+   "package_nodes": 6954,
+   "auditable": 0.9984181765890136,
    "grade": "D",
-   "score": 54,
+   "score": 53,
    "suppressed": false,
    "terms": {
     "malicious": {
@@ -55414,29 +55410,29 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 24.950369549874065,
-     "detail": "9 critical, 90 high, 174 moderate in 4963 packages"
+     "points": 22.930820175912643,
+     "detail": "10 critical, 116 high, 183 moderate in 6943 packages"
     },
     "hygiene": {
-     "points": 4.481160588353818,
-     "detail": "22% floating (1112 of 4963 versions unheld by any exact constraint)"
+     "points": 6.731960247731528,
+     "detail": "34% floating (2337 of 6943 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 15.555555555555555,
      "detail": "7 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 8.640942978037478,
-     "detail": "1603 unmaintained, 62 dangerous-workflow, 1008 unreviewed"
+     "points": 7.846752124441884,
+     "detail": "2121 unmaintained, 64 dangerous-workflow, 1255 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 318,
+   "advisories": 354,
    "sev": {
-    "CRITICAL": 9,
-    "HIGH": 90,
-    "MODERATE": 174,
+    "CRITICAL": 10,
+    "HIGH": 116,
+    "MODERATE": 183,
     "LOW": 45
    },
    "exposure": {
@@ -55462,12 +55458,12 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 4391,
-     "affected": 34,
+     "checked": 6371,
+     "affected": 49,
      "malicious": 0,
-     "critical": 3,
-     "high": 27,
-     "other": 85
+     "critical": 4,
+     "high": 53,
+     "other": 94
     }
    },
    "direct_findings": [
@@ -57716,39 +57712,38 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "deprecated": 83,
+    "deprecated": 126,
     "unlisted": 1,
-    "unmaintained": 1603,
-    "dangerous-workflow": 62,
-    "unreviewed-code": 1008,
-    "no-branch-protection": 1642,
-    "overprivileged-ci": 2645,
-    "no-source-repo": 55,
-    "no-license": 47
+    "unmaintained": 2121,
+    "dangerous-workflow": 64,
+    "unreviewed-code": 1255,
+    "no-branch-protection": 2205,
+    "overprivileged-ci": 3432,
+    "no-source-repo": 104,
+    "no-license": 87
    },
    "coverage": {
-    "bound:timeout": 1169,
-    "dev-not-installed": 4386,
+    "dev-not-installed": 5487,
     "error:404": 7,
     "no-extractor": 57,
     "offline": 1,
-    "unpinned-ref": 5
+    "unpinned-ref": 4
    },
    "manifests": 79,
    "sample_manifests": 56,
    "db": {
     "pinning": {
-     "floating": 1112,
-     "locked": 2484,
-     "pinned": 1367
+     "floating": 2337,
+     "locked": 2447,
+     "pinned": 2159
     },
     "ecosystems": {
      "": 1,
      "deb": 4,
      "generic": 210,
      "github": 33,
-     "npm": 10525,
-     "oci": 4
+     "npm": 12437,
+     "oci": 3
     },
     "build_files": {
      "dockerfile": 3,
@@ -57759,8 +57754,8 @@
      "unpinned": 1
     },
     "images": {
-     "total": 4,
-     "unpinned": 4
+     "total": 3,
+     "unpinned": 3
     },
     "opaque": 102
    }
@@ -58133,9 +58128,10 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
+    "unlisted": 1,
     "unmaintained": 22,
     "unreviewed-code": 20,
-    "no-branch-protection": 35,
+    "no-branch-protection": 34,
     "overprivileged-ci": 41,
     "no-source-repo": 11,
     "no-license": 2
@@ -59033,11 +59029,11 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 46,
     "dangerous-workflow": 3,
     "unreviewed-code": 35,
-    "no-branch-protection": 68,
+    "no-branch-protection": 67,
     "overprivileged-ci": 133,
     "no-source-repo": 35,
     "no-license": 6
@@ -59312,10 +59308,10 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 31,
     "unreviewed-code": 19,
-    "no-branch-protection": 37,
+    "no-branch-protection": 36,
     "overprivileged-ci": 72,
     "no-source-repo": 19,
     "no-license": 1
@@ -59932,9 +59928,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 15641,
-    "resolved": 7990,
-    "declared": 7487,
+    "total": 16316,
+    "resolved": 8343,
+    "declared": 7809,
     "inferred": 14,
     "opaque": 150
    },
@@ -59948,9 +59944,9 @@
     "offline",
     "unpinned-ref"
    ],
-   "checked": 7915,
-   "package_nodes": 10675,
-   "auditable": 0.7414519906323185,
+   "checked": 8268,
+   "package_nodes": 11068,
+   "auditable": 0.7470184315142754,
    "grade": "F",
    "score": 78,
    "suppressed": false,
@@ -59961,28 +59957,28 @@
     },
     "vulnerabilities": {
      "points": 45,
-     "detail": "76 critical, 663 high, 755 moderate in 7915 packages"
+     "detail": "76 critical, 663 high, 756 moderate in 8268 packages"
     },
     "hygiene": {
-     "points": 2.90840176879343,
-     "detail": "15% floating (1151 of 7915 versions unheld by any exact constraint)"
+     "points": 3.2801161103047893,
+     "detail": "16% floating (1356 of 8268 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 20,
      "detail": "9 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 9.62349968414403,
-     "detail": "3051 unmaintained, 59 dangerous-workflow, 1791 unreviewed"
+     "points": 9.513788098693759,
+     "detail": "3156 unmaintained, 60 dangerous-workflow, 1848 unreviewed"
     }
    },
    "malicious": 0,
    "malicious_ids": [],
-   "advisories": 1648,
+   "advisories": 1649,
    "sev": {
     "CRITICAL": 76,
     "HIGH": 663,
-    "MODERATE": 755,
+    "MODERATE": 756,
     "LOW": 154
    },
    "exposure": {
@@ -60008,12 +60004,12 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 6669,
-     "affected": 310,
+     "checked": 7022,
+     "affected": 311,
      "malicious": 0,
      "critical": 48,
      "high": 456,
-     "other": 562
+     "other": 563
     }
    },
    "direct_findings": [
@@ -66386,21 +66382,21 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "deprecated": 207,
+    "deprecated": 226,
     "unlisted": 3,
-    "unmaintained": 3051,
-    "dangerous-workflow": 59,
-    "unreviewed-code": 1791,
-    "no-branch-protection": 3078,
-    "overprivileged-ci": 4169,
-    "no-source-repo": 125,
-    "no-license": 75
+    "unmaintained": 3156,
+    "dangerous-workflow": 60,
+    "unreviewed-code": 1848,
+    "no-branch-protection": 3170,
+    "overprivileged-ci": 4307,
+    "no-source-repo": 195,
+    "no-license": 79
    },
    "coverage": {
-    "bound:timeout": 2705,
-    "dev-not-installed": 4561,
+    "bound:timeout": 2744,
+    "dev-not-installed": 4843,
     "error:404": 10,
-    "error:badrange": 32,
+    "error:badrange": 33,
     "no-extractor": 160,
     "offline": 1,
     "unpinned-ref": 18
@@ -66409,9 +66405,9 @@
    "sample_manifests": 389,
    "db": {
     "pinning": {
-     "floating": 1151,
-     "locked": 4124,
-     "pinned": 2640
+     "floating": 1356,
+     "locked": 4067,
+     "pinned": 2845
     },
     "ecosystems": {
      "": 1,
@@ -66419,7 +66415,7 @@
      "deb": 12,
      "generic": 361,
      "github": 35,
-     "npm": 15223,
+     "npm": 15898,
      "oci": 8
     },
     "build_files": {
@@ -66578,9 +66574,9 @@
    "age_days": null,
    "stars_per_day": null,
    "summary": {
-    "total": 1744,
-    "resolved": 494,
-    "declared": 796,
+    "total": 1742,
+    "resolved": 495,
+    "declared": 793,
     "inferred": 195,
     "opaque": 259
    },
@@ -66593,9 +66589,9 @@
     "unpinned-ref",
     "unresolved-arg"
    ],
-   "checked": 468,
-   "package_nodes": 661,
-   "auditable": 0.708018154311649,
+   "checked": 469,
+   "package_nodes": 662,
+   "auditable": 0.7084592145015106,
    "grade": "D",
    "score": 67,
    "suppressed": false,
@@ -66605,19 +66601,19 @@
      "detail": "0 packages"
     },
     "vulnerabilities": {
-     "points": 31.839225237688556,
-     "detail": "0 critical, 23 high, 13 moderate in 468 packages"
+     "points": 31.805263387769603,
+     "detail": "0 critical, 23 high, 13 moderate in 469 packages"
     },
     "hygiene": {
-     "points": 13.247863247863247,
-     "detail": "66% floating (310 of 468 versions unheld by any exact constraint)"
+     "points": 13.262260127931768,
+     "detail": "66% floating (311 of 469 versions unheld by any exact constraint)"
     },
     "controls": {
      "points": 17.77777777777778,
      "detail": "8 of 9 categories absent from CI"
     },
     "upstream posture": {
-     "points": 4.294871794871795,
+     "points": 4.285714285714286,
      "detail": "63 unmaintained, 3 dangerous-workflow, 59 unreviewed"
     }
    },
@@ -66653,7 +66649,7 @@
     },
     "indirect": {
      "reach": "indirect",
-     "checked": 311,
+     "checked": 312,
      "affected": 4,
      "malicious": 0,
      "critical": 0,
@@ -67004,7 +67000,7 @@
    ],
    "controls_assessable": true,
    "repo_signals": {
-    "unlisted": 1,
+    "unlisted": 2,
     "unmaintained": 63,
     "dangerous-workflow": 3,
     "unreviewed-code": 59,
@@ -67017,14 +67013,14 @@
     "extra-not-requested": 749,
     "no-extractor": 30,
     "registry-redirect": 3,
-    "unpinned-ref": 13,
+    "unpinned-ref": 10,
     "unresolved-arg": 1
    },
    "manifests": 19,
    "sample_manifests": 4,
    "db": {
     "pinning": {
-     "floating": 310,
+     "floating": 311,
      "pinned": 158
     },
     "ecosystems": {
@@ -67032,8 +67028,8 @@
      "deb": 103,
      "generic": 312,
      "github": 7,
-     "oci": 14,
-     "pypi": 1241,
+     "oci": 11,
+     "pypi": 1242,
      "rpm": 66
     },
     "build_files": {
@@ -67045,8 +67041,8 @@
      "unpinned": 0
     },
     "images": {
-     "total": 13,
-     "unpinned": 13
+     "total": 10,
+     "unpinned": 10
     },
     "opaque": 259
    }
@@ -68139,15 +68135,14 @@
    },
    "bounds_hit": [
     "dev-not-installed",
-    "error:fetch",
     "extra-not-requested",
     "inferred:run",
     "no-extractor",
     "unpinned-ref"
    ],
    "checked": 752,
-   "package_nodes": 758,
-   "auditable": 0.9920844327176781,
+   "package_nodes": 757,
+   "auditable": 0.9933949801849405,
    "grade": "F",
    "score": 77,
    "suppressed": false,
@@ -69066,19 +69061,18 @@
    "controls_assessable": true,
    "repo_signals": {
     "deprecated": 13,
-    "unlisted": 3,
+    "unlisted": 4,
     "unmaintained": 299,
     "dangerous-workflow": 30,
     "unreviewed-code": 184,
-    "no-branch-protection": 330,
+    "no-branch-protection": 329,
     "overprivileged-ci": 412,
     "no-source-repo": 8,
     "no-license": 1
    },
    "coverage": {
     "dev-not-installed": 1056,
-    "error:fetch": 1,
-    "extra-not-requested": 168,
+    "extra-not-requested": 169,
     "no-extractor": 1,
     "unpinned-ref": 15
    },

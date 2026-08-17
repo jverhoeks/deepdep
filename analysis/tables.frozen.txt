@@ -44,7 +44,7 @@ T3  REACH — every advisory in the fleet, by who can fix it
 surface                   packages  affected  crit  high  other    rate  repos hit
 direct — manifest            15103       617   103  1305   2517    4.1%         80
 direct — dockerfile            249         9     0    32    187    3.6%          7
-inherited (transitive)      214481      2761   239  3717   4486    1.3%        107
+inherited (transitive)      219479      2798   244  3762   4519    1.3%        107
 ALL DIRECT                   15352       626   103  1337   2704    4.1%
 
 ==============================================================================
@@ -60,15 +60,15 @@ T3a REACH ON REPOSITORIES WHERE DECLARED == SHIPPED
   manifest at all removes the ambiguity entirely.
 
                                           n         direct              inherited         ratio d.crit  i.crit
-all with resolved packages              136    626/15352     4.1%   2761/214481    1.3%    3.2x    103     239
-no example/fixture manifests             70    231/4222      5.5%   1009/73899     1.4%    4.0x     28      57
-carries example/fixture manifests        66    395/11130     3.5%   1752/140582    1.2%    2.8x     75     182
+all with resolved packages              136    626/15352     4.1%   2798/219479    1.3%    3.2x    103     244
+no example/fixture manifests             70    231/4223      5.5%   1030/76548     1.3%    4.1x     28      61
+carries example/fixture manifests        66    395/11129     3.5%   1768/142931    1.2%    2.9x     75     183
 
 ==============================================================================
 T4a DIRECTLY AT RISK — only repositories with no example or fixture manifests
 ==============================================================================
 repo                                    mfsts  declared  affected    rate  crit  high  mal  grade
-Shubhamsaboo/awesome-llm-apps             188       617        76   12.3%    15   232    0      F
+Shubhamsaboo/awesome-llm-apps             188       618        76   12.3%    15   232    0      F
 ollama/ollama                               2        58         5    8.6%     3     5    0      D
 open-webui/open-webui                       4       261        21    8.0%     2    30    0      D
 ruvnet/ruflo                               62       259         9    3.5%     2     7    0      D
@@ -100,7 +100,7 @@ T3b LEVERAGE — how many packages one declared line brings with it
   repositories with any resolved package      136
   median declared packages per repo            53
   median inherited packages per repo         1132
-  total declared / total inherited        15352 / 214481
+  total declared / total inherited        15352 / 219479
 
   highest multiplier — inherited per declared package:
 repo                                      declared  inherited       x
@@ -123,7 +123,7 @@ T4  DIRECTLY AT RISK — the repository's own files name a flawed package
 repo                                      declared affected    rate  crit  high  mal  grade
 janhq/jan                                      212        9    4.2%     3    18    1      F
 vercel/next.js                                1247       90    7.2%    28   207    0      F
-Shubhamsaboo/awesome-llm-apps                  617       76   12.3%    15   232    0      F
+Shubhamsaboo/awesome-llm-apps                  618       76   12.3%    15   232    0      F
 microsoft/qlib                                  60       16   26.7%    10   124    0      F
 supabase/supabase                              572       13    2.3%     6    63    0      D
 run-llama/llama_index                          719       57    7.9%     4    93    0      D
@@ -158,30 +158,30 @@ repositories with >=1 directly-named flawed package: 82 of 163
 T5  INDIRECTLY AT RISK — inherited, and nobody here can fix it directly
 ==============================================================================
 repo                                      inherited affected    rate  crit  high  grade
-vercel/next.js                                 6669      310    4.6%    48   456      F
+vercel/next.js                                 7022      311    4.4%    48   456      F
 run-llama/llama_index                          2351      166    7.1%    31   371      D
 react/react                                    4077      147    3.6%    21   126      F
-Shubhamsaboo/awesome-llm-apps                  4859      198    4.1%    10   257      F
-freeCodeCamp/freeCodeCamp                      3282       71    2.2%    10    88      D
-Mintplex-Labs/anything-llm                     3391       51    1.5%     9    79      F
+Shubhamsaboo/awesome-llm-apps                  6740      215    3.2%    12   276      F
+Mintplex-Labs/anything-llm                     4153       57    1.4%    11    82      F
+freeCodeCamp/freeCodeCamp                      3285       71    2.2%    10    88      D
 excalidraw/excalidraw                          3499       42    1.2%     9    46      F
 yangshun/tech-interview-handbook               3050       65    2.1%     7    96      D
-shadcn-ui/ui                                   5210      119    2.3%     6   177      D
-ruvnet/ruflo                                   3493       97    2.8%     6   137      D
-Significant-Gravitas/AutoGPT                   3573       55    1.5%     6    61      D
+shadcn-ui/ui                                   5212      119    2.3%     6   177      D
+ruvnet/ruflo                                   3494       97    2.8%     6   137      D
+Significant-Gravitas/AutoGPT                   3574       55    1.5%     6    61      D
 janhq/jan                                      4177       37    0.9%     5    30      F
-aaif-goose/goose                               2973       47    1.6%     4    57      C
-mem0ai/mem0                                    3950       36    0.9%     4    47      D
-ZhuLinsen/daily_stock_analysis                 1500       24    1.6%     4    46      F
-anomalyco/opencode                             4785       39    0.8%     3    54      D
-openclaw/openclaw                              3565       26    0.7%     3    37      C
+aaif-goose/goose                               2974       47    1.6%     4    57      C
+supabase/supabase                              6371       49    0.8%     4    53      D
+mem0ai/mem0                                    3951       36    0.9%     4    47      D
+ZhuLinsen/daily_stock_analysis                 1501       24    1.6%     4    46      F
+anomalyco/opencode                             4786       39    0.8%     3    54      D
+openclaw/openclaw                              3566       26    0.7%     3    37      C
 PaddlePaddle/PaddleOCR                         1540       27    1.8%     3    36      D
-supabase/supabase                              4391       34    0.8%     3    27      D
 nodejs/node                                    3051       18    0.6%     3    11      D
-infiniflow/ragflow                             3368       67    2.0%     2    69      D
+infiniflow/ragflow                             3370       67    2.0%     2    69      D
 f/prompts.chat                                 2570       27    1.1%     2    46      D
 ollama/ollama                                  1745       29    1.7%     2    43      D
-immich-app/immich                              3315       40    1.2%     2    40      C
+immich-app/immich                              3316       40    1.2%     2    40      C
 Egonex-AI/Understand-Anything                  2553       29    1.1%     2    37      D
 
 ==============================================================================
@@ -191,8 +191,8 @@ T6  BEYOND THE MANIFEST — supply chain a package-manager scanner never sees
   repositories with a Dockerfile read              81   50%
   third-party CI actions invoked                 2593
     of those, on a MOVING tag                    1514   58%
-  container base images referenced                432
-    of those, on a MOVING tag                     387   90%
+  container base images referenced                420
+    of those, on a MOVING tag                     375   89%
   repositories with >=1 moving first-party ref    132   81%
   statically undecidable build steps            11701
 
@@ -229,15 +229,15 @@ dawidd6/action-download-artifact              1                0
 ==============================================================================
 T7  HYGIENE — what a rebuild can change without a line changing here
 ==============================================================================
-  floating      93584  42%
-  locked        67467  30%
-  pinned        61601  28%
+  floating      97051  43%
+  locked        67389  30%
+  pinned        63210  28%
 
   repositories (>=10 versions) by floating share:
     100% floating       1
     >75% floating      25
-    >25% floating      66
-    mostly held        34
+    >25% floating      67
+    mostly held        33
     fully held          1
 
 ==============================================================================
@@ -262,15 +262,15 @@ iac-scanning                             0      0%
 T9  UPSTREAM POSTURE — repo-specific signals across the fleet
 ==============================================================================
 signal                        package versions   repos
-overprivileged-ci                       110370     131
-no-branch-protection                     77775     134
-unmaintained                             72803     130
-unreviewed-code                          46344     130
-no-source-repo                            5184     120
-dangerous-workflow                        3054      90
-deprecated                                2605      87
-no-license                                1551     105
-unlisted                                   254      69
+overprivileged-ci                       112514     131
+no-branch-protection                     79501     134
+unmaintained                             74466     130
+unreviewed-code                          47267     130
+no-source-repo                            5380     120
+dangerous-workflow                        3059      90
+deprecated                                2728      87
+no-license                                1632     105
+unlisted                                   272      71
 
 ==============================================================================
 T10 MALICIOUS PACKAGES
@@ -287,32 +287,32 @@ top 50 fast-growing        50        82%      41       62%      47%       19%   
 top 50 AI, in use          49        96%      47       59%      71%       10%       134     1745
 
                         dir aff  dir rate  ind aff  ind rate  dir crit  ind crit  action adv
-top 100 active              385      4.3%     1675      1.5%        74       152         140
+top 100 active              385      4.3%     1706      1.4%        74       155         140
 top 50 fast-growing          59      2.4%      407      0.7%         4        25          61
-top 50 AI, in use           272      3.8%     1010      1.2%        36        87         129
+top 50 AI, in use           272      3.8%     1014      1.2%        36        89         129
 
 ==============================================================================
 T11b THE AI LIST, RANKED BY WHAT IT DECLARES AND INHERITS
 ==============================================================================
 repo                                declared  inherited  dir aff  ind aff  crit  high  grade
 janhq/jan                                212       4177        9       37     8    48      F
-langflow-ai/langflow                     457       4157        2       14     2     9      C
-mem0ai/mem0                              260       3950        3       36     5    48      D
-firecrawl/firecrawl                      188       3600        3       17     1    19      C
-Significant-Gravitas/AutoGPT             157       3573        2       55     6    64      D
-ruvnet/ruflo                             259       3493        9       97     8   144      D
-Mintplex-Labs/anything-llm               177       3391       16       51     9    94      F
-infiniflow/ragflow                       344       3368       10       67     2    94      D
+langflow-ai/langflow                     457       4158        2       14     2     9      C
+Mintplex-Labs/anything-llm               177       4153       16       57    11    97      F
+mem0ai/mem0                              260       3951        3       36     5    48      D
+firecrawl/firecrawl                      188       3599        3       17     1    19      C
+Significant-Gravitas/AutoGPT             157       3574        2       55     6    64      D
+ruvnet/ruflo                             259       3494        9       97     8   144      D
+infiniflow/ragflow                       344       3370       10       67     2    94      D
 NousResearch/hermes-agent                252       3326        1        7     1    12      C
-apache/airflow                           708       3323        3       27     0    44      C
-streamlit/streamlit                      233       3117        0       10     1    16      D
+apache/airflow                           707       3325        3       27     0    44      C
+streamlit/streamlit                      233       3118        0       10     1    16      D
 paperless-ngx/paperless-ngx              133       3089        0       29     1    35      C
 jeecgboot/JeecgBoot                      171       2988        8       32     0    51      B
 OpenHands/OpenHands                       97       2981        1       10     0     8      C
-aaif-goose/goose                         148       2973        1       47     4    57      C
+aaif-goose/goose                         148       2974        1       47     4    57      C
 bytedance/deer-flow                      175       2909        2       31     0    60      D
-mudler/LocalAI                           139       2877       18       21     1    39      D
-langgenius/dify                          168       2864        1       23     0    15      C
+mudler/LocalAI                           139       2876       18       21     1    39      D
+langgenius/dify                          168       2866        1       23     0    15      C
 unslothai/unsloth                        150       2433        2       11     0    13      C
 run-llama/llama_index                    719       2351       57      166    35   464      D
 BerriAI/litellm                          214       2250        1        9     2    12      C
@@ -330,18 +330,18 @@ hiyouga/LlamaFactory                      51        394        7       12     2 
 T12 COVERAGE FRONTIER — where the walk stopped
 ==============================================================================
 reason                      nodes   repos
-dev-not-installed          222204      96
-extra-not-requested         36620      81
-bound:timeout                4996       4
+dev-not-installed          224583      96
+extra-not-requested         36639      81
 no-extractor                 4386     142
-unpinned-ref                 1920     134
+bound:timeout                2744       1
+unpinned-ref                 1908     134
 error:404                     234      35
-error:badrange                125      20
+error:badrange                126      20
 offline                        59      52
 registry-redirect              40      10
 error:parse                    33      15
 error:pin-not-found            22      11
-error:fetch                    19      15
+error:fetch                    22      14
 unresolved-arg                 18      11
 
   bounds that fired, by repository count:
@@ -355,8 +355,8 @@ unresolved-arg                 18      11
     inferred:run,distro-assumed   32
     error:badrange           20
     error:parse              15
-    error:fetch              15
+    error:fetch              14
     error:pin-not-found      11
     unresolved-arg           11
     registry-redirect        10
-    bound:timeout             4
+    bound:timeout             1

@@ -75,18 +75,18 @@ manifest, leaving 70 where *declared* and *shipped* are the same thing:
 
 ```
                                       n         direct              inherited        ratio  d.crit  i.crit
-all with resolved packages          136    682/15420     4.4%   2771/214442   1.3%    3.4x     103     240
-no example/fixture manifests         70    240/4236      5.7%   1009/73901    1.4%    4.1x      28      57
-carries example/fixture manifests    66    442/11184     4.0%   1762/140541   1.3%    3.2x      75     183
+all with resolved packages          136    626/15352     4.1%   2798/219479   1.3%    3.2x     103     244
+no example/fixture manifests         70    231/4223      5.5%   1030/76548    1.3%    4.1x      28      61
+carries example/fixture manifests    66    395/11129     3.5%   1768/142931   1.2%    2.9x      75     183
 ```
 
 The effect gets **stronger** when the ambiguity is removed. On repositories where
-declared means shipped, **5.7% of declared packages carry an advisory against
-1.4% of inherited ones — a 4.1× gap.**
+declared means shipped, **5.5% of declared packages carry an advisory against
+1.3% of inherited ones — a 4.1× gap.**
 
 **One caveat that must not be trimmed: this measures advisory *coverage*, not
 safety.** Direct dependencies skew toward the frameworks and tooling security
-researchers actually audit. The 214,442 inherited packages are mostly small leaf
+researchers actually audit. The 219,479 inherited packages are mostly small leaf
 libraries nobody has ever filed against. A low rate down there means less
 attention, not less risk.
 
@@ -96,8 +96,8 @@ What survives the caveat is the shape of the work — and it holds on both cuts:
                                  clean subset (70)   whole fleet (136)
 median declared packages                     26                  53
 median inherited packages                   336                1132
-declared share of all packages             5.4%                6.7%
-share of criticals that are declared        33%                 30%
+declared share of all packages             5.2%                6.5%
+share of criticals that are declared        31%                 30%
 ```
 
 **The surface you control is around 6% of your packages and holds about a third
@@ -200,13 +200,13 @@ repositories with CI workflows read             146   90%
 repositories with a Dockerfile read              81   50%
 third-party CI actions invoked                 2593
   of those, on a MOVING tag                    1514   58%
-container base images referenced                432
-  of those, on a MOVING tag                     387   90%
+container base images referenced                420
+  of those, on a MOVING tag                     375   89%
 repositories with >=1 moving first-party ref    132   81%
 statically undecidable build steps            11694
 ```
 
-**90% of container base images across the top of GitHub are pinned to a tag that
+**89% of container base images across the top of GitHub are pinned to a tag that
 can be repointed at any image.** Not a digest — a tag. `python:3.11-slim`,
 `node:20-slim`, `debian:bookworm-slim`. Rebuild tomorrow, get different bytes,
 with no commit anywhere in your history.
@@ -294,7 +294,7 @@ running NO detected control at all: 64  (44%)
 
 Of 147 repositories whose CI is readable, **44% run no detected security control
 at all** and **only 12% run dependency scanning**. Six produce an SBOM. Three
-scan containers — while half the fleet ships a Dockerfile and 90% of base images
+scan containers — while half the fleet ships a Dockerfile and 89% of base images
 float.
 
 Dependabot is the exception at 57%. The most-adopted control by a wide margin is
@@ -309,7 +309,7 @@ Ordered by value per hour, using this fleet's numbers as the argument.
 
 ### 1. Pin your base images to digests — highest value, lowest effort
 
-**90% of the fleet is exposed here and 2% scan for it.** A tag is a mutable
+**89% of the fleet is exposed here and 2% scan for it.** A tag is a mutable
 pointer; a digest is content.
 
 ```dockerfile
@@ -444,10 +444,10 @@ all, rather than asserting anything about `next.js`.
 
 **Sort by who can fix it before you sort by severity.** The declared surface is
 under 7% of your packages and about a third of your criticals, and it is the only part you can
-act on this week. Every scanner I know buries it in one list with the 214,442
+act on this week. Every scanner I know buries it in one list with the 219,479
 packages you inherited.
 
-**Your build is a dependency.** 90% of base images and 58% of CI actions across
+**Your build is a dependency.** 89% of base images and 58% of CI actions across
 the top of GitHub float on a movable tag; 60% of repositories invoke an action
 with a published advisory; and Package URL — the identifier the whole ecosystem
 is built on — does not reach GitHub Actions advisories at all.
