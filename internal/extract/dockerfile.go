@@ -127,6 +127,16 @@ func (Dockerfile) Extract(_ context.Context, f source.File) ([]graph.Edge, []gra
 				emit(unresolvedBase(expanded), graph.BuildsOn)
 				continue
 			}
+			// The stage check has to happen AGAIN here. `FROM builder-${DEVICE}`
+			// with `ARG DEVICE=cpu` names an earlier stage, but only after
+			// substitution — checked before, the literal matches nothing and the
+			// stage alias is emitted as `pkg:oci/builder-cpu@latest`. That
+			// invents a registry image, and because a bare stage name carries no
+			// tag it lands in the unpinned bucket, overstating how many base
+			// images across a fleet float on a movable tag.
+			if stages[strings.ToLower(expanded)] {
+				continue
+			}
 			stageBase = expanded
 			emit(baseImageNode(expanded), graph.BuildsOn)
 
