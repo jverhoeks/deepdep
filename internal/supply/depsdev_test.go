@@ -222,7 +222,7 @@ func TestProjectsDedupeAndEncodeSlashes(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	got, err := supply.New(srv.URL, srv.Client()).Projects(context.Background(),
+	got, _, err := supply.New(srv.URL, srv.Client()).Projects(context.Background(),
 		[]string{"github.com/babel/babel", "github.com/babel/babel", "", "github.com/ai/nanoid"})
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +353,7 @@ func TestScorecardEvidenceIsCapturedAndInfoLinesAreNot(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	projects, err := supply.New(srv.URL, srv.Client()).Projects(context.Background(), []string{"github.com/o/r"})
+	projects, _, err := supply.New(srv.URL, srv.Client()).Projects(context.Background(), []string{"github.com/o/r"})
 	if err != nil {
 		t.Fatal(err)
 	}

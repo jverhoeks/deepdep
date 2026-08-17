@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -325,7 +326,9 @@ type projectDoc struct {
 // Deduplication matters more than it looks: every @babel/* package resolves to
 // github.com/babel/babel, so a thousand packages is typically half as many
 // projects. There is no batch endpoint, so this is one request each.
-func (c *Client) Projects(ctx context.Context, ids []string) (map[string]Project, error) {
+// Projects looks up each project, returning what resolved, how many did not,
+// and an error only when NOTHING did.
+func (c *Client) Projects(ctx context.Context, ids []string) (map[string]Project, int, error) {
 	seen := map[string]bool{}
 	var uniq []string
 	for _, id := range ids {
@@ -340,6 +343,7 @@ func (c *Client) Projects(ctx context.Context, ids []string) (map[string]Project
 	var (
 		mu       sync.Mutex
 		out      = map[string]Project{}
+		failed   int
 		firstErr error
 		wg       sync.WaitGroup
 	)
@@ -355,6 +359,7 @@ func (c *Client) Projects(ctx context.Context, ids []string) (map[string]Project
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
+				failed++
 				if firstErr == nil {
 					firstErr = err
 				}
@@ -364,7 +369,82 @@ func (c *Client) Projects(ctx context.Context, ids []string) (map[string]Project
 		}(id)
 	}
 	wg.Wait()
-	return out, firstErr
+
+	// Posture is an ENRICHMENT and one of four scoring terms. One unreachable
+	// project must degrade that project to unknown, not lose the repository's
+	// whole report — a fleet run lost 8 of its first 46 repositories to a single
+	// throttled lookup each.
+	//
+	// A TOTAL outage is different and stays an error: reporting every project as
+	// unknown would read as "nothing upstream is unmaintained", which is a wrong
+	// answer rather than a partial one.
+	//
+	// The count is returned rather than swallowed so the caller can say what was
+	// lost. A silent partial is the failure mode this tool exists to avoid.
+	if len(uniq) > 0 && failed == len(uniq) {
+		return out, failed, firstErr
+	}
+	return out, failed, nil
+}
+
+// depsDevMaxAttempts bounds retries so an outage fails rather than hangs.
+const depsDevMaxAttempts = 4
+
+// getWithRetry fetches a deps.dev endpoint, retrying the statuses that mean
+// "ask again later" rather than "no".
+//
+// Without this a 429 became a hard error the moment a scan asked about enough
+// projects quickly enough — which is exactly what widening the closure and
+// removing the resolver's serialisation did.
+func (c *Client) getWithRetry(ctx context.Context, endpoint string) ([]byte, int, error) {
+	var lastStatus string
+	for attempt := 0; attempt < depsDevMaxAttempts; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		resp, err := c.client.Do(req)
+		if err != nil {
+			return nil, 0, err
+		}
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+			wait := depsDevRetryAfter(resp.Header.Get("Retry-After"), time.Duration(1<<attempt)*250*time.Millisecond)
+			resp.Body.Close()
+			lastStatus = resp.Status
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+				return nil, 0, ctx.Err()
+			}
+			continue
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			resp.Body.Close()
+			return nil, http.StatusNotFound, nil
+		}
+		if resp.StatusCode != http.StatusOK {
+			b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+			resp.Body.Close()
+			return nil, resp.StatusCode, fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(b)))
+		}
+		b, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return b, http.StatusOK, err
+	}
+	return nil, 0, fmt.Errorf("%s after %d attempts", lastStatus, depsDevMaxAttempts)
+}
+
+// depsDevRetryAfter reads the header, sent as whole seconds, falling back to the
+// caller's computed backoff.
+func depsDevRetryAfter(h string, fallback time.Duration) time.Duration {
+	if h == "" {
+		return fallback
+	}
+	secs, err := strconv.Atoi(strings.TrimSpace(h))
+	if err != nil || secs < 0 {
+		return fallback
+	}
+	return time.Duration(secs) * time.Second
 }
 
 func (c *Client) project(ctx context.Context, id string) (Project, error) {
@@ -374,25 +454,16 @@ func (c *Client) project(ctx context.Context, id string) (Project, error) {
 	// such project" rather than "you built the URL wrong".
 	endpoint := c.base + "/v3/projects/" + url.QueryEscape(id)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	body, status, err := c.getWithRetry(ctx, endpoint)
 	if err != nil {
-		return p, err
+		return p, fmt.Errorf("deps.dev project %s: %w", id, err)
 	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return p, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return p, nil // unknown project, not an error
-	}
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return p, fmt.Errorf("deps.dev project %s: %s: %s", id, resp.Status, strings.TrimSpace(string(b)))
 	}
 
 	var doc projectDoc
-	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
+	if err := json.Unmarshal(body, &doc); err != nil {
 		return p, err
 	}
 	p.Stars = doc.StarsCount
