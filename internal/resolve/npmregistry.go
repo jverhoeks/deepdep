@@ -36,9 +36,10 @@ type NPMResolver struct {
 	// cold and --max-metadata-age can never help across invocations.
 	obs Observations
 
-	mu   sync.Mutex
-	memo map[string]observation // in-process view, avoids re-querying the store
-	docs map[string]*packument  // parsed, keyed by name+form
+	mu     sync.Mutex
+	flight singleflight
+	memo   map[string]observation // in-process view, avoids re-querying the store
+	docs   map[string]*packument  // parsed, keyed by name+form
 	// vers is the PARSED and SORTED version list, memoised per name+form.
 	// Versions() is called once per requirement, and a package like
 	// @types/node has a thousand of them: re-parsing and re-sorting that list
@@ -97,10 +98,37 @@ type packument struct {
 // A packument is a mutable document, so it is NOT eligible for the immutable
 // cache's never-expire contract. It is stored as an observation — a body plus
 // the instant we saw it — and revalidated by age.
+// The state mutex is held ONLY while touching state, never across the HTTP
+// request. It used to wrap the whole function, which serialised every packument
+// download in the process and made --concurrency inert. singleflight preserves
+// what the wide lock was really buying: concurrent callers for one package share
+// a single fetch rather than racing to repeat it.
+//
+// The flight key carries `full`, because an abbreviated body cannot satisfy a
+// caller that needs publish times — coalescing the two would hand back a
+// document missing the field that was asked for.
 func (r *NPMResolver) fetch(ctx context.Context, name string, full bool) (*packument, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if doc, ok := r.cached(ctx, name, full); ok {
+		return doc, nil
+	}
+	v, err := r.flight.Do(docKey(name, full), func() (any, error) {
+		// Re-check under the flight: a caller queued behind the winner would
+		// otherwise refetch what the winner has just stored.
+		if doc, ok := r.cached(ctx, name, full); ok {
+			return doc, nil
+		}
+		return r.download(ctx, name, full)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*packument), nil
+}
 
+// cached answers from the in-process memo or the blob cache, taking the state
+// mutex only for as long as that takes.
+func (r *NPMResolver) cached(ctx context.Context, name string, full bool) (*packument, bool) {
+	r.mu.Lock()
 	o, have := r.memo[name]
 	if !have && r.obs != nil {
 		// Cold process: ask the durable record what we last saw.
@@ -110,18 +138,32 @@ func (r *NPMResolver) fetch(ctx context.Context, name string, full bool) (*packu
 		}
 	}
 	// A stored abbreviated body cannot satisfy a request that needs publish times.
-	if have && (o.full || !full) && r.now().Sub(o.observedAt) < r.maxAge {
-		if doc, ok := r.docs[docKey(name, o.full)]; ok {
-			return doc, nil
-		}
-		if body, ok := r.cache.GetBlob(o.sha); ok {
-			if doc, err := decode(body); err == nil {
-				r.docs[docKey(name, o.full)] = doc
-				return doc, nil
-			}
-		}
+	if !have || (!o.full && full) || r.now().Sub(o.observedAt) >= r.maxAge {
+		r.mu.Unlock()
+		return nil, false
 	}
+	if doc, ok := r.docs[docKey(name, o.full)]; ok {
+		r.mu.Unlock()
+		return doc, true
+	}
+	r.mu.Unlock()
 
+	// Blob reads touch the filesystem, so they happen outside the lock too.
+	body, ok := r.cache.GetBlob(o.sha)
+	if !ok {
+		return nil, false
+	}
+	doc, err := decode(body)
+	if err != nil {
+		return nil, false
+	}
+	r.mu.Lock()
+	r.docs[docKey(name, o.full)] = doc
+	r.mu.Unlock()
+	return doc, true
+}
+
+func (r *NPMResolver) download(ctx context.Context, name string, full bool) (*packument, error) {
 	body, err := r.get(ctx, name, full)
 	if err != nil {
 		return nil, err
@@ -135,8 +177,10 @@ func (r *NPMResolver) fetch(ctx context.Context, name string, full bool) (*packu
 		return nil, fmt.Errorf("packument %s: %w", name, err)
 	}
 	seen := r.now()
+	r.mu.Lock()
 	r.memo[name] = observation{sha: sha, observedAt: seen, full: full}
 	r.docs[docKey(name, full)] = doc
+	r.mu.Unlock()
 
 	if r.obs != nil {
 		if err := r.obs.RecordPackument(ctx, "npm", name, sha, seen, full); err != nil {

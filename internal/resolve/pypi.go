@@ -35,9 +35,10 @@ type PyPIResolver struct {
 	now    func() time.Time
 	obs    Observations
 
-	mu   sync.Mutex
-	memo map[string]observation
-	docs map[string]*pypiProject
+	mu     sync.Mutex
+	flight singleflight
+	memo   map[string]observation
+	docs   map[string]*pypiProject
 }
 
 func NewPyPIResolver(base string, c cache.Cache, hc *http.Client, maxAge time.Duration, now func() time.Time) *PyPIResolver {
@@ -73,11 +74,37 @@ type pypiProject struct {
 	} `json:"releases"`
 }
 
+// fetch returns a project document, from memo, from the blob cache, or from the
+// index.
+//
+// The state mutex is held ONLY while touching state, never across the HTTP
+// request. It used to wrap the whole function, which serialised every download
+// in the process and made --concurrency inert. singleflight preserves what the
+// wide lock was really buying: concurrent callers for the same key share one
+// fetch instead of racing to repeat it.
 func (r *PyPIResolver) fetch(ctx context.Context, name, ver string) (*pypiProject, error) {
 	key := name + "\x00" + ver
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if doc, ok := r.cached(ctx, name, ver, key); ok {
+		return doc, nil
+	}
+	v, err := r.flight.Do(key, func() (any, error) {
+		// Re-check under the flight: a caller that queued behind the winner
+		// would otherwise refetch what the winner has just stored.
+		if doc, ok := r.cached(ctx, name, ver, key); ok {
+			return doc, nil
+		}
+		return r.download(ctx, name, ver, key)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*pypiProject), nil
+}
 
+// cached answers from the in-process memo or the blob cache, taking the state
+// mutex only for as long as that takes.
+func (r *PyPIResolver) cached(ctx context.Context, name, ver, key string) (*pypiProject, bool) {
+	r.mu.Lock()
 	o, have := r.memo[key]
 	if !have && r.obs != nil && ver == "" {
 		if sha, at, _, ok := r.obs.LastPackument(ctx, "pypi", name); ok {
@@ -85,18 +112,32 @@ func (r *PyPIResolver) fetch(ctx context.Context, name, ver string) (*pypiProjec
 			r.memo[key] = o
 		}
 	}
-	if have && r.now().Sub(o.observedAt) < r.maxAge {
-		if doc, ok := r.docs[key]; ok {
-			return doc, nil
-		}
-		if body, ok := r.cache.GetBlob(o.sha); ok {
-			if doc, err := decodePyPI(body); err == nil {
-				r.docs[key] = doc
-				return doc, nil
-			}
-		}
+	if !have || r.now().Sub(o.observedAt) >= r.maxAge {
+		r.mu.Unlock()
+		return nil, false
 	}
+	if doc, ok := r.docs[key]; ok {
+		r.mu.Unlock()
+		return doc, true
+	}
+	r.mu.Unlock()
 
+	// Blob reads touch the filesystem, so they happen outside the lock too.
+	body, ok := r.cache.GetBlob(o.sha)
+	if !ok {
+		return nil, false
+	}
+	doc, err := decodePyPI(body)
+	if err != nil {
+		return nil, false
+	}
+	r.mu.Lock()
+	r.docs[key] = doc
+	r.mu.Unlock()
+	return doc, true
+}
+
+func (r *PyPIResolver) download(ctx context.Context, name, ver, key string) (*pypiProject, error) {
 	u := r.base + "/pypi/" + url.PathEscape(name)
 	if ver != "" {
 		u += "/" + url.PathEscape(ver)
@@ -130,8 +171,10 @@ func (r *PyPIResolver) fetch(ctx context.Context, name, ver string) (*pypiProjec
 		return nil, err
 	}
 	seen := r.now()
+	r.mu.Lock()
 	r.memo[key] = observation{sha: sha, observedAt: seen}
 	r.docs[key] = doc
+	r.mu.Unlock()
 	if r.obs != nil && ver == "" {
 		if err := r.obs.RecordPackument(ctx, "pypi", name, sha, seen, true); err != nil {
 			return nil, err
