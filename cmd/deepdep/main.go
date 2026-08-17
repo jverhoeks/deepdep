@@ -463,9 +463,6 @@ func scan(args []string) ([]byte, error) {
 	// for prior observations, which is what makes a repeat scan incremental.
 	var db *store.Store
 	if !*noDB {
-		if err := os.MkdirAll(filepath.Dir(*dbPath), 0o755); err != nil {
-			return nil, err
-		}
 		if db, err = store.Open(*dbPath); err != nil {
 			return nil, err
 		}

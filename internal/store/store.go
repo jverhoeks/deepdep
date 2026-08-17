@@ -17,6 +17,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,9 +39,17 @@ const schemaVersion = 4
 type Store struct{ db *sql.DB }
 
 func Open(path string) (*Store, error) {
+	// Open already creates the database file and its schema, so it owns creating
+	// the directory they live in too. Leaving that to the caller meant only the
+	// scan path did it, and every other entry point — `org` above all, which
+	// reads the store before the first scan has written anything — failed on a
+	// fresh machine with SQLITE_CANTOPEN. ("." for :memory: is a no-op.)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	// WAL lets a future `deepdep serve` read while a scan writes.
 	//
@@ -53,15 +63,18 @@ func Open(path string) (*Store, error) {
 		"PRAGMA busy_timeout = 30000",
 		"PRAGMA foreign_keys = ON",
 	} {
+		// sql.Open is lazy, so this is where the file is really opened and where a
+		// bad path first shows itself. Name the path: "unable to open database
+		// file (14)" on its own says nothing about which file it could not open.
 		if _, err := db.Exec(p); err != nil {
 			db.Close()
-			return nil, err
+			return nil, fmt.Errorf("open %s: %w", path, err)
 		}
 	}
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("migrate %s: %w", path, err)
 	}
 	return s, nil
 }

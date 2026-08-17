@@ -75,6 +75,20 @@ func TestSchemaIsIdempotentAcrossOpens(t *testing.T) {
 	}
 }
 
+// The default database lives under ~/.local/share/deepdep, a directory nothing
+// else creates. Open already creates the file and the schema; if it does not
+// also create the directory, every command that reaches the store before a scan
+// has ever run — `org` and `report` most of all — dies on a first use with
+// SQLITE_CANTOPEN and no path to say which file it meant.
+func TestOpenCreatesParentDirectory(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "share", "deepdep", "deepdep.db")
+	s, err := store.Open(p)
+	if err != nil {
+		t.Fatalf("open into a directory that does not exist yet: %v", err)
+	}
+	s.Close()
+}
+
 // The graph dedups identical edges; the store's primary key is the second line
 // of defence. Both must hold or stored and in-memory answers diverge.
 func TestDuplicateEdgesCollapse(t *testing.T) {
