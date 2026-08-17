@@ -500,7 +500,7 @@ func scan(args []string) ([]byte, error) {
 	// A repository can carry several ecosystems at once, so every effective
 	// resolver runs and their instances are merged.
 	var inst []effective.Instance
-	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}, effective.PoetryLock{}} {
+	for _, er := range []effective.EffectiveResolver{effective.NPMLock{}, effective.UVLock{}, effective.PnpmLock{}, effective.GoMod{}, effective.CargoLock{}, effective.PoetryLock{}, effective.YarnLock{}, effective.BunLock{}} {
 		got, err := er.Resolve(ctx, src)
 		if err != nil {
 			return nil, err
