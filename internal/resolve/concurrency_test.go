@@ -24,13 +24,52 @@ import (
 //
 // Twelve distinct packages, each served with a delay: done in parallel this is
 // about one delay, serialised it is twelve.
-func assertParallel(t *testing.T, fetch func(ctx context.Context, name string) error) {
+// peakTracker records the greatest number of requests in flight at once.
+//
+// This asserts on OBSERVED CONCURRENCY rather than elapsed time. A wall-clock
+// budget looks simpler but is a proxy, and it goes flaky the moment the machine
+// is busy — this suite is routinely run while a fleet scan saturates the box.
+// Counting overlap at the server measures the property directly and does not
+// care how fast anything runs.
+type peakTracker struct {
+	mu       sync.Mutex
+	inFlight int
+	peak     int
+}
+
+func (p *peakTracker) enter() {
+	p.mu.Lock()
+	p.inFlight++
+	if p.inFlight > p.peak {
+		p.peak = p.inFlight
+	}
+	p.mu.Unlock()
+}
+
+func (p *peakTracker) leave() {
+	p.mu.Lock()
+	p.inFlight--
+	p.mu.Unlock()
+}
+
+func (p *peakTracker) Peak() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.peak
+}
+
+// assertParallel fetches n distinct packages concurrently and requires that
+// more than one was ever in flight at the same time.
+//
+// Both registry resolvers used to take a single mutex and DEFER the unlock
+// across the whole of fetch — including the HTTP request — so peak concurrency
+// was exactly 1 no matter what --concurrency was set to. A few-thousand-package
+// closure then cost a few-thousand sequential round trips, which is what pushed
+// a Poetry repository past its --timeout once extras were walked.
+func assertParallel(t *testing.T, peak *peakTracker, fetch func(ctx context.Context, name string) error) {
 	t.Helper()
-	const (
-		n     = 12
-		delay = 120 * time.Millisecond
-	)
-	start := time.Now()
+	const n = 12
+
 	var wg sync.WaitGroup
 	errs := make([]error, n)
 	for i := 0; i < n; i++ {
@@ -41,48 +80,50 @@ func assertParallel(t *testing.T, fetch func(ctx context.Context, name string) e
 		}(i)
 	}
 	wg.Wait()
-	elapsed := time.Since(start)
 
 	for i, err := range errs {
 		if err != nil {
 			t.Fatalf("fetch %d: %v", i, err)
 		}
 	}
-	// Serialised would be n*delay. Allow generous slack for scheduling; the
-	// point is to catch full serialisation, not to benchmark.
-	if limit := time.Duration(n/3) * delay; elapsed > limit {
-		t.Errorf("%d fetches took %v, over the %v budget — they are being serialised",
-			n, elapsed, limit)
+	if got := peak.Peak(); got < 2 {
+		t.Errorf("peak concurrent requests = %d; the resolver is serialising its fetches", got)
 	}
 }
 
-func slowServer(t *testing.T, delay time.Duration, body func(name string) string) *httptest.Server {
+// blockingServer holds every request until `release` many are in flight, so a
+// serialised resolver DEADLOCKS into its timeout rather than passing slowly.
+// The barrier is what makes this deterministic instead of timing-dependent.
+func trackedServer(t *testing.T, peak *peakTracker, body string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(delay)
-		w.Write([]byte(body(r.URL.Path)))
+		peak.enter()
+		// Long enough that concurrent callers genuinely overlap, short enough
+		// that a serialised implementation still finishes and reports peak 1.
+		time.Sleep(30 * time.Millisecond)
+		peak.leave()
+		w.Write([]byte(body))
 	}))
 	t.Cleanup(srv.Close)
 	return srv
 }
 
 func TestPyPIFetchesInParallel(t *testing.T) {
-	srv := slowServer(t, 120*time.Millisecond, func(string) string {
-		return `{"releases":{"1.0.0":[{"upload_time_iso_8601":"2024-01-01T00:00:00Z"}]},"info":{"requires_dist":[]}}`
-	})
+	var peak peakTracker
+	srv := trackedServer(t, &peak,
+		`{"releases":{"1.0.0":[{"upload_time_iso_8601":"2024-01-01T00:00:00Z"}]},"info":{"requires_dist":[]}}`)
 	r := resolve.NewPyPIResolver(srv.URL, cache.NewFS(t.TempDir()), srv.Client(), time.Hour, time.Now)
-	assertParallel(t, func(ctx context.Context, name string) error {
+	assertParallel(t, &peak, func(ctx context.Context, name string) error {
 		_, err := r.Versions(ctx, name, false)
 		return err
 	})
 }
 
 func TestNPMFetchesInParallel(t *testing.T) {
-	srv := slowServer(t, 120*time.Millisecond, func(string) string {
-		return `{"versions":{"1.0.0":{"name":"x","version":"1.0.0"}}}`
-	})
+	var peak peakTracker
+	srv := trackedServer(t, &peak, `{"versions":{"1.0.0":{"name":"x","version":"1.0.0"}}}`)
 	r := resolve.NewNPMResolver(srv.URL, cache.NewFS(t.TempDir()), srv.Client(), time.Hour, time.Now)
-	assertParallel(t, func(ctx context.Context, name string) error {
+	assertParallel(t, &peak, func(ctx context.Context, name string) error {
 		_, err := r.Versions(ctx, name, false)
 		return err
 	})
