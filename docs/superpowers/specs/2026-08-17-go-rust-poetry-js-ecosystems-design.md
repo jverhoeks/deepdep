@@ -212,6 +212,48 @@ Verification for each sub-project is a real scan of a repository from the fleet
 that currently reports `not graded`, showing packages resolved and a grade
 issued — not only a green unit suite.
 
+## Deviations found during implementation
+
+Two, both recorded rather than taken silently.
+
+### Poetry constraints are TRANSLATED, not given their own dialect
+
+The "one structural change" above — a dialect tag travelling with each
+requirement through `graph.Edge`, the walker, the store and the rollup — was not
+built. Reading the code, translating Poetry's constraints into PEP 440 RANGE
+syntax at extraction time is exactly as correct, keeps the rollup's pinning
+analysis working unchanged, and touches four files instead of a dozen.
+
+The objection recorded at `python.go:96` was against MISPARSING `^1.2.3` with
+PEP 440 semantics. Translating is a different operation: every Poetry form has an
+exact PEP 440 equivalent, so the result means what the author wrote.
+
+Except alternation. `^1.0 || ^2.0` has no PEP 440 equivalent at any level, so it
+is refused and recorded as a frontier carrying the original text. The cost of the
+approach is display fidelity — a report shows `>=1.2.3,<2.0.0` where the author
+wrote `^1.2.3`.
+
+### "Everything reachable" does not yet hold for TRANSITIVE PyPI extras
+
+The decision above was to count everything reachable. It holds for every
+dependency a scanned repository DECLARES: `skipScope` is called from exactly one
+place (`walker.go:306`), the transitive expansion, so seed edges at depth 1 are
+never filtered and a repository's own optional dependencies are walked.
+
+It does NOT hold one level down. `walker.go:352` skips `graph.Optional` for
+`pypi`, so a dependency's own extras are not expanded. On `grawsp` that is 125
+nodes marked `extra-not-requested` against 55 resolved package versions.
+
+This is a PRE-EXISTING global rule with a stated rationale — pyobjc alone
+declares 300+ framework subpackages and fsspec 50 cloud backends — and it governs
+npm and PyPI generally, not just the ecosystems added here. Cargo optionals are
+NOT affected: `cargo` falls past that branch and is walked.
+
+Honouring the decision fully is a one-line change to `skipScope`, but it widens
+every existing PyPI closure in the tool, not only the new ones. That is a
+different blast radius from this spec's, so it is surfaced for a decision rather
+than folded in.
+
 ## Out of scope
 
 `pipenv`, `setuptools`, `tox`, `terraform`, `bundler`, `maven`, `nuget` and the
