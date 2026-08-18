@@ -1061,7 +1061,10 @@ func orDashN(n int) string {
 	return fmt.Sprintf("%d", n)
 }
 
-func sortedKeys(m map[string]string) []string {
+// sortedKeys is generic because both a map[string]string of provenance notes and
+// a map[string]int of row counts need the same deterministic ordering, and two
+// near-identical helpers would be one refactor away from disagreeing.
+func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

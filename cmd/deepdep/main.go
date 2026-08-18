@@ -52,6 +52,7 @@ deepdep risk    [flags] [ref]         supply-chain posture from deps.dev + OpenS
 deepdep report  [flags] [ref]         malicious + advisories + posture, layered
 deepdep org     [flags] <org|user>    scan every repository an org owns, and rank them
 deepdep projects[flags] [ref]         every project the store knows, and where it lives
+deepdep clean   [flags]               prune runs; --keep N, --older-than D, --unclaimed, --purge
 deepdep tools                         supply-chain surfaces this build recognises
 
   A [ref] is a run id, a project number, a project name, or a unique
@@ -105,6 +106,8 @@ func run(args []string) ([]byte, error) {
 		return orgCmd(args[1:])
 	case "projects":
 		return projectsCmd(args[1:])
+	case "clean":
+		return cleanCmd(args[1:])
 	case "-h", "--help", "help":
 		return []byte(usage), nil
 	default:
