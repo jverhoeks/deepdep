@@ -65,9 +65,12 @@ func reportCmd(args []string) ([]byte, error) {
 	}
 	defer db.Close()
 
-	runID := ""
-	if fs.NArg() == 1 {
-		runID = fs.Arg(0)
+	// A ref is a run id, a project number, a project name, or a unique
+	// substring of either. Resolution happens here rather than in the store so
+	// the ambiguity message is written once.
+	runID, err := resolveRef(ctx, db, firstArg(fs))
+	if err != nil {
+		return nil, err
 	}
 
 	// Defaults to every state. A report that led with malicious packages while
@@ -1058,7 +1061,10 @@ func orDashN(n int) string {
 	return fmt.Sprintf("%d", n)
 }
 
-func sortedKeys(m map[string]string) []string {
+// sortedKeys is generic because both a map[string]string of provenance notes and
+// a map[string]int of row counts need the same deterministic ordering, and two
+// near-identical helpers would be one refactor away from disagreeing.
+func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

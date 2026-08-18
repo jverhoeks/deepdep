@@ -45,13 +45,18 @@ func main() {
 	os.Stdout.Write(out)
 }
 
-const usage = `deepdep scan    [flags] <git-url|directory>
-deepdep history [flags] <directory>   when each dependency changed, and to what
-deepdep audit   [flags] [run-id]      check stored packages against OSV advisories
-deepdep risk    [flags] [run-id]      supply-chain posture from deps.dev + OpenSSF Scorecard
-deepdep report  [flags] [run-id]      malicious + advisories + posture, layered
-deepdep org     [flags] <org|user>    scan every repository an org owns, and rank them
+const usage = `deepdep scan     [flags] <git-url|directory>
+deepdep history  [flags] <directory>  when each dependency changed, and to what
+deepdep audit    [flags] [ref]        check stored packages against OSV advisories
+deepdep risk     [flags] [ref]        supply-chain posture from deps.dev + OpenSSF Scorecard
+deepdep report   [flags] [ref]        malicious + advisories + posture, layered
+deepdep org      [flags] <org|user>   scan every repository an org owns, and rank them
+deepdep projects [flags] [ref]        every project the store knows, and where it lives
+deepdep clean    [flags]              prune runs; --keep N, --older-than D, --unclaimed, --purge
 deepdep tools                         supply-chain surfaces this build recognises
+
+  A [ref] is a run id, a project number, a project name, or a unique
+  substring of either. Omit it for the newest run; "deepdep projects" lists them.
 
   --mode will|can        will: what installs today (lockfile pins, else max-satisfying)
                          can:  every version the declared ranges permit
@@ -99,6 +104,10 @@ func run(args []string) ([]byte, error) {
 		return reportCmd(args[1:])
 	case "org":
 		return orgCmd(args[1:])
+	case "projects":
+		return projectsCmd(args[1:])
+	case "clean":
+		return cleanCmd(args[1:])
 	case "-h", "--help", "help":
 		return []byte(usage), nil
 	default:
@@ -220,9 +229,12 @@ func auditCmd(args []string) ([]byte, error) {
 	}
 	defer db.Close()
 
-	runID := ""
-	if fs.NArg() == 1 {
-		runID = fs.Arg(0)
+	// A ref is a run id, a project number, a project name, or a unique
+	// substring of either. Resolution happens here rather than in the store so
+	// the ambiguity message is written once.
+	runID, err := resolveRef(ctx, db, firstArg(fs))
+	if err != nil {
+		return nil, err
 	}
 	// "all" is an empty filter. Without it a Dockerfile-only repo is
 	// unauditable: with no lockfile there is no effective resolution, so every
@@ -562,7 +574,7 @@ func scan(args []string) ([]byte, error) {
 		// to be written down.
 		persistCtx, cancelPersist := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancelPersist()
-		if _, err := db.WriteRun(persistCtx, m, g, inst, res); err != nil {
+		if _, err := db.WriteRun(persistCtx, m, g, inst, res, store.WithOrigin(src.Origin())); err != nil {
 			return nil, err
 		}
 		// Mutable refs are the one observation that can never be recovered later.

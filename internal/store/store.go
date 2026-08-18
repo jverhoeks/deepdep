@@ -27,6 +27,7 @@ import (
 	"github.com/jverhoeks/deepdep/internal/effective"
 	"github.com/jverhoeks/deepdep/internal/emit"
 	"github.com/jverhoeks/deepdep/internal/graph"
+	"github.com/jverhoeks/deepdep/internal/project"
 	"github.com/jverhoeks/deepdep/internal/rollup"
 )
 
@@ -34,7 +35,7 @@ import (
 var schemaSQL string
 
 // schemaVersion drives migrations through PRAGMA user_version.
-const schemaVersion = 4
+const schemaVersion = 5
 
 type Store struct{ db *sql.DB }
 
@@ -159,6 +160,11 @@ func (s *Store) migrate() error {
 			}
 		}
 	}
+	if v > 0 && v < 5 {
+		if err := s.migrateProjects(); err != nil {
+			return err
+		}
+	}
 	_, err := s.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
 	return err
 }
@@ -184,9 +190,28 @@ type PackageQuery struct {
 	Offset    int
 }
 
+// WriteOption adjusts what WriteRun records beyond the graph itself.
+//
+// Variadic rather than a sixth parameter because ten existing call sites pass no
+// origin and should not have to say so.
+type WriteOption func(*writeOpts)
+
+type writeOpts struct{ origin project.Origin }
+
+// WithOrigin links the run to a project, creating it if this is the first time
+// that repository has been seen.
+func WithOrigin(o project.Origin) WriteOption {
+	return func(w *writeOpts) { w.origin = o }
+}
+
 // WriteRun persists a whole scan in one transaction.
 func (s *Store) WriteRun(ctx context.Context, m emit.Meta, g *graph.Graph,
-	inst []effective.Instance, res rollup.Result) (string, error) {
+	inst []effective.Instance, res rollup.Result, opts ...WriteOption) (string, error) {
+
+	var w writeOpts
+	for _, o := range opts {
+		o(&w)
+	}
 
 	runID := newRunID(m, g)
 	bounds, _ := json.Marshal(m.Bounds)
@@ -198,10 +223,23 @@ func (s *Store) WriteRun(ctx context.Context, m emit.Meta, g *graph.Graph,
 	defer tx.Rollback()
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	// NULL when the caller supplied no origin, or supplied one with neither a
+	// remote nor a path — the in-memory source. Such a run is unclaimed and
+	// still perfectly reportable by run id.
+	var projectNum any
+	if id, ok := project.Of(w.origin); ok {
+		n, err := upsertProject(ctx, tx, id, w.origin.Path, now)
+		if err != nil {
+			return "", err
+		}
+		projectNum = n
+	}
+
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO runs (run_id,target,ref,mode,as_of,known_at,tool_version,bounds_json,created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?)`,
-		runID, m.Repo, m.Ref, defaultMode(m.Mode), rfc(m.AsOf), rfc(m.KnownAt), m.ToolVersion, string(bounds), now,
+		`INSERT INTO runs (run_id,target,ref,mode,as_of,known_at,tool_version,bounds_json,created_at,project_num)
+		 VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		runID, m.Repo, m.Ref, defaultMode(m.Mode), rfc(m.AsOf), rfc(m.KnownAt), m.ToolVersion, string(bounds), now, projectNum,
 	); err != nil {
 		return "", err
 	}
@@ -435,9 +473,17 @@ func (s *Store) Runs(ctx context.Context, limit int) ([]Run, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT run_id,target,ref,mode,as_of,known_at,tool_version,created_at
-		   FROM runs ORDER BY created_at DESC, rowid DESC LIMIT ?`, limit)
+	return s.queryRuns(ctx, `ORDER BY created_at DESC, rowid DESC LIMIT ?`, limit)
+}
+
+// queryRuns is the single place run rows are scanned. Three callers select
+// different subsets and they must not disagree about what a Run is.
+func (s *Store) queryRuns(ctx context.Context, clause string, args ...any) ([]Run, error) {
+	q := `SELECT run_id,target,ref,mode,as_of,known_at,tool_version,created_at FROM runs ` + clause
+	if !strings.Contains(clause, "ORDER BY") {
+		q += ` ORDER BY created_at DESC, rowid DESC`
+	}
+	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/jverhoeks/deepdep/internal/project"
+
 	git "github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing"
 	"github.com/go-git/go-git/v6/plumbing/client"
@@ -110,6 +112,10 @@ func openCloned(dst, at, url string) (Source, error) {
 	}
 	if ls, ok := s.(*localSource); ok {
 		ls.repo = url
+		// The path openLocal filled in is deepdep's cache directory — a hash of
+		// this URL — not a checkout the user chose. Recording it as a project
+		// location would point the registry at a directory nobody asked for.
+		ls.origin = project.Origin{Kind: project.KindRemote, Remote: url}
 	}
 	return s, nil
 }

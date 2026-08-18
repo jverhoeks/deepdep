@@ -5,11 +5,14 @@ container images, OS packages, CI actions, build steps — and report what it
 costs you.
 
 ```
-deepdep scan   .                     # build the closure
+deepdep scan     .                   # build the closure
+deepdep projects                     # what is in the store, and where it lives
 deepdep report                       # risk grade, CVEs, posture, controls
-deepdep report --format json         # the same, for a pipeline
-deepdep report --format mermaid      # the surfaces, as a diagram
-deepdep org    <org|user>            # every repository an org owns, ranked
+deepdep report   3                   # ...for project 3
+deepdep report   --format json       # the same, for a pipeline
+deepdep report   --format mermaid    # the surfaces, as a diagram
+deepdep org      <org|user>          # every repository an org owns, ranked
+deepdep clean    --keep 3            # prune old runs, keep the observations
 ```
 
 Offline, from a git checkout. No daemon, no image pull, and it **never executes
@@ -420,13 +423,18 @@ lockfile there is nothing to grade, and saying so beats inventing an A.
 ## Commands
 
 ```
-deepdep scan    [flags] <git-url|directory>   build and store the closure
-deepdep report  [flags] [run-id]              malicious + CVEs + posture, layered
-deepdep audit   [flags] [run-id]              OSV advisories, bitemporal
-deepdep risk    [flags] [run-id]              deps.dev + OpenSSF Scorecard
-deepdep history [flags] <directory>           when each dependency changed
+deepdep scan     [flags] <git-url|directory>  build and store the closure
+deepdep report   [flags] [ref]                malicious + CVEs + posture, layered
+deepdep audit    [flags] [ref]                OSV advisories, bitemporal
+deepdep risk     [flags] [ref]                deps.dev + OpenSSF Scorecard
+deepdep projects [flags] [ref]                what is in the store, and where
+deepdep clean    [flags]                      prune runs, keep the observations
+deepdep history  [flags] <directory>          when each dependency changed
 deepdep tools                                 the recognition catalogue
 ```
+
+A `[ref]` is a run id, a project number, a project name, or a unique substring of
+either. Omit it for the newest run.
 
 ### SBOM
 
@@ -447,6 +455,82 @@ that assembles them.
 `formulation` carries the build itself — pipelines, base images, shell steps —
 the CycloneDX MBOM view. A base image and a third-party action appear in no
 `components[]` list anywhere else.
+
+---
+
+## What is in the store
+
+A run is an event: this tree, at this ref, resolved at this instant. Scanning the
+same repository twice is two runs, deliberately — that is how `history` works.
+But it means the store fills with events, and the only handle on one used to be a
+16-character hash printed by no command.
+
+A **project** is the durable thing runs are about. Identity is the canonical
+remote, so `git@github.com:o/r.git` and `https://github.com/o/r` are one project,
+and a repository checked out twice is one project with two locations.
+
+```
+$ deepdep projects
+  NUM NAME                                          RUNS  LAST SCAN    LOCATIONS
+    2 github.com/acme/billing                          1  2026-08-18   ~/src/billing
+    1 github.com/acme/data-platform                    1  2026-08-18   ~/src/data-platform
+```
+
+The number works anywhere a run id did:
+
+```
+deepdep report 2          # newest run for that project
+deepdep risk   data-pl    # a unique substring works too
+deepdep projects 2        # its locations and its run history
+```
+
+An ambiguous reference is an error listing the candidates rather than a guess.
+Reporting on the wrong repository is the failure this exists to prevent.
+
+The list carries **no risk grade**, deliberately. A grade is a function of
+`known_at`; materialising one per project would make it a stale number that looks
+current.
+
+### Pruning without losing anything
+
+```
+deepdep clean --keep 3               # newest 3 runs per project
+deepdep clean --older-than 720h      # anything over 30 days
+deepdep clean --unclaimed            # runs from before the registry existed
+deepdep clean --project 2 --purge    # that project and its runs
+```
+
+`deepdep clean` with no flags deletes nothing and says so. It prints what it
+preserved:
+
+```
+PRESERVED  (not run-scoped, and not regenerable)
+  advisories                0
+  advisory_affects          0
+  depsdev_obs          197470
+  packument_obs         15440
+  ref_obs                 369
+  scorecard_obs         55709
+  version_facts             0
+  deps.dev serves only the current scorecard, so a deleted observation
+  is the only copy. clean deletes from none of these tables.
+```
+
+That is not decoration. deps.dev has no history endpoint and no as-of parameter:
+an observation recorded during a scan last March is the only copy that will ever
+exist. Deleting it would quietly remove the ability to answer "what was this
+project's Code-Review score six months ago", which is the whole reason those
+tables are append-only.
+
+### Runs from before the registry
+
+A local scan used to record only the *basename* of the directory, so
+`~/src/a/data-platform` and `~/work/b/data-platform` were the same target — and
+because `alreadyScanned` keys on that target, they collided in `org`'s resume
+logic too. Those runs cannot be adopted into projects, because the path was never
+written down. They list as `unclaimed` and stay reachable by run id; re-scan to
+adopt one. Guessing a path from a basename would point the registry at a
+directory nobody chose.
 
 ---
 
@@ -503,6 +587,10 @@ Terraform — is detected and reported as a frontier.
 SQLite (`modernc.org/sqlite`, pure Go, no cgo — one static binary). Indexed
 adjacency answers "why is this here?" in milliseconds; observation tables record
 what cannot be reconstructed later.
+
+Three tiers with different lifetimes, and `deepdep clean` only ever touches the
+first: derived per-run rows cascade off a run and are regenerable; observation
+tables are append-only records of mutable things; fact tables are immutable.
 
 ```sql
 SELECT name, versions_installed, path_count, worst_completeness
