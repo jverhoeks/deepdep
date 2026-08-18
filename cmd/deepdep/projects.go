@@ -91,6 +91,9 @@ func oneProject(ctx context.Context, db *store.Store, ref, format string) ([]byt
 		if rerr != nil {
 			return nil, rerr
 		}
+		// Stop at the match. Continuing would run one query per remaining
+		// project, and with 208 of them that is 207 queries for an answer
+		// already in hand.
 		for i := range ps {
 			runs, err := db.RunsForProject(ctx, ps[i].Num)
 			if err != nil {
@@ -101,6 +104,9 @@ func oneProject(ctx context.Context, db *store.Store, ref, format string) ([]byt
 					found = &ps[i]
 					break
 				}
+			}
+			if found != nil {
+				break
 			}
 		}
 		if found == nil {

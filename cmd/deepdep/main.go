@@ -45,14 +45,14 @@ func main() {
 	os.Stdout.Write(out)
 }
 
-const usage = `deepdep scan    [flags] <git-url|directory>
-deepdep history [flags] <directory>   when each dependency changed, and to what
-deepdep audit   [flags] [ref]         check stored packages against OSV advisories
-deepdep risk    [flags] [ref]         supply-chain posture from deps.dev + OpenSSF Scorecard
-deepdep report  [flags] [ref]         malicious + advisories + posture, layered
-deepdep org     [flags] <org|user>    scan every repository an org owns, and rank them
-deepdep projects[flags] [ref]         every project the store knows, and where it lives
-deepdep clean   [flags]               prune runs; --keep N, --older-than D, --unclaimed, --purge
+const usage = `deepdep scan     [flags] <git-url|directory>
+deepdep history  [flags] <directory>  when each dependency changed, and to what
+deepdep audit    [flags] [ref]        check stored packages against OSV advisories
+deepdep risk     [flags] [ref]        supply-chain posture from deps.dev + OpenSSF Scorecard
+deepdep report   [flags] [ref]        malicious + advisories + posture, layered
+deepdep org      [flags] <org|user>   scan every repository an org owns, and rank them
+deepdep projects [flags] [ref]        every project the store knows, and where it lives
+deepdep clean    [flags]              prune runs; --keep N, --older-than D, --unclaimed, --purge
 deepdep tools                         supply-chain surfaces this build recognises
 
   A [ref] is a run id, a project number, a project name, or a unique
