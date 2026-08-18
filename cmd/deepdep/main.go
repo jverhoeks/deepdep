@@ -562,7 +562,7 @@ func scan(args []string) ([]byte, error) {
 		// to be written down.
 		persistCtx, cancelPersist := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancelPersist()
-		if _, err := db.WriteRun(persistCtx, m, g, inst, res); err != nil {
+		if _, err := db.WriteRun(persistCtx, m, g, inst, res, store.WithOrigin(src.Origin())); err != nil {
 			return nil, err
 		}
 		// Mutable refs are the one observation that can never be recovered later.

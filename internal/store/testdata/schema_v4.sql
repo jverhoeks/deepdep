@@ -19,40 +19,7 @@ CREATE TABLE runs (
   known_at     TEXT NOT NULL,   -- knowledge time; independent of as_of
   tool_version TEXT NOT NULL,
   bounds_json  TEXT NOT NULL,
-  created_at   TEXT NOT NULL,
-  -- The project this run is about. NULL is legitimate and permanent for runs
-  -- written before v5, whose local paths were never recorded and cannot be
-  -- reconstructed; they stay reportable by run id.
-  --
-  -- target is deliberately NOT redefined to the canonical remote. alreadyScanned
-  -- keys on it, so a local scan of a repository would then suppress the remote
-  -- scan of that same repository mid-org-run, and the summary would call a
-  -- repository scanned when what was read was somebody's working copy.
-  project_num  INTEGER REFERENCES projects(num) ON DELETE CASCADE
-);
-
--- A project is the durable thing runs are about. Identity is the canonical
--- remote; a directory with no remote falls back to its absolute path.
---
--- num is AUTOINCREMENT rather than a bare INTEGER PRIMARY KEY so a deleted
--- project's number is never reissued to a different project later. `deepdep
--- report 3` has to keep meaning one thing.
-CREATE TABLE projects (
-  num        INTEGER PRIMARY KEY AUTOINCREMENT,
-  key        TEXT NOT NULL UNIQUE,
-  kind       TEXT NOT NULL CHECK (kind IN ('remote','local')),
-  name       TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-
--- Where a project has been seen on disk. Many rows per project: one repository
--- cloned to two directories is one project with two locations.
-CREATE TABLE project_paths (
-  num        INTEGER NOT NULL REFERENCES projects(num) ON DELETE CASCADE,
-  path       TEXT NOT NULL,
-  first_seen TEXT NOT NULL,
-  last_seen  TEXT NOT NULL,
-  PRIMARY KEY (num, path)
+  created_at   TEXT NOT NULL
 );
 
 CREATE TABLE nodes (
