@@ -65,9 +65,12 @@ func reportCmd(args []string) ([]byte, error) {
 	}
 	defer db.Close()
 
-	runID := ""
-	if fs.NArg() == 1 {
-		runID = fs.Arg(0)
+	// A ref is a run id, a project number, a project name, or a unique
+	// substring of either. Resolution happens here rather than in the store so
+	// the ambiguity message is written once.
+	runID, err := resolveRef(ctx, db, firstArg(fs))
+	if err != nil {
+		return nil, err
 	}
 
 	// Defaults to every state. A report that led with malicious packages while

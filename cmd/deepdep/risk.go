@@ -67,9 +67,12 @@ func riskCmd(args []string) ([]byte, error) {
 	}
 	defer db.Close()
 
-	runID := ""
-	if fs.NArg() == 1 {
-		runID = fs.Arg(0)
+	// A ref is a run id, a project number, a project name, or a unique
+	// substring of either. Resolution happens here rather than in the store so
+	// the ambiguity message is written once.
+	runID, err := resolveRef(ctx, db, firstArg(fs))
+	if err != nil {
+		return nil, err
 	}
 	// "all" is an empty filter, matching `audit` and `report`. Without it a
 	// Dockerfile-only repo has no auditable state at all: with no lockfile there
