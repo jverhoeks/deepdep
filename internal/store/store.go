@@ -160,6 +160,11 @@ func (s *Store) migrate() error {
 			}
 		}
 	}
+	if v > 0 && v < 5 {
+		if err := s.migrateProjects(); err != nil {
+			return err
+		}
+	}
 	_, err := s.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
 	return err
 }

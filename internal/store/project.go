@@ -193,3 +193,79 @@ func safeTable(t string) string {
 	}
 	panic("store: unknown table " + t)
 }
+
+// migrateProjects creates the v5 registry and adopts the runs that can be
+// adopted.
+//
+// A run whose target is a clone URL carries its own identity, so 208 of the 211
+// runs in the store this was written for become projects here. A run whose
+// target is a bare basename does not: openLocal recorded filepath.Base and
+// discarded the path, so there is nothing to adopt it by. Those stay unclaimed
+// permanently. Synthesising a path from the basename would produce a registry
+// pointing at directories nobody chose, which is worse than an honest gap.
+func (s *Store) migrateProjects() error {
+	for _, stmt := range []string{
+		`CREATE TABLE IF NOT EXISTS projects (
+		   num        INTEGER PRIMARY KEY AUTOINCREMENT,
+		   key        TEXT NOT NULL UNIQUE,
+		   kind       TEXT NOT NULL CHECK (kind IN ('remote','local')),
+		   name       TEXT NOT NULL,
+		   created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS project_paths (
+		   num        INTEGER NOT NULL REFERENCES projects(num) ON DELETE CASCADE,
+		   path       TEXT NOT NULL,
+		   first_seen TEXT NOT NULL,
+		   last_seen  TEXT NOT NULL,
+		   PRIMARY KEY (num, path))`,
+		// SQLite permits ADD COLUMN with a REFERENCES clause only when the
+		// default is NULL, which is what an omitted default gives — and NULL is
+		// the right default here anyway.
+		`ALTER TABLE runs ADD COLUMN project_num INTEGER REFERENCES projects(num) ON DELETE CASCADE`,
+	} {
+		if _, err := s.db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+
+	rows, err := s.db.Query(`SELECT DISTINCT target FROM runs`)
+	if err != nil {
+		return err
+	}
+	var targets []string
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			rows.Close()
+			return err
+		}
+		targets = append(targets, t)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, target := range targets {
+		// Canonical rejects anything without a host, which is exactly the local
+		// basenames. No SQL LIKE heuristic is needed or wanted.
+		key, name, ok := project.Canonical(target)
+		if !ok {
+			continue
+		}
+		num, err := upsertProject(context.Background(), tx,
+			project.Identity{Key: key, Kind: project.KindRemote, Name: name}, "", now)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE runs SET project_num = ? WHERE target = ?`, num, target); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
