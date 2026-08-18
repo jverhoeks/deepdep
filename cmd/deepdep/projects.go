@@ -140,9 +140,9 @@ func oneProject(ctx context.Context, db *store.Store, ref, format string) ([]byt
 // filter is the --org prefix in force, or "".
 func renderProjects(ps []store.Project, unclaimed []store.Run, truncated int, filter string) []byte {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, " %-4s %-44s %5s  %-12s %s\n", "NUM", "NAME", "RUNS", "LAST SCAN", "LOCATIONS")
+	fmt.Fprintf(&b, " %4s %-44s %5s  %-12s %s\n", "NUM", "NAME", "RUNS", "LAST SCAN", "LOCATIONS")
 	for _, p := range ps {
-		fmt.Fprintf(&b, " %-4d %-44s %5d  %-12s %s\n",
+		fmt.Fprintf(&b, " %4d %-44s %5d  %-12s %s\n",
 			p.Num, truncate(p.Key, 44), p.Runs, stamp(p.LastScan), locations(p.Paths))
 	}
 	if len(ps) == 0 {
