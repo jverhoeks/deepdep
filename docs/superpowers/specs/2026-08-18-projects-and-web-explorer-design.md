@@ -183,6 +183,14 @@ $ deepdep projects
    —  (unclaimed)                                   3  2026-08-18    path not recorded
 ```
 
+On this database that list is 209 rows long, because 208 of the projects come
+from `org` scans — `WriteRun`'s upsert means `org` populates the registry as a
+side effect, and it is by far the highest-volume producer of projects. Dumping
+209 rows would recreate the friction this work exists to remove, so: sort by last
+scan descending, `--limit 25` by default (matching `risk`'s existing default),
+`--all` to override, and `--org <host/owner>` to filter by key prefix, which is
+the cut that actually matters when one org scan supplied most of the table.
+
 The list deliberately carries **no risk grade**. A grade is a function of
 `known_at` and is not materialised anywhere — printing one here would mean
 running a full report per project, and caching one would un-bitemporalise the
@@ -288,6 +296,19 @@ No count is materialised anywhere. `source` is recorded because a deps.dev
 advisory id and an OSV version-matched hit are different strengths of claim, the
 same distinction `report` already draws between `Advisory` and `ActionAdvisory`.
 
+### The 165,472 rows already in the store
+
+`depsdev_obs.advisory_ids` holds advisory ids for 165,472 purl observations. The
+v5 migration harvests them into `finding_obs` with `source='depsdev'`, so the
+explorer has data for the existing 208 projects on day one rather than only after
+re-auditing all of them.
+
+The caveat has to be stated where the UI will feel it: `advisories` is empty, so a
+harvested row carries **no severity and no summary**. Such a node renders as
+"carries a finding, severity unknown" — a third state alongside clean and
+unaudited, not silently sorted into low. Severity arrives for that node the first
+time an `audit` or `report` covers it and writes the advisory body.
+
 **Deviation, recorded deliberately:** deepdep still cannot evaluate an advisory
 range locally. It can only recall matches it was told about. A version never
 audited has no findings, and the explorer must show that as *unknown*, not as
@@ -307,11 +328,28 @@ highlight force layout over 18k nodes is not a harder version of a good idea; it
 is a different, worse idea.
 
 **The default view is the risk subgraph:** every node carrying a finding, plus
-the shortest path from each back to the root. Dozens of nodes for a typical
-repository — and for a clean one, a root and its surfaces, which is the correct
-picture of a clean repository. From there, clicking a node fetches its
-neighbourhood from SQLite. `idx_edges_in` exists for the inbound direction
-already, which is the expensive one.
+the shortest path from each back to the root. For a clean repository that is a
+root and its surfaces, which is the correct picture of a clean repository. From
+there, clicking a node fetches its neighbourhood from SQLite. `idx_edges_in`
+exists for the inbound direction already, which is the expensive one.
+
+"Findings plus paths to root" is not self-bounding: *N* finding nodes in a deep
+transitive graph can drag in many more intermediate nodes than *N*. So
+`risk-graph` carries explicit caps, the way `emit.MermaidInput` already carries
+`MaxFiles`/`MaxPerFile`:
+
+```
+MaxFindings  200   findings included, worst severity first
+MaxNodes     600   total nodes after path expansion
+MaxHops       12   path length before a path is elided to root --> node
+```
+
+When a cap bites, the response says so — `{"truncated": {"findings": 47,
+"reason": "max_findings"}}` — and the UI renders the same kind of overflow marker
+mermaid uses. A view that silently dropped findings would read as a cleaner
+repository than the one that exists, which is the failure mode the README's
+"what the tool could not read" section is entirely about. The caps are defaults,
+overridable by query parameter.
 
 The full graph is never shipped to the browser. There is no endpoint that would
 let it be.
@@ -334,6 +372,20 @@ GET /api/runs/{run}/nodes/{id}/neighbours?dir=in|out
 `overview` reuses `reportDoc` (`cmd/deepdep/report.go:291`) rather than growing a
 parallel shape. `report --format json` and the explorer must not be able to
 disagree about a grade.
+
+That reuse is not currently possible. `reportDoc`, `computeReach` and the
+document assembly around them are in `package main`, and `internal/web` cannot
+import `cmd/deepdep`. So this needs an extraction first: the assembly moves to
+`internal/report`, and `cmd/deepdep/report.go` becomes a flag-parsing shell that
+calls it and formats the result. The grading math is already out — that is
+`internal/score` — so this is moving document construction, not logic. The same
+question applies to `risk.go`'s posture assembly, which
+`/api/runs/{run}/nodes/{id}` needs for its deps.dev panel; extract only what the
+API actually consumes.
+
+The extraction is a refactor with no behaviour change, so it is verifiable
+independently: `report --format json` must produce byte-identical output before
+and after, on a stored run.
 
 Binds loopback. A non-loopback `--addr` is refused unless `--listen-any` is also
 given, because the default database is one file containing 208 organisations'
@@ -390,8 +442,13 @@ present/absent correctly. A node with no `finding_obs` row reads as unknown, not
 clean.
 
 **Web.** Golden JSON per handler from a seeded store; `risk-graph` on an 18k-node
-fixture returns a bounded node count; a non-loopback bind is refused without
+fixture returns at most `MaxNodes` and reports `truncated` when it clips — the
+assertion is on the marker, not just the count, because silent clipping is the
+failure being guarded against; a non-loopback bind is refused without
 `--listen-any`; a table test asserts every registered route is GET.
+
+**The extraction.** `report --format json` output is captured from a stored run
+before the move to `internal/report` and compared byte-for-byte after.
 
 No test reaches the network, following the existing `httptest` pattern.
 
@@ -406,12 +463,20 @@ have a dependency order and each step is independently useful:
 3. **`deepdep projects` and `clean`** — the original complaint is answered here.
    Everything after this point is additive.
 4. **`finding_obs` and the write side of `advisories`** — wired into `audit`,
-   `risk` and `report`. Still no UI; `report` gains the ability to answer from
-   the store.
-5. **`serve`** — API first with golden-JSON tests, then the embedded front end.
+   `risk` and `report`, plus the `depsdev_obs` harvest. Still no UI; `report`
+   gains the ability to answer from the store.
+5. **Extract `internal/report`** — a behaviour-preserving refactor, verified by
+   byte-identical `--format json`. Nothing user-visible; it is what makes step 6
+   able to reuse the report rather than reimplement it.
+6. **`serve`** — API first with golden-JSON tests, then the embedded front end.
 
-Steps 1–3 are the fix. Steps 4–5 are the explorer, and 5 cannot be built honestly
-before 4, because a graph that colours unaudited nodes green would be lying.
+Steps 1–3 are the fix and answer the original complaint on their own. Steps 4–6
+are the explorer: 6 cannot be built honestly before 4, because a graph that
+coloured unaudited nodes green would be lying, and it cannot be built *correctly*
+before 5, because `reportDoc` is unreachable from `internal/` until then.
+
+This wants a plan per stage rather than one plan for six, with 1–3 planned and
+executed first.
 
 ## Deviations, all deliberate
 
