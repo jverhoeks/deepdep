@@ -1154,15 +1154,22 @@ ten call sites that have no origin do not have to say so."
 
 - [ ] **Step 1: Create the v4 fixture**
 
-```bash
-git show HEAD~1:internal/store/schema.sql > internal/store/testdata/schema_v4.sql
-```
-
-If `HEAD~1` is not the commit before Task 3's schema change, find it with `git log --oneline -- internal/store/schema.sql` and use the last revision that predates this plan. Verify the file does NOT contain `projects`:
+Take the previous revision of `schema.sql` — the one before Task 3 touched it — addressed by that file's own history rather than by `HEAD~1`, which depends on how many other commits happen to sit in between:
 
 ```bash
-grep -c "CREATE TABLE projects" internal/store/testdata/schema_v4.sql   # expect 0
+mkdir -p internal/store/testdata
+git show "$(git log --format=%H -1 --skip=1 -- internal/store/schema.sql):internal/store/schema.sql" \
+  > internal/store/testdata/schema_v4.sql
 ```
+
+Then gate on the content, not on the revision arithmetic — this is the check that makes the step safe:
+
+```bash
+grep -c "CREATE TABLE projects" internal/store/testdata/schema_v4.sql   # MUST print 0
+grep -c "CREATE TABLE runs"     internal/store/testdata/schema_v4.sql   # MUST print 1
+```
+
+If the first prints anything but `0`, the wrong revision was extracted and the migration test would be asserting against a v5 schema — which would pass while testing nothing. Stop and find the right one with `git log --oneline -- internal/store/schema.sql`.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -2422,6 +2429,23 @@ func (s *Store) PutScorecardForTest(ctx context.Context, projectID string, score
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS.
+
+If `TestPruneNeverTouchesTheObservationTables` fails at the `Vacuum` call rather than at an assertion, that is SQLite refusing to rewrite the file while the pool holds another connection open — not a design problem. Checkpoint the WAL first:
+
+```go
+func (s *Store) Vacuum(ctx context.Context) error {
+	// VACUUM rewrites the whole file and cannot run with other connections
+	// active on it. Checkpointing first collapses the WAL so the rewrite has
+	// nothing outstanding to wait on.
+	if _, err := s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `VACUUM`)
+	return err
+}
+```
+
+Do not paper over it with a retry loop; if it still fails, the cause is a leaked `*sql.Rows` somewhere and that is worth finding.
 
 - [ ] **Step 5: Write the failing CLI test**
 
