@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jverhoeks/deepdep/internal/project"
+
 	git "github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing"
 	"github.com/go-git/go-git/v6/plumbing/object"
@@ -35,6 +37,9 @@ type localSource struct {
 	dir  string
 	ref  string
 	repo string
+	// origin is what the project registry keys on: the absolute path, and the
+	// remote if this tree has one.
+	origin project.Origin
 	// tree is non-nil when reading a historical commit rather than the worktree.
 	tree *object.Tree
 	// commitTime is the committer timestamp of the revision --at resolved to.
@@ -52,15 +57,29 @@ func (s *localSource) CommitTime() (time.Time, bool) {
 
 func openLocal(dir, at string) (Source, error) {
 	repoName := filepath.Base(dir)
-	if abs, err := filepath.Abs(dir); err == nil {
+	abs, err := filepath.Abs(dir)
+	if err == nil {
 		repoName = filepath.Base(abs) // filepath.Base(".") is "." otherwise
+	} else {
+		abs = ""
 	}
-	s := &localSource{dir: dir, ref: "worktree", repo: repoName}
+	s := &localSource{
+		dir: dir, ref: "worktree", repo: repoName,
+		origin: project.Origin{Kind: project.KindLocal, Path: abs},
+	}
 
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
-		// Not a git repo. Still walkable; the run just carries no commit.
+		// Not a git repo. Still walkable; the run just carries no commit — and
+		// no remote, which is why Origin falls back to the path.
 		return s, nil
+	}
+	// The remote is read here rather than by the caller because this is the only
+	// place holding an open repository, and it was already being opened.
+	if rem, err := repo.Remote("origin"); err == nil {
+		if urls := rem.Config().URLs; len(urls) > 0 {
+			s.origin.Remote = urls[0]
+		}
 	}
 	if head, err := repo.Head(); err == nil {
 		s.ref = head.Hash().String()
@@ -100,6 +119,8 @@ func treeAt(repo *git.Repository, at string) (*object.Tree, string, time.Time, e
 
 func (s *localSource) Ref() string  { return s.ref }
 func (s *localSource) Repo() string { return s.repo }
+
+func (s *localSource) Origin() project.Origin { return s.origin }
 
 func (s *localSource) Walk(fn func(File) error) error {
 	return s.WalkIf(func(string) bool { return true }, fn)

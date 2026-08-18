@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+
+	"github.com/jverhoeks/deepdep/internal/project"
 )
 
 // File is one file in the tree, with a repo-relative slash-separated path.
@@ -32,6 +34,12 @@ type Source interface {
 	Ref() string
 	// Repo identifies the origin for the run's root node.
 	Repo() string
+	// Origin identifies the durable thing the run is ABOUT, which is not the
+	// same question as Repo(). Repo() names the root node; Origin() is what the
+	// project registry keys on, and it needs the absolute path and the remote —
+	// two facts openLocal computed and discarded, which is why two directories
+	// named data-platform were one target in the store.
+	Origin() project.Origin
 }
 
 // Token is a forge credential used to clone repositories that are not public.
@@ -87,3 +95,6 @@ func (s *staticSource) WalkIf(want func(string) bool, fn func(File) error) error
 
 func (s *staticSource) Ref() string  { return "static" }
 func (s *staticSource) Repo() string { return "static" }
+
+// An in-memory tree is nobody's repository, so it is not a project either.
+func (s *staticSource) Origin() project.Origin { return project.Origin{} }
